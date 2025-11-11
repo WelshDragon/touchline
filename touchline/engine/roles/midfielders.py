@@ -264,7 +264,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
 
         if target_opp:
             # Sprint towards opponent
-            self.move_to_position(player, target_opp.state.position, speed_attr, dt, sprint=True)
+            self.move_to_position(player, target_opp.state.position, speed_attr, dt, ball, sprint=True)
 
             # Attempt tackle if close
             if player.state.position.distance_to(target_opp.state.position) < 1.5:
@@ -301,7 +301,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         support_pos = self._adjust_support_position(player, support_pos, ball)
 
         # Move to support position
-        self.move_to_position(player, support_pos, speed_attr, dt, sprint=False)
+        self.move_to_position(player, support_pos, speed_attr, dt, ball, sprint=False)
 
     def _support_defense(
         self,
@@ -315,14 +315,14 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         # Get defensive position
         defensive_pos = self.get_defensive_position(player, ball, player.role_position)
 
-    # Midfielders sit slightly higher than defenders
+        # Midfielders sit slightly higher than defenders
         own_goal = self.get_own_goal_position(player)
         adjustment = (self.get_goal_position(player) - own_goal).normalize() * 5
 
         defensive_pos = defensive_pos + adjustment
 
         # Move to defensive position
-        self.move_to_position(player, defensive_pos, tackling_attr, dt, sprint=False)
+        self.move_to_position(player, defensive_pos, tackling_attr, dt, ball, sprint=False)
 
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"

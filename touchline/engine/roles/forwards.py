@@ -273,7 +273,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
         # Adjust run target based on forward type
         run_target = self._adjust_attacking_run(player, run_target, ball, goal_pos)
 
-        self.move_to_position(player, run_target, speed_attr, dt, sprint=sprint)
+        self.move_to_position(player, run_target, speed_attr, dt, ball, sprint=sprint)
 
     def _find_attacking_space(
         self,
@@ -345,7 +345,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
         for opp in opponents:
             if self.has_ball_possession(opp, ball):
                 # Sprint towards opponent
-                self.move_to_position(player, opp.state.position, speed_attr, dt, sprint=True)
+                self.move_to_position(player, opp.state.position, speed_attr, dt, ball, sprint=True)
                 break
 
     def _hold_position(
@@ -367,7 +367,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
             adjustment = (ball.position - hold_position).normalize() * 5
             hold_position = hold_position + adjustment
 
-        self.move_to_position(player, hold_position, positioning_attr, dt, sprint=False)
+        self.move_to_position(player, hold_position, positioning_attr, dt, ball, sprint=False)
 
     def _is_under_pressure(
         self, player: "PlayerMatchState", opponents: List["PlayerMatchState"], radius: float = 4.0

@@ -107,7 +107,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         ball_future_pos = ball.position + ball.velocity * 0.3  # Look 0.3 seconds ahead
 
         # Move to intercept
-        self.move_to_position(player, ball_future_pos, speed_attr, dt, sprint=True)
+        self.move_to_position(player, ball_future_pos, speed_attr, dt, ball, sprint=True)
 
         # If close enough, can catch/punch
         if self.distance_to_ball(player, ball) < 1.5:
@@ -145,7 +145,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
 
     def _collect_ball(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int, dt: float) -> None:
         """Move to collect loose ball."""
-        self.move_to_position(player, ball.position, speed_attr, dt, sprint=True)
+        self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True)
 
         # Collect if close
         if self.distance_to_ball(player, ball) < 1.5:
@@ -186,7 +186,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         target_pos = Vector2D(optimal_x, optimal_y)
 
         # Move to position
-        self.move_to_position(player, target_pos, 50, dt, sprint=False)
+        self.move_to_position(player, target_pos, 50, dt, ball, sprint=False)
 
     def _distribute_ball(
         self,

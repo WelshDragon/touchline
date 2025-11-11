@@ -319,6 +319,7 @@ class RoleBehaviour:
         target: "Vector2D",
         speed_attr: int,
         dt: float,
+        ball: Optional["BallState"] = None,
         sprint: bool = False,
     ) -> None:
         """Move player towards target position."""
@@ -336,8 +337,86 @@ class RoleBehaviour:
         if getattr(player, "player_role", "") != "GK":
             adjusted_target = self._apply_lane_spacing(player, adjusted_target)
 
+        if ball is not None:
+            adjusted_target = self._apply_possession_support(player, adjusted_target, ball)
+
         player.current_target = adjusted_target
         player.state.move_towards(adjusted_target, dt, max_speed)
+
+    def _apply_possession_support(
+        self,
+        player: "PlayerMatchState",
+        target: "Vector2D",
+        ball: "BallState",
+    ) -> "Vector2D":
+        """Push teammates forward when their side is in possession."""
+        if player.state.is_with_ball:
+            return target
+
+        possessor: Optional["PlayerMatchState"] = None
+
+        if ball.last_touched_by is not None and self._current_all_players:
+            possessor = next(
+                (p for p in self._current_all_players if p.player_id == ball.last_touched_by),
+                None,
+            )
+
+        if possessor is None or possessor.team != player.team:
+            return target
+
+        # Goal direction is positive X for home, negative for away.
+        goal_dir = 1.0 if player.is_home_team else -1.0
+        relative_target = target.x * goal_dir
+        relative_ball = ball.position.x * goal_dir
+        relative_possessor = possessor.state.position.x * goal_dir
+
+        push_distance, trailing_buffer, forward_margin = self._support_profile(player)
+        if push_distance <= 0 and forward_margin <= 0:
+            return target
+
+        from touchline.engine.physics import Vector2D
+
+        # Encourage players to close the space to the ball while respecting role-based buffers.
+        gap_to_possessor = max(0.0, relative_possessor - relative_target)
+        desired_relative = relative_target + min(
+            push_distance,
+            gap_to_possessor * 0.8 + push_distance * 0.3,
+        )
+
+        # Clamp relative X within trailing buffer behind the ball and a forward margin ahead of it.
+        max_forward = relative_ball + forward_margin
+        min_forward = relative_ball - trailing_buffer
+        new_relative = max(min(desired_relative, max_forward), min_forward)
+
+        if forward_margin > 0:
+            # Once we're moving into the attacking half, bias towards getting in front of the ball.
+            ahead_factor = 0.4 if relative_ball < 15 else 0.7
+            min_ahead = relative_ball + forward_margin * ahead_factor
+            new_relative = max(new_relative, min_ahead)
+            new_relative = min(new_relative, max_forward)
+
+        if new_relative <= relative_target + 1e-3:
+            return target
+
+        return Vector2D(new_relative * goal_dir, target.y)
+
+    def _support_profile(self, player: "PlayerMatchState") -> tuple[float, float, float]:
+        """Return (push_distance, trailing_buffer, forward_margin) for support."""
+        role = player.player_role
+
+        if role == "GK":
+            return 0.0, 12.0, 0.0
+
+        if role in {"CD", "LD", "RD"}:
+            return 8.0, 14.0, 4.0
+
+        if role in {"CM", "RM", "LM"}:
+            return 14.0, 8.0, 12.0
+
+        if role in {"CF", "LCF", "RCF"}:
+            return 9.0, 5.0, 10.0
+
+        return 7.0, 10.0, 8.0
 
     def _apply_lane_spacing(
         self,
