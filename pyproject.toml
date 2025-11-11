@@ -1,0 +1,35 @@
+[project]
+name = "touchline"
+version = "0.1.0"
+description = "A football management game simulation engine inspired by Football Manager"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.24.0",
+    "pytest>=7.0.0",
+    "dataclasses>=0.6",
+    "pygame>=2.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["touchline"]
+
+[tool.pytest.ini_options]
+addopts = "--ruff touchline"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 119
+
+[tool.ruff.lint]
+select = ["I", "F"]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.0.0",
+    "pytest-ruff>=0.5",
+]

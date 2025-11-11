@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+debug_logs/
+
+# Data
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.db
+*.sqlite
+*.h5
+*.json
+!data/players.json
+
+# Test cache
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.venv/
+venv/
+
+# Docker
+*.pid
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Misc
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# Ignore all in data except players.json
+/data/*
+!/data/players.json
