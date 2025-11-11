@@ -51,6 +51,9 @@ class ForwardBaseBehaviour(RoleBehaviour):
         vision_attr = player_model.attributes.vision
 
         try:
+            if self._move_to_receive_pass(player, ball, speed_attr, dt):
+                return
+
             # If forward has the ball, look to score or pass
             if self.has_ball_possession(player, ball):
                 self._attack_with_ball(

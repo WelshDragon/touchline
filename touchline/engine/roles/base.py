@@ -208,6 +208,51 @@ class RoleBehaviour:
 
         return quality
 
+    def _move_to_receive_pass(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        speed_attr: int,
+        dt: float,
+    ) -> bool:
+        """Guide intended recipient towards the incoming ball to secure the pass."""
+        if ball.last_kick_recipient != player.player_id:
+            return False
+
+        if self.has_ball_possession(player, ball):
+            ball.last_kick_recipient = None
+            return False
+
+        from touchline.engine.physics import Vector2D
+
+        ball_speed = ball.velocity.magnitude()
+
+        # Lead slightly ahead of the ball so the receiver meets it in stride,
+        # otherwise target the current ball position when the pass has slowed.
+        if ball_speed >= 0.3:
+            lead_distance = min(max(ball_speed * 0.35, 1.5), 6.0)
+            intercept = ball.position + ball.velocity.normalize() * lead_distance
+        else:
+            intercept = ball.position
+
+        to_intercept = intercept - player.state.position
+        distance = to_intercept.magnitude()
+
+        if distance < 0.4:
+            # Close enough – let possession logic take over next frame.
+            player.state.velocity = Vector2D(0, 0)
+            return True
+
+        direction = to_intercept.normalize()
+
+        # Approximate maximum controllable speed while preparing to receive.
+        base_speed = 4.5
+        max_speed = base_speed + (speed_attr / 100) * 3.0
+        player.state.velocity = direction * max_speed
+        player.current_target = intercept
+
+        return True
+
     def execute_pass(
         self,
         player: "PlayerMatchState",

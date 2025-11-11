@@ -193,7 +193,55 @@ class RealTimeMatchEngine:
         # Update ball possession - player closest to slow ball gets possession
         ball_speed = self.state.ball.velocity.magnitude()
 
-        if ball_speed < 5.0:  # Increased from 3.0
+        def assign_possession(new_player: PlayerMatchState) -> None:
+            previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
+
+            for p in all_players:
+                p.state.is_with_ball = False
+
+            new_player.state.is_with_ball = True
+            self.state.ball.last_touched_by = new_player.player_id
+            self.state.ball.last_touched_time = self.state.match_time
+            self.state.ball.last_kick_recipient = None
+
+            # Log possession change
+            if previous_possessor != new_player:
+                self.debugger.log_match_event(
+                    self.state.match_time,
+                    "possession",
+                    (
+                        f"Player {new_player.player_id} ({new_player.team.name}, "
+                        f"{new_player.player_role}) gains possession"
+                    ),
+                )
+
+            # Stop ball completely when possessed - AI will handle dribbling
+            self.state.ball.velocity = Vector2D(0, 0)
+            self.state.ball.position = new_player.state.position
+
+        possession_acquired = False
+
+        target_id = self.state.ball.last_kick_recipient
+        if target_id is not None:
+            target_player = self.state.player_states.get(target_id)
+            if target_player:
+                to_target = target_player.state.position - self.state.ball.position
+                distance_to_target = to_target.magnitude()
+
+                if distance_to_target > 0:
+                    catch_radius = max(3.0, min(7.0, 3.0 + ball_speed * 0.2))
+
+                    direction_alignment = 1.0
+                    if ball_speed > 0.1:
+                        to_target_norm = to_target.normalize()
+                        velocity_norm = self.state.ball.velocity.normalize()
+                        direction_alignment = velocity_norm.x * to_target_norm.x + velocity_norm.y * to_target_norm.y
+
+                    if distance_to_target < catch_radius and direction_alignment > -0.1:
+                        assign_possession(target_player)
+                        possession_acquired = True
+
+        if not possession_acquired and ball_speed < 5.0:  # Increased from 3.0
             closest_player = min(all_players, key=lambda p: p.state.position.distance_to(self.state.ball.position))
             closest_distance = closest_player.state.position.distance_to(self.state.ball.position)
 
@@ -204,28 +252,7 @@ class RealTimeMatchEngine:
                 possession_radius = max(possession_radius, 12.0)
 
             if closest_distance < possession_radius:
-                # Player picks up the ball
-                previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
-
-                for p in all_players:
-                    p.state.is_with_ball = False
-                closest_player.state.is_with_ball = True
-                self.state.ball.last_touched_by = closest_player.player_id
-                self.state.ball.last_touched_time = self.state.match_time
-                self.state.ball.last_kick_recipient = None
-
-                # Log possession change
-                if previous_possessor != closest_player:
-                    self.debugger.log_match_event(
-                        self.state.match_time,
-                        "possession",
-                        f"Player {closest_player.player_id} ({closest_player.team.name}, "
-                        f"{closest_player.player_role}) gains possession",
-                    )
-
-                # Stop ball completely when possessed - AI will handle dribbling
-                self.state.ball.velocity = Vector2D(0, 0)
-                self.state.ball.position = closest_player.state.position
+                assign_possession(closest_player)
             else:
                 # No one close enough to possess
                 for p in all_players:

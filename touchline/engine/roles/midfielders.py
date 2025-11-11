@@ -52,6 +52,9 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         opponents = self.get_opponents(player, all_players)
 
         try:
+            if self._move_to_receive_pass(player, ball, speed_attr, dt):
+                return
+
             # If midfielder has the ball, decide next action
             if self.has_ball_possession(player, ball):
                 self._play_with_ball(
