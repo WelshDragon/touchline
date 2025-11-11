@@ -185,17 +185,34 @@ class RealTimeMatchEngine:
         all_players = list(self.state.player_states.values())
 
         self.state.match_time += dt
+        # Keep per-player match clock aligned with global clock so role logic
+        # that depends on time (e.g. kick cooldowns) sees real match seconds.
+        for player_state in all_players:
+            player_state.match_time = self.state.match_time
 
         # Update ball possession - player closest to slow ball gets possession
-        if self.state.ball.velocity.magnitude() < 5.0:  # Increased from 3.0
+        ball_speed = self.state.ball.velocity.magnitude()
+
+        if ball_speed < 5.0:  # Increased from 3.0
             closest_player = min(all_players, key=lambda p: p.state.position.distance_to(self.state.ball.position))
-            if closest_player.state.position.distance_to(self.state.ball.position) < 3.0:  # Increased from 2.0
+            closest_distance = closest_player.state.position.distance_to(self.state.ball.position)
+
+            possession_radius = 3.0
+            if ball_speed < 1.5:
+                possession_radius = max(possession_radius, 6.0)
+            if ball_speed < 0.3:
+                possession_radius = max(possession_radius, 12.0)
+
+            if closest_distance < possession_radius:
                 # Player picks up the ball
                 previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
 
                 for p in all_players:
                     p.state.is_with_ball = False
                 closest_player.state.is_with_ball = True
+                self.state.ball.last_touched_by = closest_player.player_id
+                self.state.ball.last_touched_time = self.state.match_time
+                self.state.ball.last_kick_recipient = None
 
                 # Log possession change
                 if previous_possessor != closest_player:

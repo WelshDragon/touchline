@@ -109,6 +109,8 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
 
+        opponents = self.get_opponents(player, all_players)
+
         # Look for forward pass
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)
 
@@ -121,30 +123,53 @@ class MidfielderBaseBehaviour(RoleBehaviour):
                 self.execute_pass(player, target, ball, passing_attr, current_time)
                 return
 
+            # If under pressure, take the safe pass even if it's not progressive
+            if self._is_under_pressure(player, opponents) and target:
+                self.execute_pass(player, target, ball, passing_attr, current_time)
+                return
+
         # Dribble forward if no good pass
-        self._dribble_forward(player, ball, dribbling_attr, all_players)
+        self._dribble_forward(
+            player,
+            ball,
+            dribbling_attr,
+            passing_attr,
+            vision_attr,
+            all_players,
+            opponents,
+            current_time,
+        )
 
     def _dribble_forward(
         self,
         player: "PlayerMatchState",
         ball: "BallState",
         dribbling_attr: int,
+        passing_attr: int,
+        vision_attr: int,
         all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        current_time: float,
     ) -> None:
         """Dribble the ball forward."""
+        from touchline.engine.physics import Vector2D
+
         goal_pos = self.get_goal_position(player)
-        opponents = self.get_opponents(player, all_players)
 
         # Check for nearby pressure
-        under_pressure = any(
-            opp.state.position.distance_to(player.state.position) < 4 for opp in opponents
-        )
+        under_pressure = self._is_under_pressure(player, opponents)
 
         if under_pressure and dribbling_attr < 60:
-            # Not confident dribbling under pressure, hold position
-            # Keep ball with player and stop it
-            ball.position = player.state.position
-            ball.velocity = Vector2D(0, 0)
+            relief_target = self._find_relief_pass(player, ball, all_players, opponents, vision_attr)
+
+            if relief_target:
+                self.execute_pass(player, relief_target, ball, passing_attr, current_time)
+            else:
+                # Shield the ball but add small backpedal to avoid freezing in place
+                retreat_dir = (player.state.position - goal_pos).normalize()
+                player.state.velocity = retreat_dir * 2.0
+                ball.position = player.state.position
+                ball.velocity = Vector2D(0, 0)
         else:
             # Dribble towards goal or find space
             direction = (goal_pos - player.state.position).normalize()
@@ -158,6 +183,64 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             # Keep ball at player's feet (stick to player position)
             ball.position = player.state.position
             ball.velocity = Vector2D(0, 0)
+
+    def _is_under_pressure(
+        self, player: "PlayerMatchState", opponents: List["PlayerMatchState"], radius: float = 4.0
+    ) -> bool:
+        """Detect if any opponent is within pressing distance."""
+        return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
+
+    def _find_relief_pass(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        vision_attr: int,
+    ) -> "PlayerMatchState" | None:
+        """Find a nearby safe teammate to recycle possession under pressure."""
+        teammates = self.get_teammates(player, all_players)
+
+        if not teammates:
+            return None
+
+        best_target = None
+        best_score = 0.0
+        own_goal = self.get_own_goal_position(player)
+
+        for teammate in teammates:
+            distance = player.state.position.distance_to(teammate.state.position)
+
+            if distance < 3 or distance > 28:
+                continue
+
+            lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
+
+            # Prefer teammates with space around them
+            nearest_opponent = min(
+                (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
+                default=10.0,
+            )
+
+            space_score = min(nearest_opponent / 6.0, 1.0)
+
+            # Allow backwards passes, but give a small bonus if the pass keeps momentum
+            progress = own_goal.distance_to(teammate.state.position) < own_goal.distance_to(player.state.position)
+            momentum_score = 0.2 if progress else 0.0
+
+            distance_score = 1 - (distance / 28)
+            vision_factor = 0.7 + (vision_attr / 100) * 0.3
+
+            total_score = (
+                (lane_quality * 0.4 + space_score * 0.3 + distance_score * 0.1 + momentum_score)
+                * vision_factor
+            )
+
+            if total_score > best_score:
+                best_score = total_score
+                best_target = teammate
+
+        return best_target if best_score > 0.25 else None
 
     def _press_opponent(
         self,

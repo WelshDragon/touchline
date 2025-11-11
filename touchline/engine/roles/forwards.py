@@ -107,53 +107,93 @@ class ForwardBaseBehaviour(RoleBehaviour):
         goal_pos = self.get_goal_position(player)
         distance_to_goal = player.state.position.distance_to(goal_pos)
 
+        opponents = self.get_opponents(player, all_players)
+
         # Prioritize shooting if in good position
         if distance_to_goal < 25 and self.should_shoot(player, ball, shooting_attr):
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
 
-        # Look for better positioned teammate
-        teammates = self.get_teammates(player, all_players)
-        better_positioned = None
-        min_distance = distance_to_goal
+        # Look for best pass option
+        best_target = self.find_best_pass_target(
+            player,
+            ball,
+            all_players,
+            vision_attr,
+            passing_attr,
+        )
 
-        for teammate in teammates:
-            teammate_distance = teammate.state.position.distance_to(goal_pos)
-            if teammate_distance < min_distance and teammate_distance < 20:
-                # Check if pass lane is clear
-                opponents = self.get_opponents(player, all_players)
-                lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
-                if lane_quality > 0.5:
-                    better_positioned = teammate
-                    min_distance = teammate_distance
+        if best_target:
+            teammate_distance = best_target.state.position.distance_to(goal_pos)
+            progressive = teammate_distance < distance_to_goal
 
-        if better_positioned and vision_attr > 60:
-            # Pass to better positioned teammate
-            self.execute_pass(player, better_positioned, ball, passing_attr, current_time)
+            if progressive or vision_attr > 70:
+                self.execute_pass(player, best_target, ball, passing_attr, current_time)
+                return
+
+            if self._is_under_pressure(player, opponents) and vision_attr > 50:
+                self.execute_pass(player, best_target, ball, passing_attr, current_time)
+                return
+
+        # Try to recycle possession if being swarmed
+        relief_target = None
+        if self._is_under_pressure(player, opponents):
+            relief_target = self._find_relief_pass(
+                player,
+                ball,
+                all_players,
+                opponents,
+                vision_attr,
+            )
+
+        if relief_target:
+            self.execute_pass(player, relief_target, ball, passing_attr, current_time)
             return
 
         # Dribble towards goal
-        self._dribble_at_goal(player, ball, dribbling_attr, all_players)
+        self._dribble_at_goal(
+            player,
+            ball,
+            dribbling_attr,
+            passing_attr,
+            vision_attr,
+            all_players,
+            opponents,
+            current_time,
+        )
 
     def _dribble_at_goal(
         self,
         player: "PlayerMatchState",
         ball: "BallState",
         dribbling_attr: int,
+        passing_attr: int,
+        vision_attr: int,
         all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        current_time: float,
     ) -> None:
         """Dribble towards goal."""
         from touchline.engine.physics import Vector2D
 
         goal_pos = self.get_goal_position(player)
-        opponents = self.get_opponents(player, all_players)
 
         # Check for immediate pressure
-        immediate_pressure = any(
-            opp.state.position.distance_to(player.state.position) < 2.5 for opp in opponents
-        )
+        immediate_pressure = self._is_under_pressure(player, opponents, radius=3.0)
 
         if immediate_pressure and dribbling_attr < 70:
+            relief_target = self._find_relief_pass(
+                player,
+                ball,
+                all_players,
+                opponents,
+                vision_attr,
+            )
+
+            if relief_target:
+                self.execute_pass(player, relief_target, ball, passing_attr, current_time)
+                return
+
             # Try to shield ball or find space
             space_direction = self._find_escape_direction(player, opponents)
             # Update player velocity to move in escape direction
@@ -325,6 +365,65 @@ class ForwardBaseBehaviour(RoleBehaviour):
             hold_position = hold_position + adjustment
 
         self.move_to_position(player, hold_position, positioning_attr, dt, sprint=False)
+
+    def _is_under_pressure(
+        self, player: "PlayerMatchState", opponents: List["PlayerMatchState"], radius: float = 4.0
+    ) -> bool:
+        """Detect if any opponent is within pressing distance."""
+        return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
+
+    def _find_relief_pass(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        vision_attr: int,
+    ) -> "PlayerMatchState" | None:
+        """Find a nearby teammate with space to recycle possession."""
+        teammates = self.get_teammates(player, all_players)
+
+        if not teammates:
+            return None
+
+        best_target = None
+        best_score = 0.0
+        goal_pos = self.get_goal_position(player)
+
+        for teammate in teammates:
+            distance = player.state.position.distance_to(teammate.state.position)
+
+            if distance < 3 or distance > 25:
+                continue
+
+            lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
+
+            # Prefer teammates with time and space
+            nearest_opponent = min(
+                (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
+                default=10.0,
+            )
+
+            space_score = min(nearest_opponent / 5.0, 1.0)
+
+            # Encourage diagonal or lateral passes when pressured
+            angle_progress = goal_pos.distance_to(teammate.state.position) < goal_pos.distance_to(
+                player.state.position
+            )
+            momentum_score = 0.2 if angle_progress else 0.05
+
+            distance_score = 1 - (distance / 25)
+            vision_factor = 0.6 + (vision_attr / 100) * 0.4
+
+            total_score = (
+                lane_quality * 0.45 + space_score * 0.25 + distance_score * 0.1 + momentum_score
+            ) * vision_factor
+
+            if total_score > best_score:
+                best_score = total_score
+                best_target = teammate
+
+        return best_target if best_score > 0.25 else None
 
 
 class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
