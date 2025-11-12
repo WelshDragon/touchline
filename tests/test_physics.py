@@ -178,3 +178,17 @@ class TestPitch:
         clamped_y = min(max(pos.y, 0.0), pitch.height)
         assert clamped_x == 60.0
         assert clamped_y == 40.0
+
+    def test_is_goal_left_side_awards_away(self) -> None:
+        pitch = Pitch()
+        position = Vector2D(-(pitch.width / 2) - 0.5, 0.0)
+        is_goal, team = pitch.is_goal(position)
+        assert is_goal is True
+        assert team == "away"
+
+    def test_is_goal_right_side_awards_home(self) -> None:
+        pitch = Pitch()
+        position = Vector2D((pitch.width / 2) + 0.5, 0.0)
+        is_goal, team = pitch.is_goal(position)
+        assert is_goal is True
+        assert team == "home"

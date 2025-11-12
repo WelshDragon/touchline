@@ -202,7 +202,8 @@ class Pitch:
         """Check if ball position results in a goal."""
         if abs(position.x) > self.width / 2:  # Ball crossed goal line
             if abs(position.y) <= self.goal_width / 2:  # Within goal posts
-                return True, "home" if position.x < 0 else "away"
+                # Negative X is the home team's own goal, so the away team scores.
+                return True, "away" if position.x < 0 else "home"
         return False, ""
 
     def constrain_to_bounds(self, position: Vector2D) -> Vector2D:
