@@ -54,6 +54,9 @@ class ForwardBaseBehaviour(RoleBehaviour):
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
                 return
 
+            if self._pursue_loose_ball(player, ball, all_players, speed_attr):
+                return
+
             # If forward has the ball, look to score or pass
             if self.has_ball_possession(player, ball):
                 self._attack_with_ball(

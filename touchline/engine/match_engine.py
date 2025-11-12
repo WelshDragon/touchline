@@ -229,7 +229,7 @@ class RealTimeMatchEngine:
                 distance_to_target = to_target.magnitude()
 
                 if distance_to_target > 0:
-                    catch_radius = max(3.0, min(7.0, 3.0 + ball_speed * 0.2))
+                    catch_radius = max(1.1, min(1.3, 1.1 + ball_speed * 0.08))
 
                     direction_alignment = 1.0
                     if ball_speed > 0.1:
@@ -245,11 +245,11 @@ class RealTimeMatchEngine:
             closest_player = min(all_players, key=lambda p: p.state.position.distance_to(self.state.ball.position))
             closest_distance = closest_player.state.position.distance_to(self.state.ball.position)
 
-            possession_radius = 3.0
+            possession_radius = 0.5
             if ball_speed < 1.5:
-                possession_radius = max(possession_radius, 6.0)
+                possession_radius = max(possession_radius, 0.8)
             if ball_speed < 0.3:
-                possession_radius = max(possession_radius, 12.0)
+                possession_radius = max(possession_radius, 1)
 
             if closest_distance < possession_radius:
                 assign_possession(closest_player)

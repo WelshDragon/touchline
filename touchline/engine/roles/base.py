@@ -208,6 +208,46 @@ class RoleBehaviour:
 
         return quality
 
+    def _project_ball_intercept(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        player_speed: float,
+        *,
+        max_time: float = 3.0,
+        time_step: float = 0.2,
+        reaction_buffer: float = 0.15,
+        fallback_fraction: float = 0.25,
+        fallback_cap: float = 4.5,
+    ) -> "Vector2D":
+        """Predict where the player can meet the ball along its path."""
+
+        ball_speed = ball.velocity.magnitude()
+        intercept = ball.position
+
+        if ball_speed >= 0.2:
+            best_candidate: Optional["Vector2D"] = None
+
+            steps = int(max_time / time_step)
+
+            for i in range(1, steps + 1):
+                t = i * time_step
+                future_pos = ball.position + ball.velocity * t
+                distance = player.state.position.distance_to(future_pos)
+
+                if distance <= player_speed * (t + reaction_buffer):
+                    best_candidate = future_pos
+                    break
+
+            if best_candidate is not None:
+                intercept = best_candidate
+            elif ball_speed > 0:
+                direction = ball.velocity.normalize()
+                travel = min(ball_speed * fallback_fraction, fallback_cap)
+                intercept = ball.position + direction * travel
+
+        return intercept
+
     def _move_to_receive_pass(
         self,
         player: "PlayerMatchState",
@@ -223,17 +263,13 @@ class RoleBehaviour:
             ball.last_kick_recipient = None
             return False
 
+        # Predict an intercept point along the current ball trajectory so the
+        # receiver meets the pass in stride instead of waiting for it to slow
+        # down at their feet.
         from touchline.engine.physics import Vector2D
 
-        ball_speed = ball.velocity.magnitude()
-
-        # Lead slightly ahead of the ball so the receiver meets it in stride,
-        # otherwise target the current ball position when the pass has slowed.
-        if ball_speed >= 0.3:
-            lead_distance = min(max(ball_speed * 0.35, 1.5), 6.0)
-            intercept = ball.position + ball.velocity.normalize() * lead_distance
-        else:
-            intercept = ball.position
+        player_speed = 4.3 + (speed_attr / 100) * 3.2  # Approx. controllable sprint speed
+        intercept = self._project_ball_intercept(player, ball, player_speed)
 
         to_intercept = intercept - player.state.position
         distance = to_intercept.magnitude()
@@ -253,6 +289,55 @@ class RoleBehaviour:
 
         return True
 
+    def _pursue_loose_ball(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        speed_attr: int,
+    ) -> bool:
+        """Send the nearest teammate after an unattached ball."""
+        if ball.last_kick_recipient is not None:
+            return False
+
+        if any(p.state.is_with_ball for p in all_players):
+            return False
+
+        teammates = self.get_teammates(player, all_players) + [player]
+        closest = min(teammates, key=lambda p: p.state.position.distance_to(ball.position))
+
+        if closest is not player:
+            return False
+
+        from touchline.engine.physics import Vector2D
+
+        player_speed = 4.6 + (speed_attr / 100) * 3.4
+        intercept = self._project_ball_intercept(
+            player,
+            ball,
+            player_speed,
+            max_time=3.5,
+            reaction_buffer=0.2,
+            fallback_fraction=0.3,
+            fallback_cap=6.0,
+        )
+
+        to_intercept = intercept - player.state.position
+        distance = to_intercept.magnitude()
+
+        if distance < 0.35:
+            player.state.velocity = Vector2D(0, 0)
+            player.current_target = intercept
+            return True
+
+        direction = to_intercept.normalize()
+        base_speed = 5.0
+        max_speed = base_speed + (speed_attr / 100) * 3.2
+        player.state.velocity = direction * max_speed
+        player.current_target = intercept
+
+        return True
+
     def execute_pass(
         self,
         player: "PlayerMatchState",
@@ -264,10 +349,14 @@ class RoleBehaviour:
         """Execute a pass to a teammate."""
         distance = player.state.position.distance_to(target.state.position)
 
-        # Calculate pass power based on distance and ability
-        base_power = distance * 1.5
+        # Calculate pass speed using a capped easing curve so long passes travel fast
+        # enough without turning into shots, while short passes remain controlled.
         accuracy_factor = passing_attr / 100
-        power = base_power * (0.8 + accuracy_factor * 0.4)
+        min_speed = 2.8 + 2.5 * accuracy_factor  # 2.8-5.3 m/s floor for give-and-goes
+        max_speed = 13.0 + 5.5 * accuracy_factor  # 13-18.5 m/s ceiling for driven passes
+        distance_ratio = min(distance / 30.0, 1.0)
+        eased_ratio = distance_ratio ** 0.5  # Softer ramp so short passes stay tame
+        power = min_speed + (max_speed - min_speed) * eased_ratio
 
         # Add slight inaccuracy based on passing attribute
         inaccuracy = (1 - accuracy_factor) * 2

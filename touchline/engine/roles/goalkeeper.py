@@ -56,6 +56,9 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
                 return
 
+            if self._pursue_loose_ball(player, ball, all_players, speed_attr):
+                return
+
             # Check if goalkeeper has possession
             if self.has_ball_possession(player, ball):
                 self._distribute_ball(player, ball, all_players, player_model, player.match_time)

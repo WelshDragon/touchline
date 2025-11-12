@@ -56,6 +56,9 @@ class DefenderBaseBehaviour(RoleBehaviour):
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
                 return
 
+            if self._pursue_loose_ball(player, ball, all_players, speed_attr):
+                return
+
             # If defender has the ball, look to pass
             if self.has_ball_possession(player, ball):
                 self._play_out_from_back(player, ball, all_players, passing_attr, vision_attr, player.match_time)
