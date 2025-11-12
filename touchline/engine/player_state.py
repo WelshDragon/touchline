@@ -79,6 +79,9 @@ class PlayerMatchState:
         self.player_role = player_role
         self.role_behaviour = create_role_behaviour(self.player_role)
         self.player_role = self.role_behaviour.role
+        self.last_save_log_time = -1000.0
+        self.pending_save_target: Optional[Vector2D] = None
+        self.pending_save_eta: float = float("inf")
 
     def update_ai(self, ball: BallState, dt: float, all_players: List["PlayerMatchState"]) -> None:
         """Update AI behaviour for the player."""

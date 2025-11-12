@@ -14,12 +14,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from .base import RoleBehaviour
 
 if TYPE_CHECKING:
-    from touchline.engine.physics import BallState
+    from touchline.engine.physics import BallState, Vector2D
     from touchline.engine.player_state import PlayerMatchState
     from touchline.models.player import Player
 
@@ -66,7 +66,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
 
             # Check if ball is in penalty area and needs saving
             if self._is_ball_dangerous(player, ball):
-                self._attempt_save(player, ball, speed_attr, positioning_attr, dt)
+                self._attempt_save(player, ball, speed_attr, dt)
                 return
 
             # Check if should come out to collect ball (sweeper keeper)
@@ -79,46 +79,136 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         finally:
             self._current_all_players = None
 
+    def _compute_save_window(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+    ) -> Optional[Tuple["Vector2D", float]]:
+        ball_speed = ball.velocity.magnitude()
+
+        if ball_speed < 3.0:
+            return None
+
+        goal_pos = self.get_own_goal_position(player)
+        ball_direction = ball.velocity.normalize()
+        to_goal = goal_pos - ball.position
+
+        if ball_direction.x * to_goal.x + ball_direction.y * to_goal.y <= 0:
+            return None
+
+        goal_sign = -1 if player.is_home_team else 1
+        forward_speed = ball.velocity.x * goal_sign
+
+        if forward_speed <= 0.3:
+            return None
+
+        distance_to_plane = (player.state.position.x - ball.position.x) * goal_sign
+
+        if distance_to_plane < -0.3:
+            return None
+
+        time_to_plane = distance_to_plane / forward_speed
+
+        if time_to_plane < 0 or time_to_plane > 1.05:
+            return None
+
+        intercept_pos = ball.position + ball.velocity * time_to_plane
+        goal_half_width = 7.32 / 2
+
+        if abs(intercept_pos.y - goal_pos.y) > goal_half_width + 1.4:
+            return None
+
+        if abs(intercept_pos.x - goal_pos.x) > self.box_depth + 1.5:
+            return None
+
+        return intercept_pos, time_to_plane
+
     def _is_ball_dangerous(self, player: "PlayerMatchState", ball: "BallState") -> bool:
         """Check if ball poses immediate threat (shot on goal)."""
-        goal_pos = self.get_own_goal_position(player)
+        save_window = self._compute_save_window(player, ball)
 
-        # Ball heading towards goal
-        if ball.velocity.magnitude() > 3:
-            # Project ball trajectory
-            ball_to_goal = goal_pos - ball.position
-            ball_direction = ball.velocity.normalize()
+        if not save_window:
+            player.pending_save_target = None
+            player.pending_save_eta = float("inf")
+            return False
 
-            dot_product = ball_to_goal.x * ball_direction.x + ball_to_goal.y * ball_direction.y
-
-            # Ball moving towards goal and close
-            if dot_product > 0 and ball.position.distance_to(goal_pos) < 25:
-                return True
-
-        return False
+        player.pending_save_target, player.pending_save_eta = save_window
+        return True
 
     def _attempt_save(
         self,
         player: "PlayerMatchState",
         ball: "BallState",
         speed_attr: int,
-        positioning_attr: int,
         dt: float,
     ) -> None:
         """Attempt to save/intercept the ball."""
-        # Calculate where ball will be
-        ball_future_pos = ball.position + ball.velocity * 0.3  # Look 0.3 seconds ahead
+        current_time = player.match_time
+        ball_speed = ball.velocity.magnitude()
 
-        # Move to intercept
-        self.move_to_position(player, ball_future_pos, speed_attr, dt, ball, sprint=True)
+        save_window = self._compute_save_window(player, ball)
+
+        if save_window:
+            intercept_target, eta = save_window
+            player.pending_save_target, player.pending_save_eta = save_window
+        else:
+            intercept_target = player.pending_save_target or (ball.position + ball.velocity * 0.2)
+            eta = max(0.0, player.pending_save_eta - dt) if player.pending_save_eta != float("inf") else 0.2
+            player.pending_save_eta = eta
+
+        # Estimate whether the keeper can reach the intercept point in time.
+        base_speed = 6.0 * (0.7 + (speed_attr / 100) * 0.6)
+        max_speed = base_speed * 1.4  # sprinting effort for shot stopping
+        travel_distance = player.state.position.distance_to(intercept_target)
+        time_available = max(eta, dt)
+        reachable_distance = max_speed * (time_available + 0.05)  # tiny reaction buffer
+        can_reach_window = travel_distance <= reachable_distance + 0.35
+
+        self.move_to_position(player, intercept_target, speed_attr, dt, ball, sprint=True)
 
         # If close enough, can catch/punch
-        if self.distance_to_ball(player, ball) < 1.5:
+        distance = self.distance_to_ball(player, ball)
+        success = distance < 1.5 or (can_reach_window and eta <= 0.25)
+
+        log_window = eta <= 0.2 or success
+
+        if player.debugger and log_window and (
+            success or current_time - getattr(player, "last_save_log_time", -1000.0) > 0.25
+        ):
+            outcome = "success" if success else "failed"
+            if success:
+                reason = "secured"
+            elif not can_reach_window:
+                reason = "unreachable_window"
+            else:
+                reason = "distance_too_large"
+            detail = (
+                f"GK {player.player_id} save attempt {outcome}: distance={distance:.2f}m "
+                f"ball_speed={ball_speed:.2f}m/s"
+            )
+
+            if not success:
+                detail += f" threshold=1.50m eta={eta:.2f}s"
+
+            player.debugger.log_match_event(current_time, "save_attempt", detail + f" reason={reason}")
+            player.last_save_log_time = current_time
+
+        if success:
             # Stop the ball (save!)
             from touchline.engine.physics import Vector2D
 
+            if can_reach_window:
+                player.state.position = intercept_target
+            player.state.velocity = Vector2D(0, 0)
             ball.velocity = Vector2D(0, 0)
+            if can_reach_window:
+                ball.position = intercept_target
             player.state.is_with_ball = True
+            ball.last_touched_by = player.player_id
+            ball.last_touched_time = current_time
+            ball.last_kick_recipient = None
+            player.pending_save_target = None
+            player.pending_save_eta = float("inf")
 
     def _should_collect_ball(
         self, player: "PlayerMatchState", ball: "BallState", decisions_attr: int, all_players: List["PlayerMatchState"]
@@ -169,14 +259,18 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
 
         goal_pos = self.get_own_goal_position(player)
 
-        # Position between ball and goal center
-        ball_to_goal = (goal_pos - ball.position).normalize()
+        # Position between ball and goal center while staying in front of the goal line
+        goal_to_ball = (ball.position - goal_pos).normalize()
 
         # Distance from goal line (2-4m depending on positioning attribute)
         goal_distance = 2 + (positioning_attr / 100) * 2
 
-        # Calculate optimal position
-        optimal_x = goal_pos.x + ball_to_goal.x * goal_distance
+        # Calculate optimal position and clamp to the field side of the goal line
+        field_direction = 1.0 if player.is_home_team else -1.0
+        optimal_x = goal_pos.x + goal_to_ball.x * goal_distance
+        min_offset = 0.8
+        if (optimal_x - goal_pos.x) * field_direction < min_offset:
+            optimal_x = goal_pos.x + field_direction * min_offset
 
         # Y position: bisect angle to goal posts
         angle_factor = (ball.position.y - goal_pos.y) * 0.3  # Move across goal
