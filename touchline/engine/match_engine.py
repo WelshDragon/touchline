@@ -39,12 +39,14 @@ class MatchState:
     match_time: float = 0.0  # Time in seconds
     home_score: int = 0
     away_score: int = 0
+    current_half: int = 1
+    halftime_triggered: bool = False
+    starting_kickoff_side: str = "home"
+    current_kickoff_side: str = "home"
 
     def __post_init__(self) -> None:
         self._initialize_player_positions()
-        # Add initial ball movement
-        initial_vx, initial_vy = ENGINE_CONFIG.simulation.initial_ball_velocity
-        self.ball.velocity = Vector2D(initial_vx, initial_vy)  # Start with some motion
+        self.current_kickoff_side = self.starting_kickoff_side
 
     def _initialize_player_positions(self) -> None:
         """Set up initial player positions based on formations."""
@@ -165,6 +167,7 @@ class RealTimeMatchEngine:
         for ps in self.state.player_states.values():
             ps.debugger = self.debugger
         self.referee = Referee(self.state.pitch, self.debugger)
+        self._prepare_kickoff(self.state.current_kickoff_side, reset_players=False, log_reason="First half kickoff")
 
     def start_match(self) -> None:
         """Start the match simulation."""
@@ -182,6 +185,11 @@ class RealTimeMatchEngine:
 
     def _update(self, dt: float) -> None:
         """Update match state for the given time step."""
+        half_time_mark = ENGINE_CONFIG.simulation.match_duration / 2
+        if not self.state.halftime_triggered and self.state.match_time >= half_time_mark:
+            self._start_second_half(half_time_mark)
+            return
+
         # Update ball physics
         self.state.ball.update(dt)
 
@@ -343,15 +351,135 @@ class RealTimeMatchEngine:
             self.state.match_time, "goal", f"GOAL! Score: {self.state.home_score}-{self.state.away_score}"
         )
 
-        # Reset positions
-        self.state._initialize_player_positions()
-        self.state.ball = BallState(Vector2D(0, 0), Vector2D(0, 0))
+        # Restart with the conceding team taking the kickoff.
+        next_kickoff_side = "away" if scoring_team == "home" else "home"
+        self._prepare_kickoff(next_kickoff_side, reset_players=True, log_reason="Kickoff after goal")
 
     def _handle_out_of_bounds(self) -> None:
         """Handle ball going out of bounds."""
         # Simple implementation: just bring ball back in bounds
         self.state.ball.position = self.state.pitch.constrain_to_bounds(self.state.ball.position)
         self.state.ball.velocity = Vector2D(0, 0)
+
+    def _start_second_half(self, half_time_mark: float) -> None:
+        """Trigger the second-half kickoff sequence."""
+        self.state.halftime_triggered = True
+        self.state.current_half = 2
+        self.state.match_time = half_time_mark
+        second_half_side = "away" if self.state.starting_kickoff_side == "home" else "home"
+        self._prepare_kickoff(second_half_side, reset_players=True, log_reason="Second half kickoff")
+
+    def _prepare_kickoff(self, kicking_side: str, *, reset_players: bool, log_reason: str) -> None:
+        """Center the ball and assign possession for the next kickoff."""
+        if reset_players:
+            self._reset_player_states()
+        else:
+            for ps in self.state.player_states.values():
+                ps.state.is_with_ball = False
+                ps.state.velocity = Vector2D(0, 0)
+
+        self.state.current_kickoff_side = kicking_side
+        self._reset_ball_state()
+
+        team_players = self._get_team_players(kicking_side)
+        kicker = self._select_kickoff_player(team_players)
+
+        support_player = None
+        if kicker:
+            kickoff_position = Vector2D(0, 0)
+            kicker.state.position = kickoff_position
+            kicker.state.velocity = Vector2D(0, 0)
+            kicker.state.is_with_ball = True
+            kicker.current_target = None
+            self.state.ball.position = kickoff_position
+            self.state.ball.last_touched_by = kicker.player_id
+            self.state.ball.last_touched_time = self.state.match_time
+
+            support_player = self._select_support_player(team_players, kicker)
+
+            if support_player:
+                direction = 1 if support_player.is_home_team else -1
+                support_position = Vector2D(direction * 1.0, 0)
+                support_player.state.position = support_position
+                support_player.state.velocity = Vector2D(0, 0)
+                support_player.state.is_with_ball = False
+                support_player.current_target = None
+                self.state.ball.last_kick_recipient = support_player.player_id
+            else:
+                self.state.ball.last_kick_recipient = None
+        else:
+            self.state.ball.position = Vector2D(0, 0)
+            self.state.ball.last_touched_by = None
+            self.state.ball.last_touched_time = self.state.match_time
+            self.state.ball.last_kick_recipient = None
+
+        self.debugger.log_match_event(
+            self.state.match_time,
+            "kickoff",
+            f"{log_reason} - {kicking_side} team to start",
+        )
+
+    def _reset_player_states(self) -> None:
+        """Recreate player state objects for a fresh restart."""
+        self.state.player_states.clear()
+        self.state._initialize_player_positions()
+        for ps in self.state.player_states.values():
+            ps.debugger = self.debugger
+            ps.match_time = self.state.match_time
+            ps.state.is_with_ball = False
+            ps.state.velocity = Vector2D(0, 0)
+
+    def _reset_ball_state(self) -> None:
+        """Return the ball to the center spot without residual motion."""
+        self.state.ball.debugger = self.debugger
+        self.state.ball.velocity = Vector2D(0, 0)
+        self.state.ball.position = Vector2D(0, 0)
+        self.state.ball.last_touched_by = None
+        self.state.ball.last_touched_time = self.state.match_time
+        self.state.ball.last_kick_recipient = None
+
+    def _get_team_players(self, side: str) -> List[PlayerMatchState]:
+        """Return players belonging to the requested side."""
+        return [
+            ps
+            for ps in self.state.player_states.values()
+            if (ps.is_home_team and side == "home") or (not ps.is_home_team and side == "away")
+        ]
+
+    def _select_kickoff_player(self, candidates: List[PlayerMatchState]) -> Optional[PlayerMatchState]:
+        """Pick the player who will take the kickoff for the given side."""
+        if not candidates:
+            return None
+
+        role_priority = (
+            "CF",
+            "ST",
+            "RCF",
+            "LCF",
+            "CAM",
+            "AM",
+            "CM",
+            "RM",
+            "LM",
+        )
+
+        for role in role_priority:
+            for player in candidates:
+                if player.player_role.upper() == role:
+                    return player
+
+        # Fall back to the player closest to the centre spot.
+        return min(candidates, key=lambda p: abs(p.state.position.x) + abs(p.state.position.y))
+
+    def _select_support_player(
+        self, candidates: List[PlayerMatchState], kicker: PlayerMatchState
+    ) -> Optional[PlayerMatchState]:
+        """Choose a second player to receive the kickoff tap."""
+        others = [p for p in candidates if p.player_id != kicker.player_id]
+        if not others:
+            return None
+
+        return min(others, key=lambda p: abs(p.state.position.x) + abs(p.state.position.y))
 
     def stop_match(self) -> None:
         """Stop the match simulation."""
