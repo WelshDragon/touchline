@@ -146,10 +146,10 @@ class ReceivePassConfig:
 class LooseBallConfig:
     player_speed_base: float = 4.6
     player_speed_attr_scale: float = 3.4
-    intercept_max_time: float = 3.5
-    intercept_reaction_buffer: float = 0.2
-    intercept_fallback_fraction: float = 0.3
-    intercept_fallback_cap: float = 6.0
+    intercept_max_time: float = 3.2
+    intercept_reaction_buffer: float = 0.18
+    intercept_fallback_fraction: float = 0.18
+    intercept_fallback_cap: float = 4.5
     stop_distance: float = 0.35
     move_base_speed: float = 5.0
     move_attr_scale: float = 3.2

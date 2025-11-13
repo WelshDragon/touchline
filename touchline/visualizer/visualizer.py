@@ -38,7 +38,7 @@ def _world_to_screen(
 def start_visualizer(
     engine: RealTimeMatchEngine,
     screen_size: Tuple[int, int] = (1050, 680),
-    fps: int = 60,
+    fps: int = 30,
     # start_callback may return a Thread if it starts the engine so the
     # visualizer can keep a reference and join it on shutdown.
     start_callback: Optional[Callable[[], Optional[threading.Thread]]] = None,
@@ -55,7 +55,7 @@ def start_visualizer(
 
     pygame.init()
     screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
-    pygame.display.toggle_fullscreen()
+    # pygame.display.toggle_fullscreen()
     pygame.display.set_caption("Football Simulator")
     clock = pygame.time.Clock()
 
@@ -306,24 +306,24 @@ def start_visualizer(
             sb_y = button_rect.y + (button_rect.h - stop_button_text.get_height()) // 2
             screen.blit(stop_button_text, (sb_x, sb_y))
 
-        debug_lines = []
-        if hasattr(engine, "debugger") and engine.debugger is not None:
-            try:
-                debug_lines = engine.debugger.get_recent_events(limit=12)
-            except Exception:
-                debug_lines = []
+        # debug_lines = []
+        # if hasattr(engine, "debugger") and engine.debugger is not None:
+        #     try:
+        #         debug_lines = engine.debugger.get_recent_events(limit=12)
+        #     except Exception:
+        #         debug_lines = []
 
-        if debug_lines:
-            line_height = log_font.get_linesize()
-            panel_height = line_height * len(debug_lines) + 12
-            log_surface = pygame.Surface((screen_size[0], panel_height), pygame.SRCALPHA)
-            log_surface.fill((0, 0, 0, 140))
-            screen.blit(log_surface, (0, screen_size[1] - panel_height))
+        # if debug_lines:
+        #     line_height = log_font.get_linesize()
+        #     panel_height = line_height * len(debug_lines) + 12
+        #     log_surface = pygame.Surface((screen_size[0], panel_height), pygame.SRCALPHA)
+        #     log_surface.fill((0, 0, 0, 140))
+        #     screen.blit(log_surface, (0, screen_size[1] - panel_height))
 
-            base_y = screen_size[1] - panel_height + 6
-            for idx, entry in enumerate(debug_lines):
-                text_surf = log_font.render(entry, True, (235, 235, 235))
-                screen.blit(text_surf, (12, base_y + idx * line_height))
+        #     base_y = screen_size[1] - panel_height + 6
+        #     for idx, entry in enumerate(debug_lines):
+        #         text_surf = log_font.render(entry, True, (235, 235, 235))
+        #         screen.blit(text_surf, (12, base_y + idx * line_height))
 
         pygame.display.flip()
         clock.tick(fps)

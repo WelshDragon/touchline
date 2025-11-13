@@ -347,6 +347,19 @@ class RoleBehaviour:
             fallback_cap=loose_cfg.intercept_fallback_cap,
         )
 
+        # If the ball is travelling toward the player, avoid projecting an intercept
+        # point that sits behind them on the incoming path – that causes the awkward
+        # backpedal when they are already well positioned.
+        ball_speed = ball.velocity.magnitude()
+        if ball_speed > 0:
+            direction = ball.velocity.normalize()
+            to_player = player.state.position - ball.position
+            player_along = to_player.x * direction.x + to_player.y * direction.y
+            intercept_along = (intercept - ball.position).x * direction.x + (intercept - ball.position).y * direction.y
+
+            if player_along >= 0 and intercept_along > player_along:
+                intercept = ball.position + direction * player_along
+
         to_intercept = intercept - player.state.position
         distance = to_intercept.magnitude()
 
