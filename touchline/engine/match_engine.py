@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from touchline.engine.config import ENGINE_CONFIG
 from touchline.engine.events import MatchEvent
 from touchline.engine.physics import BallState, Pitch, PlayerState, Vector2D
 from touchline.engine.player_state import PlayerMatchState
@@ -41,7 +42,8 @@ class MatchState:
     def __post_init__(self) -> None:
         self._initialize_player_positions()
         # Add initial ball movement
-        self.ball.velocity = Vector2D(5.0, 2.0)  # Start with some motion
+        initial_vx, initial_vy = ENGINE_CONFIG.simulation.initial_ball_velocity
+        self.ball.velocity = Vector2D(initial_vx, initial_vy)  # Start with some motion
 
     def _initialize_player_positions(self) -> None:
         """Set up initial player positions based on formations."""
@@ -73,43 +75,52 @@ class MatchState:
     def _role_slot_offset(self, role: str, index: int) -> Vector2D:
         """Return the default formation slot for a given role (home perspective)."""
         role = role.upper()
+        formation = ENGINE_CONFIG.formation
 
         if role == "GK":
-            return Vector2D(45, 0)
+            return Vector2D(formation.goalkeeper_x, 0)
 
         if role in {"RD", "LD"}:
-            y = -12 if role == "RD" else 12
-            # Allow for extra players on the same side by staggering slightly
-            y += index * (-2 if role == "RD" else 2)
-            return Vector2D(35, y)
+            base_offset = -formation.fullback_base_offset if role == "RD" else formation.fullback_base_offset
+            stagger = -formation.fullback_stagger if role == "RD" else formation.fullback_stagger
+            y = base_offset + index * stagger
+            return Vector2D(formation.fullback_x, y)
 
         if role == "CD":
-            cd_offsets = [-6, 6, -12, 12]
-            y = cd_offsets[index] if index < len(cd_offsets) else 0
-            return Vector2D(35, y)
+            offsets = formation.centreback_offsets
+            y = offsets[index] if index < len(offsets) else 0.0
+            return Vector2D(formation.centreback_x, y)
 
         if role in {"RM", "LM"}:
-            y = -15 if role == "RM" else 15
-            y += index * (-2 if role == "RM" else 2)
-            return Vector2D(20, y)
+            base_offset = (
+                -formation.wide_midfielder_base_offset if role == "RM" else formation.wide_midfielder_base_offset
+            )
+            stagger = (
+                -formation.wide_midfielder_stagger if role == "RM" else formation.wide_midfielder_stagger
+            )
+            y = base_offset + index * stagger
+            return Vector2D(formation.wide_midfielder_x, y)
 
         if role == "CM":
-            cm_offsets = [-8, 8, 0, -14, 14]
-            y = cm_offsets[index] if index < len(cm_offsets) else 0
-            return Vector2D(18, y)
+            offsets = formation.central_midfielder_offsets
+            y = offsets[index] if index < len(offsets) else 0.0
+            return Vector2D(formation.central_midfielder_x, y)
 
         if role in {"RCF", "LCF"}:
-            y = -10 if role == "RCF" else 10
-            y += index * (-2 if role == "RCF" else 2)
-            return Vector2D(8, y)
+            base_offset = (
+                -formation.wide_forward_base_offset if role == "RCF" else formation.wide_forward_base_offset
+            )
+            stagger = -formation.wide_forward_stagger if role == "RCF" else formation.wide_forward_stagger
+            y = base_offset + index * stagger
+            return Vector2D(formation.centre_forward_x, y)
 
         if role == "CF":
-            cf_offsets = [0, -6, 6]
-            y = cf_offsets[index] if index < len(cf_offsets) else 0
-            return Vector2D(8, y)
+            offsets = formation.centre_forward_offsets
+            y = offsets[index] if index < len(offsets) else 0.0
+            return Vector2D(formation.centre_forward_x, y)
 
         # Fallback: treat as central midfielder in absence of explicit mapping
-        return Vector2D(18, 0)
+        return Vector2D(formation.central_midfielder_x, 0)
 
 
 class RealTimeMatchEngine:
@@ -143,7 +154,7 @@ class RealTimeMatchEngine:
                 print(f"Warning: failed to load players JSON {json_path}: {e}")
 
         self.state = MatchState(state_home, state_away)
-        self.simulation_speed = 1.0  # 1.0 = real-time, 2.0 = 2x speed, etc.
+        self.simulation_speed = ENGINE_CONFIG.simulation.default_speed  # 1.0 = real-time, 2.0 = 2x speed, etc.
         self.is_running = False
         self.debugger = MatchDebugger()
         # Attach the engine debugger to the shared ball so BallState.kick can log kicks
@@ -158,14 +169,14 @@ class RealTimeMatchEngine:
         self.is_running = True
         last_update = time.time()
 
-        while self.is_running and self.state.match_time < 5400:  # 90 minutes = 5400 seconds
+        while self.is_running and self.state.match_time < ENGINE_CONFIG.simulation.match_duration:
             current_time = time.time()
             dt = (current_time - last_update) * self.simulation_speed
             self._update(dt)
             last_update = current_time
 
             # Small sleep to prevent excessive CPU usage
-            time.sleep(0.016)  # Aim for ~60 FPS
+            time.sleep(ENGINE_CONFIG.simulation.frame_sleep)
 
     def _update(self, dt: float) -> None:
         """Update match state for the given time step."""
@@ -192,6 +203,7 @@ class RealTimeMatchEngine:
 
         # Update ball possession - player closest to slow ball gets possession
         ball_speed = self.state.ball.velocity.magnitude()
+        possession_cfg = ENGINE_CONFIG.possession
 
         def assign_possession(new_player: PlayerMatchState) -> None:
             previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
@@ -229,7 +241,14 @@ class RealTimeMatchEngine:
                 distance_to_target = to_target.magnitude()
 
                 if distance_to_target > 0:
-                    catch_radius = max(1.1, min(1.3, 1.1 + ball_speed * 0.08))
+                    base_radius = possession_cfg.target_radius_min
+                    catch_radius = max(
+                        base_radius,
+                        min(
+                            possession_cfg.target_radius_max,
+                            base_radius + ball_speed * possession_cfg.target_radius_speed_factor,
+                        ),
+                    )
 
                     direction_alignment = 1.0
                     if ball_speed > 0.1:
@@ -237,19 +256,22 @@ class RealTimeMatchEngine:
                         velocity_norm = self.state.ball.velocity.normalize()
                         direction_alignment = velocity_norm.x * to_target_norm.x + velocity_norm.y * to_target_norm.y
 
-                    if distance_to_target < catch_radius and direction_alignment > -0.1:
+                    if (
+                        distance_to_target < catch_radius
+                        and direction_alignment > possession_cfg.direction_alignment_min
+                    ):
                         assign_possession(target_player)
                         possession_acquired = True
 
-        if not possession_acquired and ball_speed < 5.0:  # Increased from 3.0
+        if not possession_acquired and ball_speed < possession_cfg.loose_ball_speed_threshold:
             closest_player = min(all_players, key=lambda p: p.state.position.distance_to(self.state.ball.position))
             closest_distance = closest_player.state.position.distance_to(self.state.ball.position)
 
-            possession_radius = 0.5
-            if ball_speed < 1.5:
-                possession_radius = max(possession_radius, 0.8)
-            if ball_speed < 0.3:
-                possession_radius = max(possession_radius, 1)
+            possession_radius = possession_cfg.base_radius
+            if ball_speed < possession_cfg.medium_speed_threshold:
+                possession_radius = max(possession_radius, possession_cfg.medium_radius)
+            if ball_speed < possession_cfg.slow_speed_threshold:
+                possession_radius = max(possession_radius, possession_cfg.slow_radius)
 
             if closest_distance < possession_radius:
                 assign_possession(closest_player)

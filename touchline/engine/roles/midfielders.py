@@ -14,7 +14,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
+
+from touchline.engine.config import ENGINE_CONFIG
 
 from .base import RoleBehaviour
 
@@ -50,6 +52,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         speed_attr = player_model.attributes.speed
         shooting_attr = player_model.attributes.shooting
         opponents = self.get_opponents(player, all_players)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
 
         try:
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
@@ -73,7 +76,12 @@ class MidfielderBaseBehaviour(RoleBehaviour):
                 return
 
             # Press opponent if they have ball
-            if self.should_press(player, ball, all_players, stamina_threshold=25):
+            if self.should_press(
+                player,
+                ball,
+                all_players,
+                stamina_threshold=mid_cfg.press_stamina_threshold,
+            ):
                 self._press_opponent(player, ball, opponents, speed_attr, tackling_attr, dt)
                 return
 
@@ -116,6 +124,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             return
 
         opponents = self.get_opponents(player, all_players)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
 
         # Look for forward pass
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)
@@ -125,7 +134,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             goal_pos = self.get_goal_position(player)
             target_closer = target.state.position.distance_to(goal_pos) < player.state.position.distance_to(goal_pos)
 
-            if target_closer or vision_attr > 70:  # High vision players can see all passes
+            if target_closer or vision_attr >= mid_cfg.progressive_pass_vision_threshold:
                 self.execute_pass(player, target, ball, passing_attr, current_time)
                 return
 
@@ -161,11 +170,12 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         from touchline.engine.physics import Vector2D
 
         goal_pos = self.get_goal_position(player)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
 
         # Check for nearby pressure
-        under_pressure = self._is_under_pressure(player, opponents)
+        under_pressure = self._is_under_pressure(player, opponents, radius=mid_cfg.pressure_radius)
 
-        if under_pressure and dribbling_attr < 60:
+        if under_pressure and dribbling_attr < mid_cfg.pressure_dribble_threshold:
             relief_target = self._find_relief_pass(player, ball, all_players, opponents, vision_attr)
 
             if relief_target:
@@ -173,7 +183,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             else:
                 # Shield the ball but add small backpedal to avoid freezing in place
                 retreat_dir = (player.state.position - goal_pos).normalize()
-                player.state.velocity = retreat_dir * 2.0
+                player.state.velocity = retreat_dir * mid_cfg.retreat_speed
                 ball.position = player.state.position
                 ball.velocity = Vector2D(0, 0)
         else:
@@ -181,7 +191,14 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             direction = (goal_pos - player.state.position).normalize()
 
             # Calculate speed based on dribbling ability (slower than running without ball)
-            dribble_speed = 3 + (dribbling_attr / 100) * 2  # 3-5 m/s
+            speed_scale = mid_cfg.dribble_speed_attr_scale
+            base_speed = mid_cfg.dribble_speed_base
+
+            if under_pressure:
+                base_speed = mid_cfg.dribble_pressure_base
+                speed_scale = mid_cfg.dribble_pressure_attr_scale
+
+            dribble_speed = base_speed + (dribbling_attr / 100) * speed_scale
 
             # Update player velocity to dribble forward
             player.state.velocity = direction * dribble_speed
@@ -191,9 +208,14 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             ball.velocity = Vector2D(0, 0)
 
     def _is_under_pressure(
-        self, player: "PlayerMatchState", opponents: List["PlayerMatchState"], radius: float = 4.0
+        self,
+        player: "PlayerMatchState",
+        opponents: List["PlayerMatchState"],
+        radius: Optional[float] = None,
     ) -> bool:
         """Detect if any opponent is within pressing distance."""
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+        radius = mid_cfg.pressure_radius if radius is None else radius
         return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
 
     def _find_relief_pass(
@@ -213,11 +235,12 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         best_target = None
         best_score = 0.0
         own_goal = self.get_own_goal_position(player)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
 
         for teammate in teammates:
             distance = player.state.position.distance_to(teammate.state.position)
 
-            if distance < 3 or distance > 28:
+            if distance < mid_cfg.relief_min_distance or distance > mid_cfg.relief_max_distance:
                 continue
 
             lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
@@ -225,28 +248,31 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             # Prefer teammates with space around them
             nearest_opponent = min(
                 (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
-                default=10.0,
+                default=mid_cfg.relief_nearest_default,
             )
 
-            space_score = min(nearest_opponent / 6.0, 1.0)
+            space_score = min(nearest_opponent / mid_cfg.relief_space_divisor, 1.0)
 
             # Allow backwards passes, but give a small bonus if the pass keeps momentum
             progress = own_goal.distance_to(teammate.state.position) < own_goal.distance_to(player.state.position)
-            momentum_score = 0.2 if progress else 0.0
+            momentum_score = mid_cfg.relief_progress_bonus if progress else 0.0
 
-            distance_score = 1 - (distance / 28)
-            vision_factor = 0.7 + (vision_attr / 100) * 0.3
+            distance_score = 1 - (distance / mid_cfg.relief_max_distance)
+            vision_factor = mid_cfg.relief_vision_base + (vision_attr / 100) * mid_cfg.relief_vision_scale
 
-            total_score = (
-                (lane_quality * 0.4 + space_score * 0.3 + distance_score * 0.1 + momentum_score)
-                * vision_factor
+            weighted_score = (
+                lane_quality * mid_cfg.relief_lane_weight
+                + space_score * mid_cfg.relief_space_weight
+                + distance_score * mid_cfg.relief_distance_weight
             )
+
+            total_score = (weighted_score + momentum_score) * vision_factor
 
             if total_score > best_score:
                 best_score = total_score
                 best_target = teammate
 
-        return best_target if best_score > 0.25 else None
+        return best_target if best_score > mid_cfg.relief_score_threshold else None
 
     def _press_opponent(
         self,
@@ -270,10 +296,14 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             self.move_to_position(player, target_opp.state.position, speed_attr, dt, ball, sprint=True)
 
             # Attempt tackle if close
-            if player.state.position.distance_to(target_opp.state.position) < 1.5:
+            mid_cfg = ENGINE_CONFIG.role.midfielder
+
+            if player.state.position.distance_to(target_opp.state.position) < mid_cfg.press_success_distance:
                 import random
 
-                if random.random() < tackling_attr / 100 * 0.5:
+                success_threshold = (tackling_attr / 100) * mid_cfg.press_success_scale
+
+                if random.random() < success_threshold:
                     # Won the ball!
                     from touchline.engine.physics import Vector2D
 
@@ -291,14 +321,15 @@ class MidfielderBaseBehaviour(RoleBehaviour):
     ) -> None:
         """Move to support the attack."""
         goal_pos = self.get_goal_position(player)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
 
         # Find space ahead of the ball
         if ball.position.distance_to(goal_pos) < player.state.position.distance_to(goal_pos):
             # Ball is ahead, support from behind
-            support_pos = ball.position - (goal_pos - ball.position).normalize() * 12
+            support_pos = ball.position - (goal_pos - ball.position).normalize() * mid_cfg.support_trail_distance
         else:
             # Make forward run
-            support_pos = ball.position + (goal_pos - ball.position).normalize() * 10
+            support_pos = ball.position + (goal_pos - ball.position).normalize() * mid_cfg.support_forward_distance
 
         # Adjust to side based on midfielder type
         support_pos = self._adjust_support_position(player, support_pos, ball)
@@ -320,7 +351,9 @@ class MidfielderBaseBehaviour(RoleBehaviour):
 
         # Midfielders sit slightly higher than defenders
         own_goal = self.get_own_goal_position(player)
-        adjustment = (self.get_goal_position(player) - own_goal).normalize() * 5
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+        adjustment_direction = (self.get_goal_position(player) - own_goal).normalize()
+        adjustment = adjustment_direction * mid_cfg.support_defense_push
 
         defensive_pos = defensive_pos + adjustment
 
@@ -347,7 +380,8 @@ class RightMidfielderRoleBehaviour(MidfielderBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Maintain width on right touchline
-        adjusted_y = min(position.y, -12)  # Stay wide right
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+        adjusted_y = min(position.y, -mid_cfg.right_width)  # Stay wide right
         return Vector2D(position.x, adjusted_y)
 
 
@@ -364,11 +398,12 @@ class CentralMidfielderRoleBehaviour(MidfielderBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Central but can drift
-        shift_y = (ball.position.y - position.y) * 0.3
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+        shift_y = (ball.position.y - position.y) * mid_cfg.central_shift_factor
         adjusted_y = position.y + shift_y
 
         # Stay within central corridor
-        adjusted_y = max(-15, min(15, adjusted_y))
+        adjusted_y = max(-mid_cfg.central_max_width, min(mid_cfg.central_max_width, adjusted_y))
         return Vector2D(position.x, adjusted_y)
 
 
@@ -385,5 +420,6 @@ class LeftMidfielderRoleBehaviour(MidfielderBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Maintain width on left touchline
-        adjusted_y = max(position.y, 12)  # Stay wide left
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+        adjusted_y = max(position.y, mid_cfg.left_width)  # Stay wide left
         return Vector2D(position.x, adjusted_y)

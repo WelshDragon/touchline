@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
+from touchline.engine.config import ENGINE_CONFIG
+
 from .base import RoleBehaviour
 
 if TYPE_CHECKING:
@@ -29,8 +31,9 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
 
     def __init__(self) -> None:
         super().__init__(role="GK", side="central")
-        self.box_width = 40.32  # Penalty area width
-        self.box_depth = 16.5  # Penalty area depth
+        pitch_cfg = ENGINE_CONFIG.pitch
+        self.box_width = pitch_cfg.penalty_area_width
+        self.box_depth = pitch_cfg.penalty_area_depth
 
     def decide_action(
         self,
@@ -85,8 +88,9 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         ball: "BallState",
     ) -> Optional[Tuple["Vector2D", float]]:
         ball_speed = ball.velocity.magnitude()
+        gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
-        if ball_speed < 3.0:
+        if ball_speed < gk_cfg.save_min_ball_speed:
             return None
 
         goal_pos = self.get_own_goal_position(player)
@@ -99,26 +103,26 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         goal_sign = -1 if player.is_home_team else 1
         forward_speed = ball.velocity.x * goal_sign
 
-        if forward_speed <= 0.3:
+        if forward_speed <= gk_cfg.save_forward_speed_threshold:
             return None
 
         distance_to_plane = (player.state.position.x - ball.position.x) * goal_sign
 
-        if distance_to_plane < -0.3:
+        if distance_to_plane < -gk_cfg.save_plane_buffer:
             return None
 
         time_to_plane = distance_to_plane / forward_speed
 
-        if time_to_plane < 0 or time_to_plane > 1.05:
+        if time_to_plane < 0 or time_to_plane > gk_cfg.save_time_horizon:
             return None
 
         intercept_pos = ball.position + ball.velocity * time_to_plane
-        goal_half_width = 7.32 / 2
+        goal_half_width = ENGINE_CONFIG.pitch.goal_width / 2
 
-        if abs(intercept_pos.y - goal_pos.y) > goal_half_width + 1.4:
+        if abs(intercept_pos.y - goal_pos.y) > goal_half_width + gk_cfg.save_post_buffer:
             return None
 
-        if abs(intercept_pos.x - goal_pos.x) > self.box_depth + 1.5:
+        if abs(intercept_pos.x - goal_pos.x) > self.box_depth + gk_cfg.save_box_buffer:
             return None
 
         return intercept_pos, time_to_plane
@@ -145,6 +149,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         """Attempt to save/intercept the ball."""
         current_time = player.match_time
         ball_speed = ball.velocity.magnitude()
+        gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
         save_window = self._compute_save_window(player, ball)
 
@@ -157,20 +162,25 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
             player.pending_save_eta = eta
 
         # Estimate whether the keeper can reach the intercept point in time.
-        base_speed = 6.0 * (0.7 + (speed_attr / 100) * 0.6)
-        max_speed = base_speed * 1.4  # sprinting effort for shot stopping
+        movement_cfg = ENGINE_CONFIG.player_movement
+        base_speed = movement_cfg.base_speed * (
+            movement_cfg.base_multiplier + (speed_attr / 100) * movement_cfg.attribute_multiplier
+        )
+        max_speed = base_speed * movement_cfg.sprint_multiplier  # sprinting effort for shot stopping
         travel_distance = player.state.position.distance_to(intercept_target)
         time_available = max(eta, dt)
-        reachable_distance = max_speed * (time_available + 0.05)  # tiny reaction buffer
-        can_reach_window = travel_distance <= reachable_distance + 0.35
+        reachable_distance = max_speed * (time_available + gk_cfg.reach_reaction_buffer)
+        can_reach_window = travel_distance <= reachable_distance + gk_cfg.reach_distance_buffer
 
         self.move_to_position(player, intercept_target, speed_attr, dt, ball, sprint=True)
 
         # If close enough, can catch/punch
         distance = self.distance_to_ball(player, ball)
-        success = distance < 1.5 or (can_reach_window and eta <= 0.25)
+        success = distance < gk_cfg.success_distance or (
+            can_reach_window and eta <= gk_cfg.success_eta_threshold
+        )
 
-        log_window = eta <= 0.2 or success
+        log_window = eta <= gk_cfg.log_eta_threshold or success
 
         if player.debugger and log_window and (
             success or current_time - getattr(player, "last_save_log_time", -1000.0) > 0.25
@@ -188,7 +198,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
             )
 
             if not success:
-                detail += f" threshold=1.50m eta={eta:.2f}s"
+                detail += f" threshold={gk_cfg.success_distance:.2f}m eta={eta:.2f}s"
 
             player.debugger.log_match_event(current_time, "save_attempt", detail + f" reason={reason}")
             player.last_save_log_time = current_time
@@ -215,20 +225,25 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
     ) -> bool:
         """Decide if goalkeeper should come out to collect loose ball."""
         goal_pos = self.get_own_goal_position(player)
+        gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
         # Ball in penalty area
-        ball_in_box = abs(ball.position.x - goal_pos.x) < self.box_depth and abs(ball.position.y) < self.box_width / 2
+        ball_in_box = abs(ball.position.x - goal_pos.x) < self.box_depth and abs(ball.position.y - goal_pos.y) < (
+            self.box_width / 2
+        )
 
         if not ball_in_box:
             return False
 
         # Ball is slow (loose ball)
-        if ball.velocity.magnitude() > 5:
+        if ball.velocity.magnitude() > gk_cfg.collect_speed_threshold:
             return False
 
         # No opponent too close (based on decisions)
         opponents = self.get_opponents(player, all_players)
-        safe_distance = 8 + (decisions_attr / 100) * 5  # Better decisions = more aggressive
+        safe_distance = gk_cfg.collect_safe_distance_base + (
+            decisions_attr / 100
+        ) * gk_cfg.collect_safe_distance_attr_scale
 
         for opp in opponents:
             if opp.state.position.distance_to(ball.position) < safe_distance:
@@ -241,7 +256,9 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True)
 
         # Collect if close
-        if self.distance_to_ball(player, ball) < 1.5:
+        gk_cfg = ENGINE_CONFIG.role.goalkeeper
+
+        if self.distance_to_ball(player, ball) < gk_cfg.collect_success_distance:
             from touchline.engine.physics import Vector2D
 
             ball.velocity = Vector2D(0, 0)
@@ -258,32 +275,35 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         from touchline.engine.physics import Vector2D
 
         goal_pos = self.get_own_goal_position(player)
+        gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
         # Position between ball and goal center while staying in front of the goal line
         goal_to_ball = (ball.position - goal_pos).normalize()
 
         # Distance from goal line (2-4m depending on positioning attribute)
-        goal_distance = 2 + (positioning_attr / 100) * 2
+        goal_distance = gk_cfg.positioning_distance_base + (
+            positioning_attr / 100
+        ) * gk_cfg.positioning_distance_attr_scale
 
         # Calculate optimal position and clamp to the field side of the goal line
         field_direction = 1.0 if player.is_home_team else -1.0
         optimal_x = goal_pos.x + goal_to_ball.x * goal_distance
-        min_offset = 0.8
+        min_offset = gk_cfg.positioning_min_offset
         if (optimal_x - goal_pos.x) * field_direction < min_offset:
             optimal_x = goal_pos.x + field_direction * min_offset
 
         # Y position: bisect angle to goal posts
-        angle_factor = (ball.position.y - goal_pos.y) * 0.3  # Move across goal
+        angle_factor = (ball.position.y - goal_pos.y) * gk_cfg.positioning_angle_factor
         optimal_y = goal_pos.y + angle_factor
 
         # Constrain to goal width
-        max_y = 3.0  # Don't stray too far from center
+        max_y = gk_cfg.positioning_max_lateral  # Don't stray too far from center
         optimal_y = max(-max_y, min(max_y, optimal_y))
 
         target_pos = Vector2D(optimal_x, optimal_y)
 
         # Move to position
-        self.move_to_position(player, target_pos, 50, dt, ball, sprint=False)
+        self.move_to_position(player, target_pos, gk_cfg.positioning_speed_attr, dt, ball, sprint=False)
 
     def _distribute_ball(
         self,

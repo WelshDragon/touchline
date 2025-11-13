@@ -54,7 +54,8 @@ def start_visualizer(
         return
 
     pygame.init()
-    screen = pygame.display.set_mode(screen_size)
+    screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+    pygame.display.toggle_fullscreen()
     pygame.display.set_caption("Football Simulator")
     clock = pygame.time.Clock()
 
@@ -75,7 +76,6 @@ def start_visualizer(
     running = True
     # Button definition (Start)
     button_w, button_h = 140, 36
-    button_rect = pygame.Rect(screen_size[0] - button_w - 10, 10, button_w, button_h)
     button_color = (70, 160, 70)
     button_hover = (90, 190, 90)
     button_text = font.render("Start Match", True, (255, 255, 255))
@@ -91,6 +91,8 @@ def start_visualizer(
     # Run visualizer loop regardless of whether the match has started.
     while running:
         mouse_pos = pygame.mouse.get_pos()
+        # Always recalculate button_rect to keep it in the top right
+        button_rect = pygame.Rect(screen_size[0] - button_w - 10, 10, button_w, button_h)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 engine.stop_match()
@@ -99,40 +101,32 @@ def start_visualizer(
                 if event.key == pygame.K_q:
                     engine.stop_match()
                     running = False
+            elif event.type == pygame.VIDEORESIZE:
+                screen_size = (event.w, event.h)
+                screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # If start button clicked and match not running -> trigger start
                 if not engine.is_running and button_rect.collidepoint(event.pos):
                     if start_callback:
                         try:
                             started = start_callback()
-                            # If the callback returned a Thread, keep a reference so
-                            # we can join it when shutting down.
                             if isinstance(started, threading.Thread):
                                 engine_thread = started
                         except Exception:
-                            # Ensure visualizer doesn't crash if callback fails
                             pass
                     else:
-                        # Fallback: start engine in a new (non-daemon) thread and keep reference
                         engine_thread = threading.Thread(target=engine.start_match)
                         engine_thread.start()
-                # If match is running and stop button clicked -> stop and exit
                 elif engine.is_running and button_rect.collidepoint(event.pos):
-                    # Stop the engine and show a shutdown HUD while we wait for
-                    # the engine thread to exit. We allow up to 3 seconds for a
-                    # graceful shutdown, then force the visualizer to exit.
                     try:
                         engine.stop_match()
                     except Exception:
                         pass
-
                     shutdown_start = time.time()
                     shutdown_timeout = 3.0
-                    # Poll until engine stopped or timeout reached
                     while time.time() - shutdown_start < shutdown_timeout and (
                         engine.is_running or (engine_thread is not None and engine_thread.is_alive())
                     ):
-                        # Draw current frame with a semi-opaque overlay and message
                         overlay = pygame.Surface(screen_size, pygame.SRCALPHA)
                         overlay.fill((0, 0, 0, 120))
                         screen.blit(overlay, (0, 0))
@@ -142,16 +136,12 @@ def start_visualizer(
                         by = (screen_size[1] - sub.get_height()) // 2
                         screen.blit(sub, (bx, by))
                         pygame.display.flip()
-                        # Process events so the window remains responsive
                         for e in pygame.event.get():
                             if e.type == pygame.QUIT:
                                 pass
                         clock.tick(fps)
-
-                    # Final join attempt (short)
                     if engine_thread is not None and engine_thread.is_alive():
                         engine_thread.join(timeout=3.0)
-
                     running = False
 
         screen.fill((0, 0, 0))

@@ -19,6 +19,8 @@ from typing import Optional, Tuple
 
 from touchline.utils.debug import MatchDebugger
 
+from .config import ENGINE_CONFIG
+
 
 @dataclass
 class Vector2D:
@@ -57,6 +59,7 @@ class PlayerState:
     def move_towards(self, target: Vector2D, dt: float, max_speed: float) -> None:
         """Move player towards target position."""
         direction = (target - self.position).normalize()
+        cfg = ENGINE_CONFIG.player_movement
         # Adjust speed based on stamina
         current_max_speed = max_speed * (self.stamina / 100)
         self.velocity = direction * current_max_speed
@@ -64,13 +67,14 @@ class PlayerState:
 
         # REDUCED: Stamina drain from 2.0 to 0.8 (60% reduction)
         # Was draining 0.75%/sec, now drains ~0.30%/sec at full speed
-        stamina_drain = (self.velocity.magnitude() / max_speed) * dt * 0.8
+        stamina_drain = (self.velocity.magnitude() / max_speed) * dt * cfg.stamina_drain_factor
         self.stamina = max(0, self.stamina - stamina_drain)
 
     def recover_stamina(self, dt: float) -> None:
         """Recover stamina when not sprinting."""
-        if self.velocity.magnitude() < 1.0:  # When almost stationary
-            self.stamina = min(100, self.stamina + dt * 5)  # Recover 5 stamina per second
+        cfg = ENGINE_CONFIG.player_movement
+        if self.velocity.magnitude() < cfg.recovery_threshold:  # When almost stationary
+            self.stamina = min(100, self.stamina + dt * cfg.recovery_rate)  # Recover stamina when resting
 
 
 class BallState:
@@ -136,8 +140,10 @@ class BallState:
             pass
 
     # --- physics operations ------------------------------------------------------
-    def update(self, dt: float, friction: float = 0.95) -> None:
+    def update(self, dt: float, friction: Optional[float] = None) -> None:
         """Update ball position and apply friction."""
+        if friction is None:
+            friction = ENGINE_CONFIG.ball_physics.friction
         # Update position with current velocity
         new_position = self.position + self.velocity * dt
         self.position = new_position
@@ -150,7 +156,7 @@ class BallState:
             self.velocity = self.velocity * friction_force
 
             # Stop very slow movement
-            if self.velocity.magnitude() < 0.1:
+            if self.velocity.magnitude() < ENGINE_CONFIG.ball_physics.stop_threshold:
                 self.velocity = Vector2D(0, 0)
 
     def kick(
@@ -182,17 +188,18 @@ class BallState:
 
 
 class Pitch:
-    def __init__(self, width: float = 105.0, height: float = 68.0) -> None:
+    def __init__(self, width: Optional[float] = None, height: Optional[float] = None) -> None:
         """Initialize pitch with FIFA standard dimensions (in meters)."""
-        self.width = width
-        self.height = height
-        self.goal_width = 7.32  # FIFA standard goal width
+        cfg = ENGINE_CONFIG.pitch
+        self.width = width if width is not None else cfg.width
+        self.height = height if height is not None else cfg.height
+        self.goal_width = cfg.goal_width
 
         # Define key areas
-        self.penalty_area_width = 40.32
-        self.penalty_area_depth = 16.5
-        self.goal_area_width = 18.32
-        self.goal_area_depth = 5.5
+        self.penalty_area_width = cfg.penalty_area_width
+        self.penalty_area_depth = cfg.penalty_area_depth
+        self.goal_area_width = cfg.goal_area_width
+        self.goal_area_depth = cfg.goal_area_depth
 
     def is_in_bounds(self, position: Vector2D) -> bool:
         """Check if position is within pitch boundaries."""

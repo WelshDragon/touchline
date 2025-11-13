@@ -14,7 +14,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
+
+from touchline.engine.config import ENGINE_CONFIG
 
 from .base import RoleBehaviour
 
@@ -114,9 +116,10 @@ class ForwardBaseBehaviour(RoleBehaviour):
         distance_to_goal = player.state.position.distance_to(goal_pos)
 
         opponents = self.get_opponents(player, all_players)
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         # Prioritize shooting if in good position
-        if distance_to_goal < 25 and self.should_shoot(player, ball, shooting_attr):
+        if distance_to_goal < fwd_cfg.shoot_distance_threshold and self.should_shoot(player, ball, shooting_attr):
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
 
@@ -133,11 +136,11 @@ class ForwardBaseBehaviour(RoleBehaviour):
             teammate_distance = best_target.state.position.distance_to(goal_pos)
             progressive = teammate_distance < distance_to_goal
 
-            if progressive or vision_attr > 70:
+            if progressive or vision_attr >= fwd_cfg.vision_progressive_threshold:
                 self.execute_pass(player, best_target, ball, passing_attr, current_time)
                 return
 
-            if self._is_under_pressure(player, opponents) and vision_attr > 50:
+            if self._is_under_pressure(player, opponents) and vision_attr >= fwd_cfg.vision_pressure_release_threshold:
                 self.execute_pass(player, best_target, ball, passing_attr, current_time)
                 return
 
@@ -183,11 +186,12 @@ class ForwardBaseBehaviour(RoleBehaviour):
         from touchline.engine.physics import Vector2D
 
         goal_pos = self.get_goal_position(player)
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         # Check for immediate pressure
-        immediate_pressure = self._is_under_pressure(player, opponents, radius=3.0)
+        immediate_pressure = self._is_under_pressure(player, opponents, radius=fwd_cfg.pressure_radius)
 
-        if immediate_pressure and dribbling_attr < 70:
+        if immediate_pressure and dribbling_attr < fwd_cfg.pressure_dribble_threshold:
             relief_target = self._find_relief_pass(
                 player,
                 ball,
@@ -203,12 +207,18 @@ class ForwardBaseBehaviour(RoleBehaviour):
             # Try to shield ball or find space
             space_direction = self._find_escape_direction(player, opponents)
             # Update player velocity to move in escape direction
-            dribble_speed = 2 + (dribbling_attr / 100) * 2  # 2-4 m/s when under pressure
+            dribble_speed = (
+                fwd_cfg.dribble_pressure_base
+                + (dribbling_attr / 100) * fwd_cfg.dribble_pressure_attr_scale
+            )
             player.state.velocity = space_direction.normalize() * dribble_speed
         else:
             # Dribble directly at goal
             direction = (goal_pos - player.state.position).normalize()
-            dribble_speed = 3.5 + (dribbling_attr / 100) * 2.5  # 3.5-6 m/s
+            dribble_speed = (
+                fwd_cfg.dribble_speed_base
+                + (dribbling_attr / 100) * fwd_cfg.dribble_speed_attr_scale
+            )
             player.state.velocity = direction * dribble_speed
 
         # Keep ball at player's feet
@@ -223,22 +233,23 @@ class ForwardBaseBehaviour(RoleBehaviour):
 
         from touchline.engine.physics import Vector2D
 
+        fwd_cfg = ENGINE_CONFIG.role.forward
         best_direction = Vector2D(1, 0)
-        max_space = 0
+        max_space = float("-inf")
 
-        for angle in range(0, 360, 45):
+        for angle in range(0, 360, fwd_cfg.escape_angle_step):
             rad = math.radians(angle)
             direction = Vector2D(math.cos(rad), math.sin(rad))
 
             # Calculate space in this direction
-            space = 10.0  # Base space
+            space = fwd_cfg.escape_base_space
             for opp in opponents:
                 to_opp = opp.state.position - player.state.position
                 dot = to_opp.x * direction.x + to_opp.y * direction.y
 
                 if dot > 0:  # Opponent in this direction
                     distance = to_opp.magnitude()
-                    space -= 10 / max(1, distance)
+                    space -= fwd_cfg.escape_opponent_scale / max(1.0, distance)
 
             if space > max_space:
                 max_space = space
@@ -258,6 +269,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
         """Make an attacking run to receive the ball."""
         goal_pos = self.get_goal_position(player)
         opponents = self.get_opponents(player, all_players)
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         # Find space behind defense or between defenders
         run_target = self._find_attacking_space(player, ball, goal_pos, opponents, positioning_attr)
@@ -271,7 +283,11 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 break
 
         # Sprint if ball carrier is looking to pass
-        sprint = ball_carrier and ball_carrier.state.position.distance_to(player.state.position) < 30
+        sprint = (
+            ball_carrier
+            and ball_carrier.state.position.distance_to(player.state.position)
+            < fwd_cfg.run_ballcarrier_distance
+        )
 
         # Adjust run target based on forward type
         run_target = self._adjust_attacking_run(player, run_target, ball, goal_pos)
@@ -293,7 +309,9 @@ class ForwardBaseBehaviour(RoleBehaviour):
         # Better positioning allows better run identification
 
         # Target area ahead of ball and towards goal
-        target_x = goal_pos.x * 0.7 + ball.position.x * 0.3
+        fwd_cfg = ENGINE_CONFIG.role.forward
+
+        target_x = goal_pos.x * fwd_cfg.run_goal_weight + ball.position.x * fwd_cfg.run_ball_weight
         target_y = ball.position.y
 
         # Check for offside (simplified)
@@ -306,7 +324,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 deepest_defender_x = opp.state.position.x
 
         # Stay onside
-        onside_margin = 2
+        onside_margin = fwd_cfg.onside_margin
         if player.is_home_team:
             target_x = min(target_x, deepest_defender_x - onside_margin)
         else:
@@ -325,12 +343,13 @@ class ForwardBaseBehaviour(RoleBehaviour):
     ) -> bool:
         """Decide if should press defender with ball."""
         opponents = self.get_opponents(player, all_players)
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         for opp in opponents:
             if opp.player_role in ["GK", "CD", "LD", "RD"]:  # Defensive players
                 if self.has_ball_possession(opp, ball):
                     distance = player.state.position.distance_to(opp.state.position)
-                    return distance < 20  # Press if within range
+                    return distance < fwd_cfg.pressing_distance
 
         return False
 
@@ -363,19 +382,27 @@ class ForwardBaseBehaviour(RoleBehaviour):
 
         # Stay high up the pitch
         hold_position = player.role_position
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         # Adjust based on ball position but don't drop too deep
         if abs(ball.position.x - goal_pos.x) > abs(hold_position.x - goal_pos.x):
             # Ball is behind, can drop slightly
-            adjustment = (ball.position - hold_position).normalize() * 5
-            hold_position = hold_position + adjustment
+            offset = ball.position - hold_position
+            if offset.magnitude() > 1e-3:
+                adjustment = offset.normalize() * fwd_cfg.hold_position_adjustment
+                hold_position = hold_position + adjustment
 
         self.move_to_position(player, hold_position, positioning_attr, dt, ball, sprint=False)
 
     def _is_under_pressure(
-        self, player: "PlayerMatchState", opponents: List["PlayerMatchState"], radius: float = 4.0
+        self,
+        player: "PlayerMatchState",
+        opponents: List["PlayerMatchState"],
+        radius: Optional[float] = None,
     ) -> bool:
         """Detect if any opponent is within pressing distance."""
+        fwd_cfg = ENGINE_CONFIG.role.forward
+        radius = fwd_cfg.pressure_radius if radius is None else radius
         return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
 
     def _find_relief_pass(
@@ -395,11 +422,12 @@ class ForwardBaseBehaviour(RoleBehaviour):
         best_target = None
         best_score = 0.0
         goal_pos = self.get_goal_position(player)
+        fwd_cfg = ENGINE_CONFIG.role.forward
 
         for teammate in teammates:
             distance = player.state.position.distance_to(teammate.state.position)
 
-            if distance < 3 or distance > 25:
+            if distance < fwd_cfg.relief_min_distance or distance > fwd_cfg.relief_max_distance:
                 continue
 
             lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
@@ -407,29 +435,35 @@ class ForwardBaseBehaviour(RoleBehaviour):
             # Prefer teammates with time and space
             nearest_opponent = min(
                 (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
-                default=10.0,
+                default=fwd_cfg.relief_nearest_default,
             )
 
-            space_score = min(nearest_opponent / 5.0, 1.0)
+            space_score = min(nearest_opponent / fwd_cfg.relief_space_divisor, 1.0)
 
             # Encourage diagonal or lateral passes when pressured
             angle_progress = goal_pos.distance_to(teammate.state.position) < goal_pos.distance_to(
                 player.state.position
             )
-            momentum_score = 0.2 if angle_progress else 0.05
+            momentum_score = (
+                fwd_cfg.relief_progress_bonus if angle_progress else fwd_cfg.relief_support_bonus
+            )
 
-            distance_score = 1 - (distance / 25)
-            vision_factor = 0.6 + (vision_attr / 100) * 0.4
+            distance_score = 1 - (distance / fwd_cfg.relief_max_distance)
+            vision_factor = fwd_cfg.relief_vision_base + (vision_attr / 100) * fwd_cfg.relief_vision_scale
 
-            total_score = (
-                lane_quality * 0.45 + space_score * 0.25 + distance_score * 0.1 + momentum_score
-            ) * vision_factor
+            weighted_score = (
+                lane_quality * fwd_cfg.relief_lane_weight
+                + space_score * fwd_cfg.relief_space_weight
+                + distance_score * fwd_cfg.relief_distance_weight
+            )
+
+            total_score = (weighted_score + momentum_score) * vision_factor
 
             if total_score > best_score:
                 best_score = total_score
                 best_target = teammate
 
-        return best_target if best_score > 0.25 else None
+        return best_target if best_score > fwd_cfg.relief_score_threshold else None
 
 
 class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
@@ -445,8 +479,9 @@ class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Stay in central channel
-        adjusted_y = position.y * 0.3  # Drift slightly but stay central
-        adjusted_y = max(-8, min(8, adjusted_y))
+        fwd_cfg = ENGINE_CONFIG.role.forward
+        adjusted_y = position.y * fwd_cfg.centre_adjust_factor  # Drift slightly but stay central
+        adjusted_y = max(-fwd_cfg.centre_max_width, min(fwd_cfg.centre_max_width, adjusted_y))
 
         return Vector2D(position.x, adjusted_y)
 
@@ -464,13 +499,14 @@ class LeftCentreForwardRoleBehaviour(ForwardBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Prefer left side or diagonal runs towards center
-        adjusted_y = max(position.y, 5)  # Stay left or cut inside
+        fwd_cfg = ENGINE_CONFIG.role.forward
+        adjusted_y = max(position.y, fwd_cfg.wide_min_offset)  # Stay left or cut inside
 
         # Sometimes cut inside towards goal
         if ball.position.y < 0:  # Ball on right
-            adjusted_y = min(adjusted_y, 15)  # Stay wider
+            adjusted_y = min(adjusted_y, fwd_cfg.wide_max_width)  # Stay wider
         else:  # Ball on left
-            adjusted_y = position.y * 0.7  # Can cut inside more
+            adjusted_y = position.y * fwd_cfg.cut_inside_factor  # Can cut inside more
 
         return Vector2D(position.x, adjusted_y)
 
@@ -488,12 +524,13 @@ class RightCentreForwardRoleBehaviour(ForwardBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Prefer right side or diagonal runs towards center
-        adjusted_y = min(position.y, -5)  # Stay right or cut inside
+        fwd_cfg = ENGINE_CONFIG.role.forward
+        adjusted_y = min(position.y, -fwd_cfg.wide_min_offset)  # Stay right or cut inside
 
         # Sometimes cut inside towards goal
         if ball.position.y > 0:  # Ball on left
-            adjusted_y = max(adjusted_y, -15)  # Stay wider
+            adjusted_y = max(adjusted_y, -fwd_cfg.wide_max_width)  # Stay wider
         else:  # Ball on right
-            adjusted_y = position.y * 0.7  # Can cut inside more
+            adjusted_y = position.y * fwd_cfg.cut_inside_factor  # Can cut inside more
 
         return Vector2D(position.x, adjusted_y)

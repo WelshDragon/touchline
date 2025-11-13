@@ -18,6 +18,8 @@ import math
 import random
 from typing import TYPE_CHECKING, List, Optional
 
+from touchline.engine.config import ENGINE_CONFIG
+
 if TYPE_CHECKING:
     from touchline.engine.physics import BallState, Vector2D
     from touchline.engine.player_state import PlayerMatchState
@@ -72,18 +74,20 @@ class RoleBehaviour:
         # Use the is_with_ball flag set by the match engine
         return player.state.is_with_ball
 
-    def get_goal_position(self, player: "PlayerMatchState", pitch_width: float = 105.0) -> "Vector2D":
+    def get_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
         """Get the opponent's goal position."""
         from touchline.engine.physics import Vector2D
 
-        goal_x = pitch_width / 2 if player.is_home_team else -pitch_width / 2
+        width = pitch_width if pitch_width is not None else ENGINE_CONFIG.pitch.width
+        goal_x = width / 2 if player.is_home_team else -width / 2
         return Vector2D(goal_x, 0)
 
-    def get_own_goal_position(self, player: "PlayerMatchState", pitch_width: float = 105.0) -> "Vector2D":
+    def get_own_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
         """Get the player's own goal position."""
         from touchline.engine.physics import Vector2D
 
-        goal_x = -pitch_width / 2 if player.is_home_team else pitch_width / 2
+        width = pitch_width if pitch_width is not None else ENGINE_CONFIG.pitch.width
+        goal_x = -width / 2 if player.is_home_team else width / 2
         return Vector2D(goal_x, 0)
 
     def should_shoot(self, player: "PlayerMatchState", ball: "BallState", shooting_attr: int) -> bool:
@@ -91,8 +95,10 @@ class RoleBehaviour:
         goal_pos = self.get_goal_position(player)
         distance_to_goal = player.state.position.distance_to(goal_pos)
 
+        shoot_cfg = ENGINE_CONFIG.role.shooting
+
         # Don't shoot if too far (based on shooting ability)
-        max_distance = 25 + (shooting_attr / 100 * 15)  # 25-40m range
+        max_distance = shoot_cfg.max_distance_base + (shooting_attr / 100) * shoot_cfg.max_distance_bonus
         if distance_to_goal > max_distance:
             return False
 
@@ -101,17 +107,17 @@ class RoleBehaviour:
 
         # Require better angle when further away
         angle_quality = self.calculate_shot_angle_quality(player, goal_pos)
-        if angle_quality < 0.3 and distance_to_goal > 20:
+        if angle_quality < shoot_cfg.angle_threshold and distance_to_goal > shoot_cfg.long_range_distance:
             return False
 
-        return random.random() < shoot_probability * 0.2  # Reduce shooting frequency
+        return random.random() < shoot_probability * shoot_cfg.probability_scale
 
     def calculate_shot_angle_quality(self, player: "PlayerMatchState", goal_pos: "Vector2D") -> float:
         """Calculate quality of shooting angle (0-1)."""
         from touchline.engine.physics import Vector2D
 
         # Check angles to goal posts
-        post_width = 7.32 / 2  # Half of goal width
+        post_width = ENGINE_CONFIG.pitch.goal_width / 2
         left_post = Vector2D(goal_pos.x, goal_pos.y + post_width)
         right_post = Vector2D(goal_pos.x, goal_pos.y - post_width)
 
@@ -148,13 +154,14 @@ class RoleBehaviour:
         best_score = -1
 
         goal_pos = self.get_goal_position(player)
+        pass_cfg = ENGINE_CONFIG.role.passing
 
         for teammate in teammates:
             # Skip if too far based on passing ability
             distance = player.state.position.distance_to(teammate.state.position)
-            max_pass_distance = 30 + (passing_attr / 100 * 30)  # 30-60m range
+            max_pass_distance = pass_cfg.max_distance_base + (passing_attr / 100) * pass_cfg.max_distance_bonus
 
-            if distance > max_pass_distance or distance < 5:
+            if distance > max_pass_distance or distance < pass_cfg.min_distance:
                 continue
 
             # Check if pass lane is clear
@@ -169,13 +176,17 @@ class RoleBehaviour:
             distance_score = 1 - (distance / max_pass_distance)
             vision_factor = vision_attr / 100
 
-            total_score = (lane_quality * 0.4 + distance_score * 0.3 + progress_score * 0.3) * vision_factor
+            total_score = (
+                lane_quality * pass_cfg.lane_weight
+                + distance_score * pass_cfg.distance_weight
+                + progress_score * pass_cfg.progress_weight
+            ) * vision_factor
 
             if total_score > best_score:
                 best_score = total_score
                 best_target = teammate
 
-        return best_target if best_score > 0.3 else None
+        return best_target if best_score > pass_cfg.score_threshold else None
 
     def calculate_pass_lane_quality(
         self,
@@ -192,6 +203,8 @@ class RoleBehaviour:
 
         quality = 1.0
 
+        pass_cfg = ENGINE_CONFIG.role.passing
+
         for opponent in opponents:
             # Calculate perpendicular distance from opponent to pass line
             to_opponent = opponent.state.position - passer.state.position
@@ -203,8 +216,8 @@ class RoleBehaviour:
                 )
 
                 # Reduce quality based on proximity
-                if perp_distance < 5:
-                    quality *= perp_distance / 5
+                if perp_distance < pass_cfg.lane_block_distance:
+                    quality *= perp_distance / pass_cfg.lane_block_distance
 
         return quality
 
@@ -214,18 +227,26 @@ class RoleBehaviour:
         ball: "BallState",
         player_speed: float,
         *,
-        max_time: float = 3.0,
-        time_step: float = 0.2,
-        reaction_buffer: float = 0.15,
-        fallback_fraction: float = 0.25,
-        fallback_cap: float = 4.5,
+        max_time: Optional[float] = None,
+        time_step: Optional[float] = None,
+        reaction_buffer: Optional[float] = None,
+        fallback_fraction: Optional[float] = None,
+        fallback_cap: Optional[float] = None,
     ) -> "Vector2D":
         """Predict where the player can meet the ball along its path."""
+
+        intercept_cfg = ENGINE_CONFIG.role.intercept
+
+        max_time = intercept_cfg.max_time if max_time is None else max_time
+        time_step = intercept_cfg.time_step if time_step is None else time_step
+        reaction_buffer = intercept_cfg.reaction_buffer if reaction_buffer is None else reaction_buffer
+        fallback_fraction = intercept_cfg.fallback_fraction if fallback_fraction is None else fallback_fraction
+        fallback_cap = intercept_cfg.fallback_cap if fallback_cap is None else fallback_cap
 
         ball_speed = ball.velocity.magnitude()
         intercept = ball.position
 
-        if ball_speed >= 0.2:
+        if ball_speed >= intercept_cfg.min_ball_speed:
             best_candidate: Optional["Vector2D"] = None
 
             steps = int(max_time / time_step)
@@ -268,13 +289,15 @@ class RoleBehaviour:
         # down at their feet.
         from touchline.engine.physics import Vector2D
 
-        player_speed = 4.3 + (speed_attr / 100) * 3.2  # Approx. controllable sprint speed
+        receive_cfg = ENGINE_CONFIG.role.receive_pass
+
+        player_speed = receive_cfg.player_speed_base + (speed_attr / 100) * receive_cfg.player_speed_attr_scale
         intercept = self._project_ball_intercept(player, ball, player_speed)
 
         to_intercept = intercept - player.state.position
         distance = to_intercept.magnitude()
 
-        if distance < 0.4:
+        if distance < receive_cfg.stop_distance:
             # Close enough – let possession logic take over next frame.
             player.state.velocity = Vector2D(0, 0)
             return True
@@ -282,8 +305,8 @@ class RoleBehaviour:
         direction = to_intercept.normalize()
 
         # Approximate maximum controllable speed while preparing to receive.
-        base_speed = 4.5
-        max_speed = base_speed + (speed_attr / 100) * 3.0
+        base_speed = receive_cfg.move_base_speed
+        max_speed = base_speed + (speed_attr / 100) * receive_cfg.move_attr_scale
         player.state.velocity = direction * max_speed
         player.current_target = intercept
 
@@ -311,28 +334,30 @@ class RoleBehaviour:
 
         from touchline.engine.physics import Vector2D
 
-        player_speed = 4.6 + (speed_attr / 100) * 3.4
+        loose_cfg = ENGINE_CONFIG.role.loose_ball
+
+        player_speed = loose_cfg.player_speed_base + (speed_attr / 100) * loose_cfg.player_speed_attr_scale
         intercept = self._project_ball_intercept(
             player,
             ball,
             player_speed,
-            max_time=3.5,
-            reaction_buffer=0.2,
-            fallback_fraction=0.3,
-            fallback_cap=6.0,
+            max_time=loose_cfg.intercept_max_time,
+            reaction_buffer=loose_cfg.intercept_reaction_buffer,
+            fallback_fraction=loose_cfg.intercept_fallback_fraction,
+            fallback_cap=loose_cfg.intercept_fallback_cap,
         )
 
         to_intercept = intercept - player.state.position
         distance = to_intercept.magnitude()
 
-        if distance < 0.35:
+        if distance < loose_cfg.stop_distance:
             player.state.velocity = Vector2D(0, 0)
             player.current_target = intercept
             return True
 
         direction = to_intercept.normalize()
-        base_speed = 5.0
-        max_speed = base_speed + (speed_attr / 100) * 3.2
+        base_speed = loose_cfg.move_base_speed
+        max_speed = base_speed + (speed_attr / 100) * loose_cfg.move_attr_scale
         player.state.velocity = direction * max_speed
         player.current_target = intercept
 
@@ -351,15 +376,16 @@ class RoleBehaviour:
 
         # Calculate pass speed using a capped easing curve so long passes travel fast
         # enough without turning into shots, while short passes remain controlled.
+        pass_cfg = ENGINE_CONFIG.role.passing
         accuracy_factor = passing_attr / 100
-        min_speed = 2.8 + 2.5 * accuracy_factor  # 2.8-5.3 m/s floor for give-and-goes
-        max_speed = 13.0 + 5.5 * accuracy_factor  # 13-18.5 m/s ceiling for driven passes
-        distance_ratio = min(distance / 30.0, 1.0)
-        eased_ratio = distance_ratio ** 0.5  # Softer ramp so short passes stay tame
+        min_speed = pass_cfg.power_min_base + pass_cfg.power_min_bonus * accuracy_factor
+        max_speed = pass_cfg.power_max_base + pass_cfg.power_max_bonus * accuracy_factor
+        distance_ratio = min(distance / pass_cfg.distance_norm, 1.0)
+        eased_ratio = distance_ratio ** pass_cfg.easing_exponent
         power = min_speed + (max_speed - min_speed) * eased_ratio
 
         # Add slight inaccuracy based on passing attribute
-        inaccuracy = (1 - accuracy_factor) * 2
+        inaccuracy = (1 - accuracy_factor) * pass_cfg.inaccuracy_max
         target_pos = target.state.position
         offset_x = random.uniform(-inaccuracy, inaccuracy)
         offset_y = random.uniform(-inaccuracy, inaccuracy)
@@ -383,7 +409,8 @@ class RoleBehaviour:
 
         # Aim for corners based on shooting ability
         accuracy = shooting_attr / 100
-        goal_offset_y = random.uniform(-3, 3) * (1 - accuracy)
+        shoot_cfg = ENGINE_CONFIG.role.shooting
+        goal_offset_y = random.uniform(-shoot_cfg.goal_offset_range, shoot_cfg.goal_offset_range) * (1 - accuracy)
 
         from touchline.engine.physics import Vector2D
 
@@ -392,7 +419,9 @@ class RoleBehaviour:
 
         # Power based on distance and shooting ability
         distance = player.state.position.distance_to(goal_pos)
-        power = min(35, distance * 1.2 + 15) * (0.8 + accuracy * 0.4)
+        raw_power = distance * shoot_cfg.power_distance_scale + shoot_cfg.power_base
+        power = min(shoot_cfg.power_clamp, raw_power)
+        power *= shoot_cfg.power_accuracy_base + accuracy * shoot_cfg.power_accuracy_scale
 
         ball.kick(direction, power, player.player_id, current_time)
 
@@ -412,11 +441,14 @@ class RoleBehaviour:
         sprint: bool = False,
     ) -> None:
         """Move player towards target position."""
-        base_speed = 6.0  # Base speed in m/s
-        max_speed = base_speed * (0.7 + (speed_attr / 100) * 0.6)  # 4.2 - 7.8 m/s
+        movement_cfg = ENGINE_CONFIG.player_movement
+        base_speed = movement_cfg.base_speed
+        max_speed = base_speed * (
+            movement_cfg.base_multiplier + (speed_attr / 100) * movement_cfg.attribute_multiplier
+        )
 
         if sprint:
-            max_speed *= 1.4  # Sprint boost
+            max_speed *= movement_cfg.sprint_multiplier
 
         # Apply light lane preservation and teammate spacing for outfield players
         from touchline.engine.physics import Vector2D
@@ -459,6 +491,7 @@ class RoleBehaviour:
         relative_ball = ball.position.x * goal_dir
         relative_possessor = possessor.state.position.x * goal_dir
 
+        support_cfg = ENGINE_CONFIG.role.possession_support
         push_distance, trailing_buffer, forward_margin = self._support_profile(player)
         if push_distance <= 0 and forward_margin <= 0:
             return target
@@ -469,7 +502,7 @@ class RoleBehaviour:
         gap_to_possessor = max(0.0, relative_possessor - relative_target)
         desired_relative = relative_target + min(
             push_distance,
-            gap_to_possessor * 0.8 + push_distance * 0.3,
+            gap_to_possessor * support_cfg.gap_weight + push_distance * support_cfg.push_bias,
         )
 
         # Clamp relative X within trailing buffer behind the ball and a forward margin ahead of it.
@@ -479,7 +512,11 @@ class RoleBehaviour:
 
         if forward_margin > 0:
             # Once we're moving into the attacking half, bias towards getting in front of the ball.
-            ahead_factor = 0.4 if relative_ball < 15 else 0.7
+            ahead_factor = (
+                support_cfg.ahead_factor_low
+                if relative_ball < support_cfg.ahead_threshold
+                else support_cfg.ahead_factor_high
+            )
             min_ahead = relative_ball + forward_margin * ahead_factor
             new_relative = max(new_relative, min_ahead)
             new_relative = min(new_relative, max_forward)
@@ -491,33 +528,26 @@ class RoleBehaviour:
 
     def _support_profile(self, player: "PlayerMatchState") -> tuple[float, float, float]:
         """Return (push_distance, trailing_buffer, forward_margin) for support."""
+        profiles = ENGINE_CONFIG.role.support_profiles
         role = player.player_role
-
-        if role == "GK":
-            return 0.0, 12.0, 0.0
-
-        if role in {"CD", "LD", "RD"}:
-            return 8.0, 14.0, 4.0
-
-        if role in {"CM", "RM", "LM"}:
-            return 14.0, 8.0, 12.0
-
-        if role in {"CF", "LCF", "RCF"}:
-            return 9.0, 5.0, 10.0
-
-        return 7.0, 10.0, 8.0
+        return profiles.get(role, profiles["default"])
 
     def _apply_lane_spacing(
         self,
         player: "PlayerMatchState",
         target: "Vector2D",
-        lane_weight: float = 0.25,
-        min_spacing: float = 6.0,
+        lane_weight: Optional[float] = None,
+        min_spacing: Optional[float] = None,
     ) -> "Vector2D":
         """Blend target with base lane and push away from nearby teammates to avoid crowding."""
         from touchline.engine.physics import Vector2D
 
         adjusted = Vector2D(target.x, target.y)
+
+        lane_cfg = ENGINE_CONFIG.role.lane_spacing
+        lane_weight = lane_cfg.lane_weight if lane_weight is None else lane_weight
+        min_spacing = lane_cfg.min_spacing if min_spacing is None else min_spacing
+        separation_scale = lane_cfg.separation_scale
 
         # Keep some attachment to assigned formation lane when not carrying the ball
         if not player.state.is_with_ball:
@@ -546,7 +576,7 @@ class RoleBehaviour:
                     push_dir = offset.normalize()
                     # Push out proportionally to how close the teammate is
                     push_strength = (min_spacing - distance) / min_spacing
-                    separation = separation + push_dir * (push_strength * min_spacing * 0.5)
+                    separation = separation + push_dir * (push_strength * min_spacing * separation_scale)
 
             adjusted = adjusted + separation
 
@@ -566,24 +596,24 @@ class RoleBehaviour:
         # Calculate how far forward/back the defensive line should be based on ball position
         # This gives a target X coordinate for the defensive line
         ball_to_goal_distance = abs(ball.position.x - own_goal.x)
-        
-        # Defensive line positions itself proportionally between base position and ball
-        # When ball is far (>40m), stay at base position
-        # When ball is close (<20m), push up to around 15m from goal
-        if ball_to_goal_distance > 40:
+        defensive_cfg = ENGINE_CONFIG.role.defensive
+
+        if ball_to_goal_distance > defensive_cfg.far_threshold:
             target_x = base_position.x
-        elif ball_to_goal_distance < 20:
-            # Push up but not past the ball
-            target_x = own_goal.x + (15 if own_goal.x < 0 else -15)
+        elif ball_to_goal_distance < defensive_cfg.close_threshold:
+            close_offset = defensive_cfg.close_offset if own_goal.x < 0 else -defensive_cfg.close_offset
+            target_x = own_goal.x + close_offset
         else:
             # Interpolate between base and advanced position
-            t = (40 - ball_to_goal_distance) / 20  # 0 when far, 1 when close
-            advanced_x = own_goal.x + (25 if own_goal.x < 0 else -25)
+            span = defensive_cfg.far_threshold - defensive_cfg.close_threshold
+            t = (defensive_cfg.far_threshold - ball_to_goal_distance) / max(span, 1e-6)
+            advanced_offset = defensive_cfg.advanced_offset if own_goal.x < 0 else -defensive_cfg.advanced_offset
+            advanced_x = own_goal.x + advanced_offset
             target_x = base_position.x * (1 - t) + advanced_x * t
-        
+
         # Maintain individual Y position from formation (with slight adjustment for ball)
         # Each player keeps their horizontal spacing
-        ball_y_offset = (ball.position.y - base_position.y) * 0.2  # Only 20% pull towards ball
+        ball_y_offset = (ball.position.y - base_position.y) * defensive_cfg.y_pull_factor
         target_y = base_position.y + ball_y_offset
         
         return Vector2D(target_x, target_y)
@@ -593,16 +623,21 @@ class RoleBehaviour:
         player: "PlayerMatchState",
         ball: "BallState",
         all_players: List["PlayerMatchState"],
-        stamina_threshold: float = 30.0,
+        stamina_threshold: Optional[float] = None,
+        distance_threshold: Optional[float] = None,
     ) -> bool:
         """Decide if player should press the opponent with the ball."""
+        press_cfg = ENGINE_CONFIG.role.pressing
+        stamina_threshold = press_cfg.stamina_threshold if stamina_threshold is None else stamina_threshold
+        distance_threshold = press_cfg.distance_threshold if distance_threshold is None else distance_threshold
+
         if player.state.stamina < stamina_threshold:
             return False
 
         distance = self.distance_to_ball(player, ball)
 
         # Press if reasonably close and ball is with opponent
-        if distance < 15:
+        if distance < distance_threshold:
             opponents = self.get_opponents(player, all_players)
             for opp in opponents:
                 if self.has_ball_possession(opp, ball):
@@ -615,10 +650,13 @@ class RoleBehaviour:
         player: "PlayerMatchState",
         all_players: List["PlayerMatchState"],
         preferred_direction: "Vector2D",
-        search_radius: float = 15.0,
+        search_radius: Optional[float] = None,
     ) -> "Vector2D":
         """Find space away from other players."""
         from touchline.engine.physics import Vector2D
+
+        space_cfg = ENGINE_CONFIG.role.space_finding
+        search_radius = space_cfg.search_radius if search_radius is None else search_radius
 
         # Start with preferred direction
         best_pos = player.state.position + preferred_direction.normalize() * 10
@@ -626,7 +664,7 @@ class RoleBehaviour:
         # Check crowding
         min_crowding = float("inf")
 
-        for angle in range(0, 360, 30):
+        for angle in range(0, 360, space_cfg.angle_step):
             rad = math.radians(angle)
             test_pos = player.state.position + Vector2D(
                 math.cos(rad) * search_radius, math.sin(rad) * search_radius

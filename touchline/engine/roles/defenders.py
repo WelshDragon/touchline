@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional
 
+from touchline.engine.config import ENGINE_CONFIG
+
 from .base import RoleBehaviour
 
 if TYPE_CHECKING:
@@ -93,7 +95,9 @@ class DefenderBaseBehaviour(RoleBehaviour):
         tackling_attr: int,
     ) -> bool:
         """Decide if should attempt tackle."""
-        if self.distance_to_ball(player, ball) > 3:
+        def_cfg = ENGINE_CONFIG.role.defender
+
+        if self.distance_to_ball(player, ball) > def_cfg.tackle_ball_distance:
             return False
 
         # Check if opponent has ball
@@ -101,7 +105,10 @@ class DefenderBaseBehaviour(RoleBehaviour):
             if self.has_ball_possession(opp, ball):
                 distance = player.state.position.distance_to(opp.state.position)
                 # Better tacklers attempt from further
-                max_tackle_distance = 1.5 + (tackling_attr / 100) * 1.0
+                max_tackle_distance = (
+                    def_cfg.tackle_range_base
+                    + (tackling_attr / 100) * def_cfg.tackle_range_attr_scale
+                )
                 return distance < max_tackle_distance
 
         return False
@@ -120,11 +127,13 @@ class DefenderBaseBehaviour(RoleBehaviour):
         self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True)
 
         # If very close, can win ball
-        if self.distance_to_ball(player, ball) < 1.2:
+        def_cfg = ENGINE_CONFIG.role.defender
+
+        if self.distance_to_ball(player, ball) < def_cfg.tackle_success_distance:
             # Success based on tackling attribute
             import random
 
-            success_chance = tackling_attr / 100 * 0.7  # 0-70% success rate
+            success_chance = (tackling_attr / 100) * def_cfg.tackle_success_scale
 
             if random.random() < success_chance:
                 # Won the ball! Clear it
@@ -132,34 +141,38 @@ class DefenderBaseBehaviour(RoleBehaviour):
                 clear_direction = (ball.position - own_goal).normalize()
 
                 # Clear upfield
-                ball.kick(clear_direction, 20, player.player_id, current_time)
+                ball.kick(clear_direction, def_cfg.clear_power, player.player_id, current_time)
 
     def _should_intercept(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int) -> bool:
         """Decide if should attempt to intercept a pass."""
         # Ball must be moving
-        if ball.velocity.magnitude() < 3:
+        def_cfg = ENGINE_CONFIG.role.defender
+
+        if ball.velocity.magnitude() < def_cfg.intercept_ball_speed_min:
             return False
 
         # Calculate if can reach ball's trajectory
         distance_to_ball = self.distance_to_ball(player, ball)
 
-        if distance_to_ball > 15:
+        if distance_to_ball > def_cfg.intercept_distance_limit:
             return False
 
         # Project ball position
-        time_to_reach = distance_to_ball / ((speed_attr / 100) * 7)  # Player speed
+        speed_factor = max(speed_attr / 100, 0.01)
+        time_to_reach = distance_to_ball / (speed_factor * def_cfg.intercept_speed_scale)
         ball_future_pos = ball.position + ball.velocity * time_to_reach
 
         future_distance = player.state.position.distance_to(ball_future_pos)
 
         # Can intercept if future position is closer
-        return future_distance < distance_to_ball * 0.8
+        return future_distance < distance_to_ball * def_cfg.intercept_improvement_factor
 
     def _attempt_intercept(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int, dt: float) -> None:
         """Move to intercept the ball."""
         # Predict where ball will be
         distance = self.distance_to_ball(player, ball)
-        player_speed = (speed_attr / 100) * 7
+        def_cfg = ENGINE_CONFIG.role.defender
+        player_speed = max((speed_attr / 100) * def_cfg.intercept_speed_scale, 0.1)
 
         time_to_reach = distance / player_speed
         intercept_pos = ball.position + ball.velocity * time_to_reach
@@ -178,6 +191,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
         own_goal = self.get_own_goal_position(player)
         max_threat = -1
         biggest_threat = None
+        def_cfg = ENGINE_CONFIG.role.defender
 
         for opp in opponents:
             # Skip goalkeeper
@@ -190,22 +204,29 @@ class DefenderBaseBehaviour(RoleBehaviour):
             distance_to_me = player.state.position.distance_to(opp.state.position)
 
             # Only consider opponents within reasonable range
-            if distance_to_me > 25:
+            if distance_to_me > def_cfg.threat_marking_range:
                 continue
 
             # Check if already marked by teammate (stricter check)
-            is_marked = any(t.state.position.distance_to(opp.state.position) < 3 for t in teammates if t != player)
+            is_marked = any(
+                t.state.position.distance_to(opp.state.position) < def_cfg.threat_marked_distance
+                for t in teammates
+                if t != player
+            )
 
             # Calculate threat score
-            ball_threat = max(0, 1 - distance_to_ball / 30)
-            goal_threat = max(0, 1 - distance_to_goal / 50)
-            marking_bonus = 0 if is_marked else 0.3
+            ball_threat = max(0, 1 - distance_to_ball / def_cfg.threat_ball_distance)
+            goal_threat = max(0, 1 - distance_to_goal / def_cfg.threat_goal_distance)
+            marking_bonus = 0 if is_marked else def_cfg.threat_unmarked_bonus
 
             # Strong preference for opponents closest to this defender (prevents crowding)
-            proximity_score = max(0, 1 - distance_to_me / 25)
+            proximity_score = max(0, 1 - distance_to_me / def_cfg.threat_proximity_distance)
 
             threat_score = (
-                ball_threat * 0.2 + goal_threat * 0.2 + marking_bonus * 0.2 + proximity_score * 0.4
+                ball_threat * def_cfg.threat_ball_weight
+                + goal_threat * def_cfg.threat_goal_weight
+                + marking_bonus * def_cfg.threat_marking_weight
+                + proximity_score * def_cfg.threat_proximity_weight
             )
 
             if threat_score > max_threat:
@@ -227,17 +248,21 @@ class DefenderBaseBehaviour(RoleBehaviour):
 
         # Position between opponent and goal
         opp_to_goal = (own_goal - opponent.state.position).normalize()
-        marking_distance = 2 + (positioning_attr / 100) * 1  # 2-3m based on positioning
+        def_cfg = ENGINE_CONFIG.role.defender
+        marking_distance = (
+            def_cfg.marking_distance_base
+            + (positioning_attr / 100) * def_cfg.marking_distance_attr_scale
+        )
 
         marking_pos = opponent.state.position + opp_to_goal * marking_distance
 
         # Adjust towards ball if it's nearby
-        if ball.position.distance_to(opponent.state.position) < 10:
+        if ball.position.distance_to(opponent.state.position) < def_cfg.marking_ball_distance:
             ball_to_opp = (opponent.state.position - ball.position).normalize()
-            marking_pos = marking_pos + ball_to_opp * 1
+            marking_pos = marking_pos + ball_to_opp * def_cfg.marking_ball_adjustment
 
         # Move to marking position
-        self.move_to_position(player, marking_pos, 70, dt, ball, sprint=False)
+        self.move_to_position(player, marking_pos, def_cfg.marking_speed_attr, dt, ball, sprint=False)
 
     def _maintain_defensive_position(
         self,
@@ -286,7 +311,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
             direction = (goal_pos - player.state.position).normalize()
             
             # Dribble forward slowly
-            dribble_speed = 3.0
+            dribble_speed = ENGINE_CONFIG.role.defender.dribble_speed
             player.state.velocity = direction * dribble_speed
             
             # Keep ball with player
@@ -307,7 +332,8 @@ class RightDefenderRoleBehaviour(DefenderBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Maintain width on right side
-        adjusted_y = max(position.y, -8)  # Stay at least 8m right of center
+        min_width = ENGINE_CONFIG.role.defender.fullback_min_width
+        adjusted_y = max(position.y, -min_width)  # Stay at least configured distance right of center
         return Vector2D(position.x, adjusted_y)
 
 
@@ -326,14 +352,15 @@ class CentralDefenderRoleBehaviour(DefenderBaseBehaviour):
         # Use the player's role_position to maintain individual spacing
         # This prevents multiple CBs from converging to the same spot
         base_y_offset = player.role_position.y
-        
+
         # Stay relatively central but maintain formation width
         # Shift slightly towards ball but preserve individual positioning
-        shift_y = (ball.position.y - position.y) * 0.15  # Reduced from 0.2
+        def_cfg = ENGINE_CONFIG.role.defender
+        shift_y = (ball.position.y - position.y) * def_cfg.centreback_shift_factor
         adjusted_y = base_y_offset + shift_y
 
         # Constrain to central area
-        adjusted_y = max(-12, min(12, adjusted_y))
+        adjusted_y = max(-def_cfg.centreback_max_width, min(def_cfg.centreback_max_width, adjusted_y))
         return Vector2D(position.x, adjusted_y)
 
 
@@ -350,5 +377,6 @@ class LeftDefenderRoleBehaviour(DefenderBaseBehaviour):
         from touchline.engine.physics import Vector2D
 
         # Maintain width on left side
-        adjusted_y = min(position.y, 8)  # Stay at least 8m left of center
+        min_width = ENGINE_CONFIG.role.defender.fullback_min_width
+        adjusted_y = min(position.y, min_width)  # Stay at least configured distance left of center
         return Vector2D(position.x, adjusted_y)
