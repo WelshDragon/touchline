@@ -70,7 +70,6 @@ def start_visualizer(
     TEXT = (20, 20, 20)
 
     font = pygame.font.SysFont(None, 18)
-    log_font = pygame.font.SysFont("monospace", 14)
 
     pitch = engine.state.pitch
     running = True

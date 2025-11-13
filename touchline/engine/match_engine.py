@@ -22,6 +22,7 @@ from touchline.engine.config import ENGINE_CONFIG
 from touchline.engine.events import MatchEvent
 from touchline.engine.physics import BallState, Pitch, PlayerState, Vector2D
 from touchline.engine.player_state import PlayerMatchState
+from touchline.engine.referee import Referee
 from touchline.models.team import Team
 from touchline.utils.debug import MatchDebugger
 from touchline.utils.roster import load_teams_from_json
@@ -163,6 +164,7 @@ class RealTimeMatchEngine:
         # can optionally write debug events when they modify the ball.
         for ps in self.state.player_states.values():
             ps.debugger = self.debugger
+        self.referee = Referee(self.state.pitch, self.debugger)
 
     def start_match(self) -> None:
         """Start the match simulation."""
@@ -183,14 +185,12 @@ class RealTimeMatchEngine:
         # Update ball physics
         self.state.ball.update(dt)
 
-        # Check if ball is in bounds
-        if not self.state.pitch.is_in_bounds(self.state.ball.position):
-            # Check for goal
-            is_goal, team = self.state.pitch.is_goal(self.state.ball.position)
-            if is_goal:
-                self._handle_goal(team)
-            else:
-                self._handle_out_of_bounds()
+        # Let the referee adjudicate key match events (goal, out of play, etc.)
+        decision = self.referee.observe_ball(self.state.ball, self.state.match_time)
+        if decision.is_goal and decision.team:
+            self._handle_goal(decision.team)
+        elif decision.is_ball_out:
+            self._handle_out_of_bounds()
 
         # Update all players and track ball possession
         all_players = list(self.state.player_states.values())
