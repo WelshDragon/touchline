@@ -214,7 +214,9 @@ class ShootingConfig:
     long_range_distance: float = 20.0
     angle_threshold: float = 0.3
     probability_scale: float = 0.2
-    goal_offset_range: float = 3.0
+    goal_offset_range: float = 3.0  # Maximum vertical inset from the post when aiming for corners
+    corner_depth_bias: float = 0.8  # How far inside the goal mouth to aim (meters)
+    corner_depth_spread: float = 0.6  # Additional depth variation scaled by inaccuracy
     power_distance_scale: float = 1.2
     power_base: float = 15.0
     power_clamp: float = 35.0

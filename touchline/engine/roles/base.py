@@ -434,15 +434,59 @@ class RoleBehaviour:
         """Execute a shot on goal."""
         goal_pos = self.get_goal_position(player)
 
-        # Aim for corners based on shooting ability
-        accuracy = shooting_attr / 100
-        shoot_cfg = ENGINE_CONFIG.role.shooting
-        goal_offset_y = random.uniform(-shoot_cfg.goal_offset_range, shoot_cfg.goal_offset_range) * (1 - accuracy)
-
         from touchline.engine.physics import Vector2D
 
-        target = Vector2D(goal_pos.x, goal_pos.y + goal_offset_y)
-        direction = (target - player.state.position).normalize()
+        pitch_cfg = ENGINE_CONFIG.pitch
+        shoot_cfg = ENGINE_CONFIG.role.shooting
+        shooter_pos = player.state.position
+        half_goal_width = pitch_cfg.goal_width / 2
+        goal_corners = [
+            Vector2D(goal_pos.x, half_goal_width),
+            Vector2D(goal_pos.x, -half_goal_width),
+        ]
+
+        goalkeeper_pos: Optional[Vector2D] = None
+        if self._current_all_players:
+            opponents = [p for p in self._current_all_players if p.team != player.team]
+            goalkeeper = next((p for p in opponents if p.player_role == "GK"), None)
+            if goalkeeper is None and opponents:
+                goalkeeper = min(opponents, key=lambda opp: opp.state.position.distance_to(goal_pos))
+            if goalkeeper is not None:
+                goalkeeper_pos = goalkeeper.state.position
+
+        def _point_to_segment_distance(point: Vector2D, start: Vector2D, end: Vector2D) -> float:
+            segment = end - start
+            seg_len_sq = segment.x * segment.x + segment.y * segment.y
+            if seg_len_sq <= 1e-9:
+                return (point - start).magnitude()
+            t = ((point.x - start.x) * segment.x + (point.y - start.y) * segment.y) / seg_len_sq
+            t = max(0.0, min(1.0, t))
+            closest = Vector2D(start.x + segment.x * t, start.y + segment.y * t)
+            return (point - closest).magnitude()
+
+        if goalkeeper_pos is not None:
+            best_corner = max(
+                goal_corners,
+                key=lambda corner: _point_to_segment_distance(goalkeeper_pos, shooter_pos, corner),
+            )
+        else:
+            best_corner = max(goal_corners, key=lambda corner: abs(corner.y - shooter_pos.y))
+
+        accuracy = shooting_attr / 100
+        inset_range = shoot_cfg.goal_offset_range * (1 - accuracy)
+        inset_amount = random.uniform(0.0, inset_range) if inset_range > 0 else 0.0
+
+        target_y = best_corner.y
+        if abs(best_corner.y) > 1e-6:
+            target_y = best_corner.y - math.copysign(inset_amount, best_corner.y)
+
+        depth_bias = shoot_cfg.corner_depth_bias
+        depth_variation = shoot_cfg.corner_depth_spread * (1 - accuracy)
+        depth_offset = depth_bias + (random.uniform(0.0, depth_variation) if depth_variation > 0 else 0.0)
+        target_x = best_corner.x + math.copysign(depth_offset, best_corner.x)
+
+        target = Vector2D(target_x, target_y)
+        direction = (target - shooter_pos).normalize()
 
         # Power based on distance and shooting ability
         distance = player.state.position.distance_to(goal_pos)
