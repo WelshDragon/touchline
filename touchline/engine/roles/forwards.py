@@ -221,9 +221,20 @@ class ForwardBaseBehaviour(RoleBehaviour):
             )
             player.state.velocity = direction * dribble_speed
 
-        # Keep ball at player's feet
-        ball.position = player.state.position
-        ball.velocity = Vector2D(0, 0)
+        # Keep the ball just ahead of the dribbler so opponents can challenge.
+        control_offset = fwd_cfg.dribble_control_offset
+        carry_factor = fwd_cfg.dribble_velocity_blend
+        if player.state.velocity.magnitude() > 0:
+            carry_dir = player.state.velocity.normalize()
+            target_pos = player.state.position + carry_dir * control_offset
+            ball.position = Vector2D(
+                ball.position.x + (target_pos.x - ball.position.x) * 0.6,
+                ball.position.y + (target_pos.y - ball.position.y) * 0.6,
+            )
+            ball.velocity = player.state.velocity * carry_factor
+        else:
+            ball.position = player.state.position
+            ball.velocity = Vector2D(0, 0)
 
     def _find_escape_direction(
         self, player: "PlayerMatchState", opponents: List["PlayerMatchState"]

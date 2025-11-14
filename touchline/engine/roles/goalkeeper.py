@@ -59,17 +59,17 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
                 return
 
-            if self._pursue_loose_ball(player, ball, all_players, speed_attr):
-                return
-
             # Check if goalkeeper has possession
             if self.has_ball_possession(player, ball):
                 self._distribute_ball(player, ball, all_players, player_model, player.match_time)
                 return
 
-            # Check if ball is in penalty area and needs saving
+            # Attempt saves before any other loose-ball heuristics so goal-bound shots are prioritised.
             if self._is_ball_dangerous(player, ball):
                 self._attempt_save(player, ball, speed_attr, dt)
+                return
+
+            if self._pursue_loose_ball(player, ball, all_players, speed_attr):
                 return
 
             # Check if should come out to collect ball (sweeper keeper)

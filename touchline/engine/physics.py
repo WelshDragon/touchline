@@ -14,6 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import inspect
 import math
+from collections import deque
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -101,6 +102,7 @@ class BallState:
         self.last_touched_by = last_touched_by
         self.last_kick_recipient = last_kick_recipient
         self.debugger = debugger
+        self.recent_pass_pairs: deque[tuple[int, int]] = deque(maxlen=12)
 
     # --- instrumented properties -------------------------------------------------
     @property
@@ -178,6 +180,8 @@ class BallState:
             self.last_touched_by = player_id
             # Optionally store the intended recipient (for passes)
             self.last_kick_recipient = recipient_id
+            if recipient_id is not None:
+                self.recent_pass_pairs.append((player_id, recipient_id))
             # Log kick details if a debugger was attached
             if self.debugger:
                 msg = (

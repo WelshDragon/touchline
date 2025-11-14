@@ -182,6 +182,20 @@ class RoleBehaviour:
                 + progress_score * pass_cfg.progress_weight
             ) * vision_factor
 
+            recent_pairs = getattr(ball, "recent_pass_pairs", None)
+            penalty = 0.0
+            if recent_pairs:
+                if recent_pairs and recent_pairs[-1] == (teammate.player_id, player.player_id):
+                    penalty += pass_cfg.immediate_return_penalty
+
+                for idx, pair in enumerate(reversed(recent_pairs), start=1):
+                    if pair == (player.player_id, teammate.player_id):
+                        decay = pass_cfg.repeat_penalty_base - pass_cfg.repeat_penalty_decay * (idx - 1)
+                        penalty += max(0.0, decay)
+                        break
+
+            total_score -= penalty
+
             if total_score > best_score:
                 best_score = total_score
                 best_target = teammate

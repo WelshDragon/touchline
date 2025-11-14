@@ -215,6 +215,7 @@ class RealTimeMatchEngine:
 
         def assign_possession(new_player: PlayerMatchState) -> None:
             previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
+            already_possessing = previous_possessor == new_player
 
             for p in all_players:
                 p.state.is_with_ball = False
@@ -225,7 +226,7 @@ class RealTimeMatchEngine:
             self.state.ball.last_kick_recipient = None
 
             # Log possession change
-            if previous_possessor != new_player:
+            if not already_possessing:
                 self.debugger.log_match_event(
                     self.state.match_time,
                     "possession",
@@ -235,9 +236,30 @@ class RealTimeMatchEngine:
                     ),
                 )
 
-            # Stop ball completely when possessed - AI will handle dribbling
-            self.state.ball.velocity = Vector2D(0, 0)
-            self.state.ball.position = new_player.state.position
+            if not already_possessing:
+                # Carry the ball at the player's pace rather than freezing it on first touch.
+                self.state.ball.velocity = new_player.state.velocity
+                self.state.ball.position = new_player.state.position
+            else:
+                # When continuing possession, keep the ball nudged ahead of the dribbler so
+                # tackles remain possible and we avoid the glued-to-foot effect.
+                control_direction = None
+                if new_player.state.velocity.magnitude() > 0:
+                    control_direction = new_player.state.velocity.normalize()
+                control_offset = possession_cfg.continue_control_offset
+                blend = possession_cfg.continue_velocity_blend
+
+                if control_direction:
+                    desired_position = new_player.state.position + control_direction * control_offset
+                    # Ease toward the desired spot to stop jittering when players zig-zag.
+                    self.state.ball.position = Vector2D(
+                        self.state.ball.position.x + (desired_position.x - self.state.ball.position.x) * 0.5,
+                        self.state.ball.position.y + (desired_position.y - self.state.ball.position.y) * 0.5,
+                    )
+                    self.state.ball.velocity = new_player.state.velocity * blend
+                else:
+                    self.state.ball.position = new_player.state.position
+                    self.state.ball.velocity = Vector2D(0, 0)
 
         possession_acquired = False
 
@@ -271,7 +293,10 @@ class RealTimeMatchEngine:
                         assign_possession(target_player)
                         possession_acquired = True
 
-        if not possession_acquired and ball_speed < possession_cfg.loose_ball_speed_threshold:
+        if possession_acquired:
+            # Intended recipient already caught the ball; keep possession state untouched.
+            pass
+        elif ball_speed < possession_cfg.loose_ball_speed_threshold:
             closest_player = min(all_players, key=lambda p: p.state.position.distance_to(self.state.ball.position))
             closest_distance = closest_player.state.position.distance_to(self.state.ball.position)
 
@@ -283,6 +308,7 @@ class RealTimeMatchEngine:
 
             if closest_distance < possession_radius:
                 assign_possession(closest_player)
+                possession_acquired = True
             else:
                 # No one close enough to possess
                 for p in all_players:
@@ -437,6 +463,8 @@ class RealTimeMatchEngine:
         self.state.ball.last_touched_by = None
         self.state.ball.last_touched_time = self.state.match_time
         self.state.ball.last_kick_recipient = None
+        if hasattr(self.state.ball, "recent_pass_pairs"):
+            self.state.ball.recent_pass_pairs.clear()
 
     def _get_team_players(self, side: str) -> List[PlayerMatchState]:
         """Return players belonging to the requested side."""

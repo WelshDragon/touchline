@@ -51,6 +51,8 @@ class PossessionConfig:
     medium_radius: float = 0.8
     slow_speed_threshold: float = 0.3
     slow_radius: float = 1.0
+    continue_control_offset: float = 0.45
+    continue_velocity_blend: float = 0.8
 
 
 @dataclass(slots=True)
@@ -121,6 +123,9 @@ class PassingConfig:
     distance_norm: float = 30.0
     easing_exponent: float = 0.5
     inaccuracy_max: float = 2.0
+    repeat_penalty_base: float = 0.25
+    repeat_penalty_decay: float = 0.05
+    immediate_return_penalty: float = 0.3
 
 
 @dataclass(slots=True)
@@ -269,6 +274,8 @@ class ForwardConfig:
     dribble_speed_attr_scale: float = 2.5
     dribble_pressure_base: float = 2.0
     dribble_pressure_attr_scale: float = 2.0
+    dribble_control_offset: float = 0.65
+    dribble_velocity_blend: float = 0.85
     escape_angle_step: int = 45
     escape_base_space: float = 10.0
     escape_opponent_scale: float = 10.0
