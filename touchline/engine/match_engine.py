@@ -363,16 +363,22 @@ class RealTimeMatchEngine:
             if player_state.current_target:
                 target_tuple = (player_state.current_target.x, player_state.current_target.y)
 
-            self.debugger.log_player_state(
-                self.state.match_time,
-                player_state.player_id,
-                player_state.team.name,
-                (player_state.state.position.x, player_state.state.position.y),
-                player_state.state.is_with_ball,
-                player_state.state.stamina,
-                target_tuple,
-                player_state.player_role,
-            )
+                velocity_vec = player_state.state.velocity
+                velocity_tuple = (velocity_vec.x, velocity_vec.y)
+                speed = velocity_vec.magnitude()
+
+                self.debugger.log_player_state(
+                    self.state.match_time,
+                    player_state.player_id,
+                    player_state.team.name,
+                    (player_state.state.position.x, player_state.state.position.y),
+                    player_state.state.is_with_ball,
+                    player_state.state.stamina,
+                    velocity=velocity_tuple,
+                    speed=speed,
+                    target=target_tuple,
+                    player_role=player_state.player_role,
+                )
 
     def _handle_goal(self, scoring_team: str) -> None:
         """Handle goal scored."""

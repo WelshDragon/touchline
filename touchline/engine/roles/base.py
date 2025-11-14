@@ -466,16 +466,54 @@ class RoleBehaviour:
         dt: float,
         ball: Optional["BallState"] = None,
         sprint: bool = False,
+        intent: Optional[str] = None,
     ) -> None:
-        """Move player towards target position."""
+        """Move player towards target position with role-specific pacing."""
         movement_cfg = ENGINE_CONFIG.player_movement
-        base_speed = movement_cfg.base_speed
-        max_speed = base_speed * (
-            movement_cfg.base_multiplier + (speed_attr / 100) * movement_cfg.attribute_multiplier
-        )
+        profile = movement_cfg.role_profiles.get(player.player_role, movement_cfg.role_profiles["default"])
 
-        if sprint:
-            max_speed *= movement_cfg.sprint_multiplier
+        attr_ratio = max(0.0, min(1.0, speed_attr / 100))
+        speed_scale = movement_cfg.speed_scale_min + (
+            movement_cfg.speed_scale_max - movement_cfg.speed_scale_min
+        ) * attr_ratio
+        acceleration_scale = movement_cfg.acceleration_scale_min + (
+            movement_cfg.acceleration_scale_max - movement_cfg.acceleration_scale_min
+        ) * attr_ratio
+        deceleration_scale = movement_cfg.deceleration_scale_min + (
+            movement_cfg.deceleration_scale_max - movement_cfg.deceleration_scale_min
+        ) * attr_ratio
+
+        jog_speed = profile.jog_speed * speed_scale
+        run_speed = profile.run_speed * speed_scale
+        sprint_speed = profile.sprint_speed * speed_scale
+        base_acceleration = profile.acceleration * acceleration_scale
+        base_deceleration = profile.deceleration * deceleration_scale
+
+        resolved_intent = intent.lower() if intent else ("press" if sprint else "support")
+
+        if resolved_intent in {"press", "tackle", "chase"}:
+            role_speed = sprint_speed
+            acceleration = base_acceleration * movement_cfg.intent_press_accel_scale
+            deceleration = base_deceleration * movement_cfg.intent_press_decel_scale
+            arrive_radius = movement_cfg.arrive_radius * movement_cfg.intent_press_arrive_scale
+        elif resolved_intent == "mark":
+            role_speed = run_speed
+            acceleration = base_acceleration * movement_cfg.intent_mark_accel_scale
+            deceleration = base_deceleration * movement_cfg.intent_mark_decel_scale
+            arrive_radius = movement_cfg.arrive_radius * movement_cfg.intent_mark_arrive_scale
+        elif resolved_intent in {"maintain", "shape", "hold"}:
+            role_speed = jog_speed
+            acceleration = base_acceleration * movement_cfg.intent_shape_accel_scale
+            deceleration = base_deceleration * movement_cfg.intent_shape_decel_scale
+            arrive_radius = movement_cfg.arrive_radius * movement_cfg.intent_shape_arrive_scale
+        else:  # support, drift, default fallback
+            blend = max(0.0, min(1.0, movement_cfg.intent_support_speed_blend))
+            role_speed = jog_speed + (run_speed - jog_speed) * blend
+            acceleration = base_acceleration * movement_cfg.intent_support_accel_scale
+            deceleration = base_deceleration * movement_cfg.intent_support_decel_scale
+            arrive_radius = movement_cfg.arrive_radius * movement_cfg.intent_support_arrive_scale
+
+        max_speed = role_speed
 
         # Apply light lane preservation and teammate spacing for outfield players
         from touchline.engine.physics import Vector2D
@@ -489,7 +527,11 @@ class RoleBehaviour:
             adjusted_target = self._apply_possession_support(player, adjusted_target, ball)
 
         player.current_target = adjusted_target
-        player.state.move_towards(adjusted_target, dt, max_speed)
+
+        if not player.state.is_with_ball:
+            player.off_ball_state = resolved_intent
+
+        player.state.move_towards(adjusted_target, dt, max_speed, acceleration, deceleration, arrive_radius)
 
     def _apply_possession_support(
         self,

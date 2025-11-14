@@ -57,19 +57,82 @@ class PlayerState:
     stamina: float  # Current stamina level (0-100)
     is_with_ball: bool = False
 
-    def move_towards(self, target: Vector2D, dt: float, max_speed: float) -> None:
-        """Move player towards target position."""
-        direction = (target - self.position).normalize()
+    def move_towards(
+        self,
+        target: Vector2D,
+        dt: float,
+        max_speed: float,
+        acceleration: float,
+        deceleration: float,
+        arrive_radius: float,
+    ) -> None:
+        """Move player towards a target using acceleration limits and arrival dampening."""
+        if dt <= 0:
+            return
+
         cfg = ENGINE_CONFIG.player_movement
-        # Adjust speed based on stamina
-        current_max_speed = max_speed * (self.stamina / 100)
-        self.velocity = direction * current_max_speed
+        offset = target - self.position
+        distance = offset.magnitude()
+        stamina_scale = max(0.0, self.stamina / 100)
+
+        # No meaningful direction or movement goal – bleed existing velocity.
+        if distance < 1e-4 or max_speed <= 0:
+            current_speed = self.velocity.magnitude()
+            if current_speed > 0:
+                drop = min(current_speed, deceleration * dt)
+                remaining = current_speed - drop
+                if remaining <= 1e-4:
+                    self.velocity = Vector2D(0, 0)
+                else:
+                    self.velocity = self.velocity.normalize() * remaining
+
+                if max_speed > 0:
+                    stamina_drain = (current_speed / max_speed) * dt * cfg.stamina_drain_factor
+                    self.stamina = max(0.0, self.stamina - stamina_drain)
+
+            self.position = self.position + self.velocity * dt
+            return
+
+        direction = offset.normalize()
+
+        desired_speed = max_speed
+        if arrive_radius > 0:
+            desired_speed *= min(1.0, distance / arrive_radius)
+
+        # Don't overshoot target in a single step
+        max_step_speed = distance / dt
+        desired_speed = min(desired_speed, max_step_speed)
+        desired_speed = max(0.0, desired_speed * stamina_scale)
+
+        current_speed = self.velocity.magnitude()
+        alignment = 1.0
+        if current_speed > 1e-6:
+            alignment = (self.velocity.x * direction.x + self.velocity.y * direction.y) / current_speed
+
+        effective_speed = current_speed
+        if alignment < 0.0:
+            # Turning around – shed speed before accelerating in the new direction.
+            effective_speed = max(0.0, current_speed - deceleration * dt)
+
+        if desired_speed > effective_speed:
+            new_speed = effective_speed + min(desired_speed - effective_speed, acceleration * dt)
+        else:
+            new_speed = effective_speed - min(effective_speed - desired_speed, deceleration * dt)
+
+        speed_cap = max_speed * stamina_scale
+        if speed_cap > 0:
+            new_speed = min(new_speed, speed_cap)
+
+        if new_speed <= 1e-4:
+            self.velocity = Vector2D(0, 0)
+        else:
+            self.velocity = direction * new_speed
+
         self.position = self.position + self.velocity * dt
 
-        # REDUCED: Stamina drain from 2.0 to 0.8 (60% reduction)
-        # Was draining 0.75%/sec, now drains ~0.30%/sec at full speed
-        stamina_drain = (self.velocity.magnitude() / max_speed) * dt * cfg.stamina_drain_factor
-        self.stamina = max(0, self.stamina - stamina_drain)
+        if max_speed > 0 and new_speed > 0:
+            stamina_drain = (new_speed / max_speed) * dt * cfg.stamina_drain_factor
+            self.stamina = max(0.0, self.stamina - stamina_drain)
 
     def recover_stamina(self, dt: float) -> None:
         """Recover stamina when not sprinting."""

@@ -82,6 +82,7 @@ class PlayerMatchState:
         self.last_save_log_time = -1000.0
         self.pending_save_target: Optional[Vector2D] = None
         self.pending_save_eta: float = float("inf")
+        self.off_ball_state: str = "idle"
 
     def update_ai(self, ball: BallState, dt: float, all_players: List["PlayerMatchState"]) -> None:
         """Update AI behaviour for the player."""

@@ -124,7 +124,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
     ) -> None:
         """Attempt to tackle and win the ball."""
         # Move towards ball aggressively
-        self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True)
+        self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True, intent="press")
 
         # If very close, can win ball
         def_cfg = ENGINE_CONFIG.role.defender
@@ -178,7 +178,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
         intercept_pos = ball.position + ball.velocity * time_to_reach
 
         # Sprint to intercept position
-        self.move_to_position(player, intercept_pos, speed_attr, dt, ball, sprint=True)
+        self.move_to_position(player, intercept_pos, speed_attr, dt, ball, sprint=True, intent="press")
 
     def _find_biggest_threat(
         self,
@@ -262,7 +262,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
             marking_pos = marking_pos + ball_to_opp * def_cfg.marking_ball_adjustment
 
         # Move to marking position
-        self.move_to_position(player, marking_pos, def_cfg.marking_speed_attr, dt, ball, sprint=False)
+        self.move_to_position(player, marking_pos, def_cfg.marking_speed_attr, dt, ball, sprint=False, intent="mark")
 
     def _maintain_defensive_position(
         self,
@@ -279,7 +279,7 @@ class DefenderBaseBehaviour(RoleBehaviour):
         defensive_pos = self._adjust_for_side(player, defensive_pos, ball)
 
         # Move to position
-        self.move_to_position(player, defensive_pos, positioning_attr, dt, ball, sprint=False)
+        self.move_to_position(player, defensive_pos, positioning_attr, dt, ball, sprint=False, intent="shape")
 
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"

@@ -293,7 +293,15 @@ class MidfielderBaseBehaviour(RoleBehaviour):
 
         if target_opp:
             # Sprint towards opponent
-            self.move_to_position(player, target_opp.state.position, speed_attr, dt, ball, sprint=True)
+            self.move_to_position(
+                player,
+                target_opp.state.position,
+                speed_attr,
+                dt,
+                ball,
+                sprint=True,
+                intent="press",
+            )
 
             # Attempt tackle if close
             mid_cfg = ENGINE_CONFIG.role.midfielder
@@ -335,7 +343,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         support_pos = self._adjust_support_position(player, support_pos, ball)
 
         # Move to support position
-        self.move_to_position(player, support_pos, speed_attr, dt, ball, sprint=False)
+        self.move_to_position(player, support_pos, speed_attr, dt, ball, sprint=False, intent="support")
 
     def _support_defense(
         self,
@@ -358,7 +366,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         defensive_pos = defensive_pos + adjustment
 
         # Move to defensive position
-        self.move_to_position(player, defensive_pos, tackling_attr, dt, ball, sprint=False)
+        self.move_to_position(player, defensive_pos, tackling_attr, dt, ball, sprint=False, intent="shape")
 
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"

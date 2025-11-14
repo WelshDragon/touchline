@@ -87,6 +87,15 @@ class BallPhysicsConfig:
 
 
 @dataclass(slots=True)
+class RoleSpeedProfile:
+    jog_speed: float
+    run_speed: float
+    sprint_speed: float
+    acceleration: float
+    deceleration: float
+
+
+@dataclass(slots=True)
 class PlayerMovementConfig:
     base_speed: float = 6.0
     base_multiplier: float = 0.7
@@ -95,6 +104,107 @@ class PlayerMovementConfig:
     stamina_drain_factor: float = 0.8
     recovery_threshold: float = 1.0
     recovery_rate: float = 5.0
+    arrive_radius: float = 3.5
+    speed_scale_min: float = 0.75
+    speed_scale_max: float = 1.25
+    acceleration_scale_min: float = 0.75
+    acceleration_scale_max: float = 1.25
+    deceleration_scale_min: float = 0.8
+    deceleration_scale_max: float = 1.2
+    intent_press_arrive_scale: float = 0.6
+    intent_press_accel_scale: float = 1.0
+    intent_press_decel_scale: float = 1.0
+    intent_mark_arrive_scale: float = 1.0
+    intent_mark_accel_scale: float = 1.0
+    intent_mark_decel_scale: float = 1.0
+    intent_shape_arrive_scale: float = 1.2
+    intent_shape_accel_scale: float = 0.7
+    intent_shape_decel_scale: float = 0.85
+    intent_support_arrive_scale: float = 1.0
+    intent_support_accel_scale: float = 0.85
+    intent_support_decel_scale: float = 0.95
+    intent_support_speed_blend: float = 0.5
+    role_profiles: Dict[str, RoleSpeedProfile] = field(
+        default_factory=lambda: {
+            "GK": RoleSpeedProfile(
+                jog_speed=3.4,
+                run_speed=4.8,
+                sprint_speed=5.6,
+                acceleration=7.2,
+                deceleration=9.5,
+            ),
+            "CD": RoleSpeedProfile(
+                jog_speed=4.1,
+                run_speed=5.6,
+                sprint_speed=6.6,
+                acceleration=8.6,
+                deceleration=11.2,
+            ),
+            "LD": RoleSpeedProfile(
+                jog_speed=4.4,
+                run_speed=6.1,
+                sprint_speed=7.4,
+                acceleration=9.4,
+                deceleration=12.0,
+            ),
+            "RD": RoleSpeedProfile(
+                jog_speed=4.4,
+                run_speed=6.1,
+                sprint_speed=7.4,
+                acceleration=9.4,
+                deceleration=12.0,
+            ),
+            "CM": RoleSpeedProfile(
+                jog_speed=4.5,
+                run_speed=6.3,
+                sprint_speed=7.5,
+                acceleration=9.6,
+                deceleration=12.4,
+            ),
+            "LM": RoleSpeedProfile(
+                jog_speed=4.6,
+                run_speed=6.6,
+                sprint_speed=7.8,
+                acceleration=9.9,
+                deceleration=12.8,
+            ),
+            "RM": RoleSpeedProfile(
+                jog_speed=4.6,
+                run_speed=6.6,
+                sprint_speed=7.8,
+                acceleration=9.9,
+                deceleration=12.8,
+            ),
+            "CF": RoleSpeedProfile(
+                jog_speed=4.7,
+                run_speed=6.7,
+                sprint_speed=7.9,
+                acceleration=10.0,
+                deceleration=13.0,
+            ),
+            "LCF": RoleSpeedProfile(
+                jog_speed=4.7,
+                run_speed=6.7,
+                sprint_speed=7.9,
+                acceleration=10.0,
+                deceleration=13.0,
+            ),
+            "RCF": RoleSpeedProfile(
+                jog_speed=4.7,
+                run_speed=6.7,
+                sprint_speed=7.9,
+                acceleration=10.0,
+                deceleration=13.0,
+            ),
+            "default": RoleSpeedProfile(
+                jog_speed=4.4,
+                run_speed=6.0,
+                sprint_speed=7.2,
+                acceleration=9.0,
+                deceleration=11.5,
+            ),
+        }
+    )
 
 
 @dataclass(slots=True)

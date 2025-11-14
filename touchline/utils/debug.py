@@ -72,12 +72,19 @@ class MatchDebugger:
         position: tuple[float, float],
         has_ball: bool,
         stamina: float = 100.0,
+        velocity: tuple[float, float] | None = None,
+        speed: float | None = None,
         target: tuple[float, float] | None = None,
         player_role: str | None = None,
     ) -> None:
         """Log the current state of a player."""
         target_str = f" | Target: ({target[0]:.1f}, {target[1]:.1f})" if target else ""
         role_str = f" | Role: {player_role}" if player_role else ""
+        velocity_str = ""
+        if velocity is not None:
+            velocity_str = f" | Vel: ({velocity[0]:.2f}, {velocity[1]:.2f}) m/s"
+        if speed is not None:
+            velocity_str += f" | Speed: {speed:.2f} m/s"
         self._write_log(
             "PLAYER_STATE",
             f"Time: {match_time:.1f}s | "
@@ -85,6 +92,7 @@ class MatchDebugger:
             f"Pos: ({position[0]:.1f}, {position[1]:.1f}) | "
             f"Has Ball: {has_ball} | "
             f"Stamina: {stamina:.1f}"
+            f"{velocity_str}"
             f"{target_str}",
         )
 

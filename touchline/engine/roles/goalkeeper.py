@@ -172,7 +172,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         reachable_distance = max_speed * (time_available + gk_cfg.reach_reaction_buffer)
         can_reach_window = travel_distance <= reachable_distance + gk_cfg.reach_distance_buffer
 
-        self.move_to_position(player, intercept_target, speed_attr, dt, ball, sprint=True)
+        self.move_to_position(player, intercept_target, speed_attr, dt, ball, sprint=True, intent="press")
 
         # If close enough, can catch/punch
         distance = self.distance_to_ball(player, ball)
@@ -253,7 +253,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
 
     def _collect_ball(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int, dt: float) -> None:
         """Move to collect loose ball."""
-        self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True)
+        self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True, intent="press")
 
         # Collect if close
         gk_cfg = ENGINE_CONFIG.role.goalkeeper
@@ -303,7 +303,15 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         target_pos = Vector2D(optimal_x, optimal_y)
 
         # Move to position
-        self.move_to_position(player, target_pos, gk_cfg.positioning_speed_attr, dt, ball, sprint=False)
+        self.move_to_position(
+            player,
+            target_pos,
+            gk_cfg.positioning_speed_attr,
+            dt,
+            ball,
+            sprint=False,
+            intent="shape",
+        )
 
     def _distribute_ball(
         self,

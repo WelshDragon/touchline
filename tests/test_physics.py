@@ -14,6 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Tests for physics module."""
 
+from touchline.engine.config import ENGINE_CONFIG
 from touchline.engine.physics import BallState, Pitch, PlayerState, Vector2D
 
 
@@ -88,7 +89,16 @@ class TestPlayerState:
             stamina=100.0,
         )
         target = Vector2D(10.0, 0.0)
-        state.move_towards(target, dt=1.0, max_speed=5.0)
+        movement_cfg = ENGINE_CONFIG.player_movement
+        profile = movement_cfg.role_profiles["default"]
+        state.move_towards(
+            target,
+            dt=1.0,
+            max_speed=profile.run_speed,
+            acceleration=profile.acceleration,
+            deceleration=profile.deceleration,
+            arrive_radius=movement_cfg.arrive_radius,
+        )
         assert state.position.x > 0.0
         assert state.stamina < 100.0
 
@@ -99,7 +109,16 @@ class TestPlayerState:
             is_with_ball=False,
             stamina=100.0,
         )
-        state.move_towards(Vector2D(5.0, 5.0), dt=1.0, max_speed=5.0)
+        movement_cfg = ENGINE_CONFIG.player_movement
+        profile = movement_cfg.role_profiles["default"]
+        state.move_towards(
+            Vector2D(5.0, 5.0),
+            dt=1.0,
+            max_speed=profile.run_speed,
+            acceleration=profile.acceleration,
+            deceleration=profile.deceleration,
+            arrive_radius=movement_cfg.arrive_radius,
+        )
         assert state.position.x == 5.0
         assert state.position.y == 5.0
 
@@ -117,8 +136,17 @@ class TestPlayerState:
             stamina=20.0,
         )
         target = Vector2D(10.0, 0.0)
-        state_fresh.move_towards(target, dt=1.0, max_speed=5.0)
-        state_tired.move_towards(target, dt=1.0, max_speed=5.0)
+        movement_cfg = ENGINE_CONFIG.player_movement
+        profile = movement_cfg.role_profiles["default"]
+        kwargs = dict(
+            dt=1.0,
+            max_speed=profile.run_speed,
+            acceleration=profile.acceleration,
+            deceleration=profile.deceleration,
+            arrive_radius=movement_cfg.arrive_radius,
+        )
+        state_fresh.move_towards(target, **kwargs)
+        state_tired.move_towards(target, **kwargs)
         assert state_fresh.position.x > state_tired.position.x
 
     def test_recover_stamina(self) -> None:
