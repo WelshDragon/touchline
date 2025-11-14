@@ -495,6 +495,8 @@ class RealTimeMatchEngine:
         self.state.ball.last_kick_recipient = None
         if hasattr(self.state.ball, "recent_pass_pairs"):
             self.state.ball.recent_pass_pairs.clear()
+        if hasattr(self.state.ball, "ground"):
+            self.state.ball.ground()
 
     def force_goal_kick(self, defending_side: str) -> None:
         """Tests can call this to immediately restart with a goal kick."""
@@ -621,6 +623,8 @@ class RealTimeMatchEngine:
         ball.last_touched_time = self.state.match_time
         ball.last_kick_recipient = None
         ball.recent_pass_pairs.clear()
+        if hasattr(ball, "ground"):
+            ball.ground()
 
         team = self._team_for_side(defending_side)
         description = f"Goal kick awarded to {team.name}."
@@ -670,6 +674,9 @@ class RealTimeMatchEngine:
                 ball.velocity = Vector2D(0, 0)
         else:
             ball.velocity = Vector2D(0, 0)
+
+        if hasattr(ball, "ground"):
+            ball.ground()
 
         team = self._team_for_side(awarding_side)
         if recipient:

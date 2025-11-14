@@ -78,6 +78,12 @@ class FormationConfig:
 class BallPhysicsConfig:
     friction: float = 0.95
     stop_threshold: float = 0.1
+    ground_drag: float = 0.18
+    bounce_damping: float = 0.55
+    bounce_stop_speed: float = 1.1
+    airborne_speed_threshold: float = 14.0
+    airborne_time_scale: float = 0.05
+    airborne_time_max: float = 1.4
 
 
 @dataclass(slots=True)

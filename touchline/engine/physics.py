@@ -103,6 +103,9 @@ class BallState:
         self.last_kick_recipient = last_kick_recipient
         self.debugger = debugger
         self.recent_pass_pairs: deque[tuple[int, int]] = deque(maxlen=12)
+        self.is_airborne = False
+        self.time_until_ground = 0.0
+        self.just_bounced = False
 
     # --- instrumented properties -------------------------------------------------
     @property
@@ -122,6 +125,8 @@ class BallState:
     def velocity(self, value: Vector2D) -> None:
         self._velocity = value
         self._log_write("velocity", (value.x, value.y))
+        if value.x == 0 and value.y == 0:
+            self.ground()
 
     def _log_write(self, field: str, value: tuple[float, float]) -> None:
         if not self.debugger:
@@ -146,6 +151,7 @@ class BallState:
         """Update ball position and apply friction."""
         if friction is None:
             friction = ENGINE_CONFIG.ball_physics.friction
+        cfg = ENGINE_CONFIG.ball_physics
         # Update position with current velocity
         new_position = self.position + self.velocity * dt
         self.position = new_position
@@ -157,9 +163,21 @@ class BallState:
             friction_force = friction ** (dt * (1 + speed / 20))
             self.velocity = self.velocity * friction_force
 
-            # Stop very slow movement
-            if self.velocity.magnitude() < ENGINE_CONFIG.ball_physics.stop_threshold:
-                self.velocity = Vector2D(0, 0)
+        speed = self.velocity.magnitude()
+        if self.is_airborne:
+            self.time_until_ground = max(0.0, self.time_until_ground - dt)
+            if self.time_until_ground == 0.0:
+                self._apply_bounce()
+                speed = self.velocity.magnitude()
+
+        if not self.is_airborne and speed > 0:
+            ground_drag = max(0.0, 1 - cfg.ground_drag * dt)
+            self.velocity = self.velocity * ground_drag
+
+        # Stop very slow movement and treat as settled
+        if self.velocity.magnitude() < cfg.stop_threshold:
+            self.velocity = Vector2D(0, 0)
+            self.ground()
 
     def kick(
         self,
@@ -189,6 +207,41 @@ class BallState:
                     f"recipient={recipient_id} -> vel=({self.velocity.x:.2f},{self.velocity.y:.2f})"
                 )
                 self.debugger.log_match_event(current_time, "kick", msg)
+
+            speed = self.velocity.magnitude()
+            cfg = ENGINE_CONFIG.ball_physics
+            if speed >= cfg.airborne_speed_threshold:
+                self.is_airborne = True
+                excess = speed - cfg.airborne_speed_threshold
+                flight_time = excess * cfg.airborne_time_scale
+                self.time_until_ground = min(cfg.airborne_time_max, flight_time)
+                self.just_bounced = False
+            else:
+                self.ground()
+
+    def ground(self) -> None:
+        """Mark the ball as in contact with the ground."""
+        self.is_airborne = False
+        self.time_until_ground = 0.0
+        self.just_bounced = False
+
+    def _apply_bounce(self) -> None:
+        """Dampen velocity when the ball returns to the ground."""
+        cfg = ENGINE_CONFIG.ball_physics
+        speed = self.velocity.magnitude()
+        if speed <= 0:
+            self.ground()
+            return
+
+        damped_speed = speed * cfg.bounce_damping
+        if damped_speed < cfg.bounce_stop_speed:
+            self.velocity = Vector2D(0, 0)
+            self.ground()
+        else:
+            direction = self.velocity.normalize()
+            self.velocity = direction * damped_speed
+            self.is_airborne = False
+            self.just_bounced = True
 
 
 class Pitch:
