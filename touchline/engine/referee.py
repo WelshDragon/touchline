@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
-    from touchline.engine.physics import BallState, Pitch
+    from touchline.engine.physics import BallState, Pitch, Vector2D
     from touchline.utils.debug import MatchDebugger
 
 
@@ -30,6 +30,9 @@ class RefereeDecision:
 
     event: Literal["goal", "out", "none"]
     team: Optional[str] = None
+    restart_type: Optional[Literal["goal_kick", "throw_in", "corner"]] = None
+    awarded_side: Optional[str] = None
+    restart_spot: Optional["Vector2D"] = None
 
     @property
     def is_goal(self) -> bool:
@@ -38,6 +41,10 @@ class RefereeDecision:
     @property
     def is_ball_out(self) -> bool:
         return self.event == "out"
+
+    @property
+    def has_restart(self) -> bool:
+        return self.restart_type is not None
 
 
 class Referee:
@@ -53,7 +60,14 @@ class Referee:
         self.pitch = pitch
         self.debugger = debugger
 
-    def observe_ball(self, ball: "BallState", current_time: float = 0.0) -> RefereeDecision:
+    def observe_ball(
+        self,
+        ball: "BallState",
+        current_time: float = 0.0,
+        *,
+        last_touch_side: Optional[str] = None,
+        possession_side: Optional[str] = None,
+    ) -> RefereeDecision:
         """Inspect the ball state and issue decisions when needed."""
         if self.pitch.is_in_bounds(ball.position):
             return RefereeDecision("none")
@@ -68,6 +82,41 @@ class Referee:
                 )
             return RefereeDecision("goal", team)
 
-        if self.debugger:
-            self.debugger.log_match_event(current_time, "referee", "Ball left play – awarding restart")
-        return RefereeDecision("out")
+        restart_type: Optional[Literal["goal_kick", "throw_in", "corner"]] = None
+        awarded_side: Optional[str] = None
+
+        half_width = self.pitch.width / 2
+        half_height = self.pitch.height / 2
+        position = ball.position
+        restart_spot = position
+
+        if abs(position.x) > half_width:  # crossed goal line
+            defending_side = "home" if position.x < 0 else "away"
+            attacking_side = "away" if defending_side == "home" else "home"
+
+            if last_touch_side is None:
+                restart_type = "goal_kick"
+                awarded_side = defending_side
+            elif last_touch_side == attacking_side:
+                restart_type = "goal_kick"
+                awarded_side = defending_side
+            else:
+                restart_type = "corner"
+                awarded_side = attacking_side
+        elif abs(position.y) > half_height:  # touchline -> throw-in
+            if last_touch_side == "home":
+                awarded_side = "away"
+            elif last_touch_side == "away":
+                awarded_side = "home"
+            else:
+                awarded_side = possession_side or "home"
+            restart_type = "throw_in"
+
+        if restart_type and self.debugger:
+            self.debugger.log_match_event(
+                current_time,
+                "referee",
+                f"Restart awarded: {restart_type} to {awarded_side}",
+            )
+
+        return RefereeDecision("out", restart_type=restart_type, awarded_side=awarded_side, restart_spot=restart_spot)

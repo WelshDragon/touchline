@@ -115,9 +115,6 @@ class TestPlayer:
             "CF",
             "RCF",
             "LCF",
-            "DEF",
-            "MID",
-            "FWD",
         }
         for value in ratings.values():
             assert 0 <= value <= 1
@@ -136,9 +133,9 @@ class TestPlayer:
             positioning=85,
             decisions=65,
         )
-        player = Player(player_id=3, name="FWD", age=23, role="RCF", attributes=attrs)
+        player = Player(player_id=3, name="RCF", age=23, role="RCF", attributes=attrs)
         ratings = player.get_role_rating()
-        assert ratings["FWD"] > ratings["GK"]
+        assert ratings["RCF"] > ratings["GK"]
 
 
 class TestFormation:

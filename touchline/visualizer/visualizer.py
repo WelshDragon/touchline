@@ -73,14 +73,22 @@ def start_visualizer(
 
     pitch = engine.state.pitch
     running = True
-    # Button definition (Start)
-    button_w, button_h = 140, 36
+    # Button assets
     button_color = (70, 160, 70)
     button_hover = (90, 190, 90)
-    button_text = font.render("Start Match", True, (255, 255, 255))
-    stop_button_text = font.render("Stop Match", True, (255, 255, 255))
     stop_button_color = (180, 50, 50)
     stop_button_hover = (210, 70, 70)
+    utility_button_color = (60, 110, 190)
+    utility_button_hover = (85, 135, 215)
+
+    button_text = font.render("Start Match", True, (255, 255, 255))
+    stop_button_text = font.render("Stop Match", True, (255, 255, 255))
+    goal_kick_text = font.render("Goal Kick", True, (255, 255, 255))
+    throw_in_text = font.render("Throw-In", True, (255, 255, 255))
+
+    button_h = 36
+    primary_button_w = 140
+    utility_button_w = 120
 
     # If we start the engine from here we keep a reference to the thread so
     # we can join it on shutdown. If the caller provided a start_callback we
@@ -91,7 +99,9 @@ def start_visualizer(
     while running:
         mouse_pos = pygame.mouse.get_pos()
         # Always recalculate button_rect to keep it in the top right
-        button_rect = pygame.Rect(screen_size[0] - button_w - 10, 10, button_w, button_h)
+        button_rect = pygame.Rect(screen_size[0] - primary_button_w - 10, 10, primary_button_w, button_h)
+        goal_kick_rect = pygame.Rect(button_rect.left - utility_button_w - 10, 10, utility_button_w, button_h)
+        throw_in_rect = pygame.Rect(goal_kick_rect.left - utility_button_w - 10, 10, utility_button_w, button_h)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 engine.stop_match()
@@ -104,8 +114,13 @@ def start_visualizer(
                 screen_size = (event.w, event.h)
                 screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Goal kick button: always available for quick restart testing
+                if goal_kick_rect.collidepoint(event.pos):
+                    _force_debug_goal_kick(engine)
+                elif throw_in_rect.collidepoint(event.pos):
+                    _force_debug_throw_in(engine)
                 # If start button clicked and match not running -> trigger start
-                if not engine.is_running and button_rect.collidepoint(event.pos):
+                elif not engine.is_running and button_rect.collidepoint(event.pos):
                     if start_callback:
                         try:
                             started = start_callback()
@@ -293,17 +308,45 @@ def start_visualizer(
         screen.blit(font.render(time_text, True, TEXT), (10, 30))
 
         # Draw Start or Stop button
-        hover = button_rect.collidepoint(mouse_pos)
+        hover_primary = button_rect.collidepoint(mouse_pos)
+        hover_goal_kick = goal_kick_rect.collidepoint(mouse_pos)
+        hover_throw_in = throw_in_rect.collidepoint(mouse_pos)
+
         if not engine.is_running:
-            pygame.draw.rect(screen, button_hover if hover else button_color, button_rect, border_radius=6)
+            pygame.draw.rect(screen, button_hover if hover_primary else button_color, button_rect, border_radius=6)
             bt_x = button_rect.x + (button_rect.w - button_text.get_width()) // 2
             bt_y = button_rect.y + (button_rect.h - button_text.get_height()) // 2
             screen.blit(button_text, (bt_x, bt_y))
         else:
-            pygame.draw.rect(screen, stop_button_hover if hover else stop_button_color, button_rect, border_radius=6)
+            pygame.draw.rect(
+                screen,
+                stop_button_hover if hover_primary else stop_button_color,
+                button_rect,
+                border_radius=6,
+            )
             sb_x = button_rect.x + (button_rect.w - stop_button_text.get_width()) // 2
             sb_y = button_rect.y + (button_rect.h - stop_button_text.get_height()) // 2
             screen.blit(stop_button_text, (sb_x, sb_y))
+
+        pygame.draw.rect(
+            screen,
+            utility_button_hover if hover_goal_kick else utility_button_color,
+            goal_kick_rect,
+            border_radius=6,
+        )
+        gk_x = goal_kick_rect.x + (goal_kick_rect.w - goal_kick_text.get_width()) // 2
+        gk_y = goal_kick_rect.y + (goal_kick_rect.h - goal_kick_text.get_height()) // 2
+        screen.blit(goal_kick_text, (gk_x, gk_y))
+
+        pygame.draw.rect(
+            screen,
+            utility_button_hover if hover_throw_in else utility_button_color,
+            throw_in_rect,
+            border_radius=6,
+        )
+        ti_x = throw_in_rect.x + (throw_in_rect.w - throw_in_text.get_width()) // 2
+        ti_y = throw_in_rect.y + (throw_in_rect.h - throw_in_text.get_height()) // 2
+        screen.blit(throw_in_text, (ti_x, ti_y))
 
         # debug_lines = []
         # if hasattr(engine, "debugger") and engine.debugger is not None:
@@ -328,3 +371,22 @@ def start_visualizer(
         clock.tick(fps)
 
     pygame.quit()
+
+
+def _force_debug_goal_kick(engine: RealTimeMatchEngine) -> None:
+    """Trigger a goal kick for the team currently defending the goal line."""
+    last_side = engine._side_for_player(engine.state.ball.last_touched_by)  # type: ignore[attr-defined]
+    if last_side is None:
+        last_side = "home"
+    defending_side = "home" if last_side == "away" else "away"
+    engine.force_goal_kick(defending_side)
+
+
+def _force_debug_throw_in(engine: RealTimeMatchEngine) -> None:
+    """Trigger a throw-in favoring the team currently in possession."""
+    possessor = next((p for p in engine.state.player_states.values() if p.state.is_with_ball), None)
+    if possessor is not None:
+        side = "home" if possessor.is_home_team else "away"
+    else:
+        side = "home"
+    engine.force_throw_in(side, y_hint=engine.state.ball.position.y)

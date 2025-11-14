@@ -22,7 +22,7 @@ from touchline.engine.config import ENGINE_CONFIG
 from touchline.engine.events import MatchEvent
 from touchline.engine.physics import BallState, Pitch, PlayerState, Vector2D
 from touchline.engine.player_state import PlayerMatchState
-from touchline.engine.referee import Referee
+from touchline.engine.referee import Referee, RefereeDecision
 from touchline.models.team import Team
 from touchline.utils.debug import MatchDebugger
 from touchline.utils.roster import load_teams_from_json
@@ -194,11 +194,23 @@ class RealTimeMatchEngine:
         self.state.ball.update(dt)
 
         # Let the referee adjudicate key match events (goal, out of play, etc.)
-        decision = self.referee.observe_ball(self.state.ball, self.state.match_time)
+        last_touch_side = self._side_for_player(self.state.ball.last_touched_by)
+        possession_side = None
+        for ps in self.state.player_states.values():
+            if ps.state.is_with_ball:
+                possession_side = "home" if ps.is_home_team else "away"
+                break
+
+        decision = self.referee.observe_ball(
+            self.state.ball,
+            self.state.match_time,
+            last_touch_side=last_touch_side,
+            possession_side=possession_side,
+        )
         if decision.is_goal and decision.team:
             self._handle_goal(decision.team)
-        elif decision.is_ball_out:
-            self._handle_out_of_bounds()
+        elif decision.has_restart:
+            self._apply_restart(decision)
 
         # Update all players and track ball possession
         all_players = list(self.state.player_states.values())
@@ -381,11 +393,29 @@ class RealTimeMatchEngine:
         next_kickoff_side = "away" if scoring_team == "home" else "home"
         self._prepare_kickoff(next_kickoff_side, reset_players=True, log_reason="Kickoff after goal")
 
-    def _handle_out_of_bounds(self) -> None:
-        """Handle ball going out of bounds."""
-        # Simple implementation: just bring ball back in bounds
-        self.state.ball.position = self.state.pitch.constrain_to_bounds(self.state.ball.position)
-        self.state.ball.velocity = Vector2D(0, 0)
+    def _apply_restart(self, decision: RefereeDecision) -> None:
+        """Carry out the restart the referee selected."""
+        restart_type = decision.restart_type
+        awarded_side = decision.awarded_side
+        restart_spot = decision.restart_spot or self.state.ball.position
+
+        if restart_type == "goal_kick" and awarded_side:
+            self._restart_goal_kick(awarded_side, restart_spot)
+        elif restart_type == "throw_in" and awarded_side:
+            self._restart_throw_in(awarded_side, restart_spot)
+        elif restart_type == "corner":
+            # Corner routines not yet implemented; keep behaviour predictable.
+            self.state.ball.position = self.state.pitch.constrain_to_bounds(restart_spot)
+            self.state.ball.velocity = Vector2D(0, 0)
+            self.debugger.log_match_event(
+                self.state.match_time,
+                "restart",
+                "Corner kick handling not implemented; resetting ball in play",
+            )
+        else:
+            # Unknown restart; fall back to clamping the ball.
+            self.state.ball.position = self.state.pitch.constrain_to_bounds(restart_spot)
+            self.state.ball.velocity = Vector2D(0, 0)
 
     def _start_second_half(self, half_time_mark: float) -> None:
         """Trigger the second-half kickoff sequence."""
@@ -466,6 +496,17 @@ class RealTimeMatchEngine:
         if hasattr(self.state.ball, "recent_pass_pairs"):
             self.state.ball.recent_pass_pairs.clear()
 
+    def force_goal_kick(self, defending_side: str) -> None:
+        """Tests can call this to immediately restart with a goal kick."""
+        goal_line_x = -self.state.pitch.width / 2 if defending_side == "home" else self.state.pitch.width / 2
+        mock_position = Vector2D(goal_line_x, 0.0)
+        self._restart_goal_kick(defending_side, mock_position)
+
+    def force_throw_in(self, awarding_side: str, y_hint: float = 0.0) -> None:
+        """Tests can call this to immediately restart with a throw-in."""
+        mock_position = Vector2D(0.0, y_hint)
+        self._restart_throw_in(awarding_side, mock_position)
+
     def _get_team_players(self, side: str) -> List[PlayerMatchState]:
         """Return players belonging to the requested side."""
         return [
@@ -508,6 +549,137 @@ class RealTimeMatchEngine:
             return None
 
         return min(others, key=lambda p: abs(p.state.position.x) + abs(p.state.position.y))
+
+    def _select_throw_in_recipient(
+        self, candidates: List[PlayerMatchState], thrower: PlayerMatchState
+    ) -> Optional[PlayerMatchState]:
+        """Pick a teammate to receive the throw-in."""
+        others = [p for p in candidates if p.player_id != thrower.player_id]
+        if not others:
+            return None
+
+        return min(others, key=lambda p: p.state.position.distance_to(thrower.state.position))
+
+    def _side_for_player(self, player_id: Optional[int]) -> Optional[str]:
+        """Return which side ('home' or 'away') a player belongs to."""
+        if player_id is None:
+            return None
+
+        player_state = self.state.player_states.get(player_id)
+        if not player_state:
+            return None
+
+        return "home" if player_state.is_home_team else "away"
+
+    def _team_for_side(self, side: str) -> Team:
+        return self.state.home_team if side == "home" else self.state.away_team
+
+    def _clear_possession(self) -> None:
+        """Remove possession flags so a restart can be set up cleanly."""
+        for ps in self.state.player_states.values():
+            ps.state.is_with_ball = False
+            ps.state.velocity = Vector2D(0, 0)
+            ps.current_target = None
+
+    def _restart_goal_kick(self, defending_side: str, out_position: Vector2D) -> None:
+        """Place the ball for a goal kick and give it to the defending goalkeeper."""
+        self._clear_possession()
+
+        team_players = self._get_team_players(defending_side)
+        if not team_players:
+            return
+
+        kicker = next((p for p in team_players if p.player_role == "GK"), None)
+        if kicker is None:
+            kicker = min(team_players, key=lambda p: p.state.position.distance_to(out_position))
+
+        pitch = self.state.pitch
+        half_width = pitch.width / 2
+        goal_line_x = -half_width if defending_side == "home" else half_width
+        depth = pitch.goal_area_depth
+        inside_offset = max(depth - 0.5, depth * 0.5)
+
+        if defending_side == "home":
+            restart_x = goal_line_x + inside_offset
+        else:
+            restart_x = goal_line_x - inside_offset
+
+        lateral_limit = max(pitch.goal_area_width / 2 - 0.5, pitch.goal_area_width / 2)
+        restart_y = max(-lateral_limit, min(lateral_limit, out_position.y))
+
+        ball_position = Vector2D(restart_x, restart_y)
+
+        kicker.state.position = ball_position
+        kicker.state.velocity = Vector2D(0, 0)
+        kicker.state.is_with_ball = True
+        kicker.current_target = None
+
+        ball = self.state.ball
+        ball.position = ball_position
+        ball.velocity = Vector2D(0, 0)
+        ball.last_touched_by = kicker.player_id
+        ball.last_touched_time = self.state.match_time
+        ball.last_kick_recipient = None
+        ball.recent_pass_pairs.clear()
+
+        team = self._team_for_side(defending_side)
+        description = f"Goal kick awarded to {team.name}."
+        self.state.events.append(MatchEvent(self.state.match_time, "goal_kick", team, description))
+        self.debugger.log_match_event(self.state.match_time, "restart", description)
+
+    def _restart_throw_in(self, awarding_side: str, out_position: Vector2D) -> None:
+        """Award a throw-in and place the ball just inside the touchline."""
+        self._clear_possession()
+
+        team_players = self._get_team_players(awarding_side)
+        if not team_players:
+            return
+
+        pitch = self.state.pitch
+        half_width = pitch.width / 2
+        half_height = pitch.height / 2
+
+        line_y = half_height if out_position.y >= 0 else -half_height
+        inset = 0.2
+        restart_y = line_y - inset if line_y > 0 else line_y + inset
+        restart_x = max(-half_width + 0.5, min(half_width - 0.5, out_position.x))
+        ball_position = Vector2D(restart_x, restart_y)
+
+        thrower = min(team_players, key=lambda p: p.state.position.distance_to(ball_position))
+        recipient = self._select_throw_in_recipient(team_players, thrower)
+
+        thrower.state.position = ball_position
+        thrower.state.velocity = Vector2D(0, 0)
+        thrower.state.is_with_ball = False
+        thrower.current_target = None
+
+        ball = self.state.ball
+        ball.position = ball_position
+        ball.last_touched_by = thrower.player_id
+        ball.last_touched_time = self.state.match_time
+        ball.last_kick_recipient = None
+        ball.recent_pass_pairs.clear()
+
+        if recipient:
+            direction = recipient.state.position - ball_position
+            if direction.magnitude() > 0:
+                ball.velocity = direction.normalize() * 8.0
+                ball.last_kick_recipient = recipient.player_id
+                ball.recent_pass_pairs.append((thrower.player_id, recipient.player_id))
+            else:
+                ball.velocity = Vector2D(0, 0)
+        else:
+            ball.velocity = Vector2D(0, 0)
+
+        team = self._team_for_side(awarding_side)
+        if recipient:
+            description = (
+                f"Throw-in awarded to {team.name}. Thrower #{thrower.player_id} targeting #{recipient.player_id}."
+            )
+        else:
+            description = f"Throw-in awarded to {team.name}."
+        self.state.events.append(MatchEvent(self.state.match_time, "throw_in", team, description))
+        self.debugger.log_match_event(self.state.match_time, "restart", description)
 
     def stop_match(self) -> None:
         """Stop the match simulation."""
