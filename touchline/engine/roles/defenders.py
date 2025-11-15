@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Role behaviours focused on defensive duties."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional
@@ -26,7 +27,15 @@ if TYPE_CHECKING:
 
 
 class DefenderBaseBehaviour(RoleBehaviour):
-    """Base defender AI with shared defensive behaviors."""
+    """Base defender AI with shared defensive behaviors.
+
+    Parameters
+    ----------
+    role : str
+        Defensive role code controlled by the behaviour instance.
+    side : str
+        Pitch side ordinarily occupied by the defender (``"left"``, ``"right"``, or ``"central"``).
+    """
 
     def decide_action(
         self,
@@ -35,7 +44,19 @@ class DefenderBaseBehaviour(RoleBehaviour):
         all_players: List["PlayerMatchState"],
         dt: float,
     ) -> None:
-        """Main defender decision-making logic."""
+        """Coordinate the defender's decision-making logic for this frame.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Controlled defender whose behaviour is being updated.
+        ball : BallState
+            Current ball state for the frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of all players on the pitch.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         from touchline.models.player import Player
 
         player_model: Player = next((p for p in player.team.players if p.player_id == player.player_id), None)
@@ -316,11 +337,11 @@ class DefenderBaseBehaviour(RoleBehaviour):
 
             goal_pos = self.get_goal_position(player)
             direction = (goal_pos - player.state.position).normalize()
-            
+
             # Dribble forward slowly
             dribble_speed = ENGINE_CONFIG.role.defender.dribble_speed
             player.state.velocity = direction * dribble_speed
-            
+
             # Keep ball with player
             ball.position = player.state.position
             ball.velocity = Vector2D(0, 0)
@@ -330,6 +351,7 @@ class RightDefenderRoleBehaviour(DefenderBaseBehaviour):
     """Right back / Right defender AI."""
 
     def __init__(self) -> None:
+        """Instantiate the right-sided fullback behaviour."""
         super().__init__(role="RD", side="right")
 
     def _adjust_for_side(
@@ -348,6 +370,7 @@ class CentralDefenderRoleBehaviour(DefenderBaseBehaviour):
     """Center back AI - stays central and reads the game."""
 
     def __init__(self) -> None:
+        """Instantiate the central defender behaviour."""
         super().__init__(role="CD", side="central")
 
     def _adjust_for_side(
@@ -375,6 +398,7 @@ class LeftDefenderRoleBehaviour(DefenderBaseBehaviour):
     """Left back / Left defender AI."""
 
     def __init__(self) -> None:
+        """Instantiate the left-sided fullback behaviour."""
         super().__init__(role="LD", side="left")
 
     def _adjust_for_side(

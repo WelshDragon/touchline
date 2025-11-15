@@ -24,12 +24,14 @@ from touchline.utils.roster import load_teams_from_json
 
 
 def _build_engine() -> RealTimeMatchEngine:
+    """Create a match engine seeded with fixture data for deterministic tests."""
     data_file = Path(__file__).resolve().parents[1] / "data" / "players.json"
     home, away = load_teams_from_json(str(data_file))
     return RealTimeMatchEngine(home, away)
 
 
 def test_goal_kick_awarded_to_defending_goalkeeper() -> None:
+    """Award a goal kick to the defending side's goalkeeper when the ball exits."""
     engine = _build_engine()
     pitch = engine.state.pitch
     ball = engine.state.ball
@@ -61,6 +63,7 @@ def test_goal_kick_awarded_to_defending_goalkeeper() -> None:
 
 
 def test_throw_in_awarded_to_opponents() -> None:
+    """Award a throw-in to the non-touching team and ensure restart state."""
     engine = _build_engine()
     pitch = engine.state.pitch
     ball = engine.state.ball

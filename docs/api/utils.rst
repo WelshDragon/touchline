@@ -15,3 +15,8 @@ Utilities Package
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: touchline.utils.roster
+   :members:
+   :undoc-members:
+   :show-inheritance:

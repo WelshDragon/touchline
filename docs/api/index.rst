@@ -7,3 +7,5 @@ API Reference
    engine
    models
    utils
+   visualizer
+   main

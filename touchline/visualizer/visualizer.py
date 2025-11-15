@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Pygame-based visualizer for rendering live match simulations."""
 import threading
 import time
 from typing import Callable, Optional, Tuple
@@ -28,7 +29,7 @@ from touchline.engine.physics import Vector2D
 def _world_to_screen(
     pos: Vector2D, pitch_width: float, pitch_height: float, screen_size: Tuple[int, int]
 ) -> Tuple[int, int]:
-    """Deprecated: kept for compatibility if imported elsewhere."""
+    """Return screen coordinates for a pitch-space vector (deprecated helper)."""
     w, h = screen_size
     sx = int((pos.x + pitch_width / 2) / pitch_width * w)
     sy = int((pitch_height / 2 - pos.y) / pitch_height * h)
@@ -48,6 +49,18 @@ def start_visualizer(
     This uses the standard `pygame` API and is compatible with running under
     pygame-web (the same code works in the browser build of pygame). If
     `pygame` is not installed the function will return immediately.
+
+    Parameters
+    ----------
+    engine : RealTimeMatchEngine
+        Engine instance that supplies world state for rendering and receives user actions.
+    screen_size : Tuple[int, int]
+        Window dimensions in pixels, expressed as ``(width, height)``.
+    fps : int
+        Target frames per second used to cap the rendering loop.
+    start_callback : Callable[[], Optional[threading.Thread]] | None
+        Optional hook invoked when the start button is pressed; returning a thread allows
+        the visualizer to manage shutdown by joining it on exit.
     """
     if pygame is None:
         # pygame not available; skip visualizer

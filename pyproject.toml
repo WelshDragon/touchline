@@ -24,7 +24,11 @@ addopts = "-vv --ruff touchline tests"
 line-length = 119
 
 [tool.ruff.lint]
-select = ["I", "F"]
+select = ["I", "F", "D", "DOC", "D417"]
+extend-select = ["D417"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [dependency-groups]
 dev = [
@@ -32,4 +36,5 @@ dev = [
     "pytest-ruff>=0.5",
     "sphinx>=8.2.3",
     "sphinx-rtd-theme>=3.0.2",
+    "numpydoc>=1.7.0",
 ]

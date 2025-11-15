@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Role behaviour focused on goalkeeping duties."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional, Tuple
@@ -30,6 +31,7 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
     """Goalkeeper AI with realistic shot-stopping, positioning, and distribution."""
 
     def __init__(self) -> None:
+        """Instantiate the goalkeeper behaviour and cache box dimensions."""
         super().__init__(role="GK", side="central")
         pitch_cfg = ENGINE_CONFIG.pitch
         self.box_width = pitch_cfg.penalty_area_width
@@ -42,8 +44,19 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         all_players: List["PlayerMatchState"],
         dt: float,
     ) -> None:
-        """Main goalkeeper decision-making logic."""
+        """Coordinate goalkeeper decision-making for the current frame.
 
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Controlled goalkeeper whose behaviour is being updated.
+        ball : BallState
+            Current ball state for the frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of all players on the pitch.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         player_model: Player = next((p for p in player.team.players if p.player_id == player.player_id), None)
         if not player_model:
             return

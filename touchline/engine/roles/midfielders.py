@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Role behaviours for central and wide midfielders."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional
@@ -26,7 +27,15 @@ if TYPE_CHECKING:
 
 
 class MidfielderBaseBehaviour(RoleBehaviour):
-    """Base midfielder AI with shared behaviors for linking play."""
+    """Base midfielder AI with shared behaviors for linking play.
+
+    Parameters
+    ----------
+    role : str
+        Midfield role code assigned to the behaviour instance.
+    side : str
+        Pitch side primarily occupied by the midfielder (``"left"``, ``"right"``, or ``"central"``).
+    """
 
     def decide_action(
         self,
@@ -35,7 +44,19 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         all_players: List["PlayerMatchState"],
         dt: float,
     ) -> None:
-        """Main midfielder decision-making logic."""
+        """Coordinate midfielder decision-making for this frame.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Controlled midfielder whose behaviour is being updated.
+        ball : BallState
+            Current ball state for the frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of all players on the pitch.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         from touchline.models.player import Player
 
         player_model: Player = next((p for p in player.team.players if p.player_id == player.player_id), None)
@@ -379,6 +400,7 @@ class RightMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     """Right midfielder / Right winger AI."""
 
     def __init__(self) -> None:
+        """Instantiate the right-sided midfielder behaviour."""
         super().__init__(role="RM", side="right")
 
     def _adjust_support_position(
@@ -397,6 +419,7 @@ class CentralMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     """Central midfielder AI - box-to-box play."""
 
     def __init__(self) -> None:
+        """Instantiate the central midfielder behaviour."""
         super().__init__(role="CM", side="central")
 
     def _adjust_support_position(
@@ -419,6 +442,7 @@ class LeftMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     """Left midfielder / Left winger AI."""
 
     def __init__(self) -> None:
+        """Instantiate the left-sided midfielder behaviour."""
         super().__init__(role="LM", side="left")
 
     def _adjust_support_position(

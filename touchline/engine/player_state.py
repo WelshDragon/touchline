@@ -27,7 +27,21 @@ from touchline.utils.debug import MatchDebugger
 
 @dataclass
 class PlayerContext:
-    """Snapshot of shared state used across helper methods."""
+    """Snapshot of shared state used across helper methods.
+
+    Instances are short lived; they capture the player under consideration, the
+    ball, and cached teammate/opponent lists so repeated decisions avoid
+    recomputing filters over the full player collection.
+
+    Parameters
+    ----------
+    player : PlayerMatchState
+        Player currently being evaluated.
+    ball : BallState
+        Shared ball state for the frame.
+    all_players : List[PlayerMatchState]
+        Full roster of active player match states.
+    """
 
     player: "PlayerMatchState"
     ball: BallState
@@ -36,13 +50,32 @@ class PlayerContext:
     opponents: List["PlayerMatchState"] = field(init=False)
 
     def __post_init__(self) -> None:
+        """Populate teammate/opponent lists derived from ``all_players``."""
         self.teammates = [p for p in self.all_players if p.team == self.player.team and p != self.player]
         self.opponents = [p for p in self.all_players if p.team != self.player.team]
 
 
 @dataclass
 class PassDecision:
-    """Concrete pass choice selected under pressure."""
+    """Concrete pass choice selected under pressure.
+
+    Parameters
+    ----------
+    target : PlayerMatchState
+        Intended teammate that should receive the pass.
+    pass_type : str
+        Descriptor for the pass style (for example ``"ground"`` or ``"lob"``).
+    power : float
+        Kick power applied to the pass.
+    score : float
+        Heuristic quality score associated with the decision.
+    lane_quality : float
+        Clearance rating for the passing lane (0-1).
+    lead_target : Vector2D
+        Anticipated intercept position for the receiver.
+    origin : str
+        Source identifier for the decision logic, defaults to ``"base"``.
+    """
 
     target: "PlayerMatchState"
     pass_type: str
@@ -54,7 +87,29 @@ class PassDecision:
 
 
 class PlayerMatchState:
-    """Runtime state and behaviour for a player participating in a match."""
+    """Runtime state and behaviour for a player participating in a match.
+
+    Parameters
+    ----------
+    player_id : int
+        Identifier that maps back to the static roster entry.
+    team : Team
+        Team instance the player belongs to.
+    state : PlayerState
+        Mutable physics state used by the engine integration loop.
+    role_position : Vector2D
+        Home-half reference position that represents the role's nominal slot.
+    match_time : float, optional
+        Initial per-player clock, normally aligned with the global timer.
+    is_home_team : bool, optional
+        Flag used for quick side comparisons.
+    debugger : MatchDebugger | None, optional
+        Optional debugger for emitting per-player diagnostics.
+    current_target : Vector2D | None, optional
+        Active navigation waypoint used by role logic.
+    player_role : str, optional
+        Short role code (for example ``"CM"``) that determines behavioural scripts.
+    """
 
     def __init__(
         self,
@@ -68,6 +123,30 @@ class PlayerMatchState:
         current_target: Optional[Vector2D] = None,
         player_role: str = "",
     ) -> None:
+        """Create a match state wrapper around a player roster entry.
+
+        Parameters
+        ----------
+        player_id : int
+            Identifier that maps back to the static roster entry.
+        team : Team
+            Team instance the player belongs to.
+        state : PlayerState
+            Mutable physics state used by the engine integration loop.
+        role_position : Vector2D
+            Home-half reference position that represents the role's nominal slot.
+        match_time : float, optional
+            Initial per-player clock, normally aligned with the global timer.
+        is_home_team : bool, optional
+            Flag used for quick side comparisons.
+        debugger : MatchDebugger | None, optional
+            Optional debugger for emitting per-player diagnostics.
+        current_target : Vector2D | None, optional
+            Active navigation waypoint used by role logic.
+        player_role : str, optional
+            Short role code that determines behavioural scripts.
+
+        """
         self.player_id = player_id
         self.team = team
         self.state = state
@@ -85,6 +164,16 @@ class PlayerMatchState:
         self.off_ball_state: str = "idle"
 
     def update_ai(self, ball: BallState, dt: float, all_players: List["PlayerMatchState"]) -> None:
-        """Update AI behaviour for the player."""
+        """Advance the per-player AI, updating timers and delegating to the role.
+
+        Parameters
+        ----------
+        ball : BallState
+            Current ball state used to inform role behaviour.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        all_players : List[PlayerMatchState]
+            Complete set of match player states used for context.
+        """
         self.match_time += dt
 

@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Role behaviour registry for the match engine."""
 from __future__ import annotations
 
 from typing import Dict, Type
@@ -49,6 +50,23 @@ ROLE_BEHAVIOUR_CLASSES: Dict[str, Type[RoleBehaviour]] = {
 
 
 def create_role_behaviour(role: str) -> RoleBehaviour:
+    """Return the behaviour class instance that governs the requested role.
+
+    Parameters
+    ----------
+    role : str
+        Role identifier such as ``"GK"`` or ``"CF"`` mapping to a registered behaviour.
+
+    Returns
+    -------
+    RoleBehaviour
+        New behaviour object configured for the requested role.
+
+    Raises
+    ------
+    ValueError
+        If ``role`` is not present in the behaviour registry.
+    """
     try:
         behaviour_cls = ROLE_BEHAVIOUR_CLASSES[role]
     except KeyError as exc:

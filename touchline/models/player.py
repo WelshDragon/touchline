@@ -12,12 +12,41 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Domain models representing football players and their attributes."""
 from dataclasses import dataclass
 from typing import Dict
 
 
 @dataclass
 class PlayerAttributes:
+    """Collection of technical, physical, and mental attribute ratings.
+
+    Parameters
+    ----------
+    passing : int
+        Accuracy and vision of ground passes.
+    shooting : int
+        Finishing ability and shot power.
+    dribbling : int
+        Close control and ability to beat opponents off the dribble.
+    tackling : int
+        Success rate of standing and sliding tackles.
+    heading : int
+        Strength in aerial duels.
+    speed : int
+        Top sprint velocity.
+    stamina : int
+        Resistance to fatigue over the match.
+    strength : int
+        Physical power during challenges.
+    vision : int
+        Awareness of teammates and space.
+    positioning : int
+        Off-ball movement intelligence.
+    decisions : int
+        Speed and quality of in-match decision making.
+    """
+
     # Technical
     passing: int
     shooting: int
@@ -36,7 +65,7 @@ class PlayerAttributes:
     decisions: int
 
     def __post_init__(self) -> None:
-        # Validate all attributes are between 1 and 100
+        """Validate that all attributes fall within the 1-100 rating scale."""
         for attr, value in self.__dict__.items():
             if not 1 <= value <= 100:
                 raise ValueError(f"{attr} must be between 1 and 100")
@@ -44,6 +73,22 @@ class PlayerAttributes:
 
 @dataclass
 class Player:
+    """Rich player model combining roster metadata and attribute ratings.
+
+    Parameters
+    ----------
+    player_id : int
+        Unique identifier for the player.
+    name : str
+        Human-readable player name.
+    age : int
+        Player age in years.
+    role : str
+        Preferred tactical role, for example ``"CM"``.
+    attributes : PlayerAttributes
+        Structured attribute ratings attached to the player.
+    """
+
     player_id: int
     name: str
     age: int
@@ -51,7 +96,13 @@ class Player:
     attributes: PlayerAttributes
 
     def get_role_rating(self) -> Dict[str, float]:
-        """Calculate player's rating for different roles."""
+        """Compute role-specific effectiveness scores derived from attributes.
+
+        Returns
+        -------
+        Dict[str, float]
+            Mapping from role code to a normalised suitability rating.
+        """
         ratings = {
             "GK": self._goalkeeper_rating(),
             "RD": self._wide_defender_rating(),

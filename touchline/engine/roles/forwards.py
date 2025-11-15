@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Role behaviours for centre forwards and wide attackers."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional
@@ -26,7 +27,15 @@ if TYPE_CHECKING:
 
 
 class ForwardBaseBehaviour(RoleBehaviour):
-    """Base forward AI with attacking and goal-scoring behaviors."""
+    """Base forward AI with attacking and goal-scoring behaviors.
+
+    Parameters
+    ----------
+    role : str
+        Role code assigned to the forward (for example ``"CF"``).
+    side : str
+        Field side the forward typically occupies (``"left"``, ``"right"``, or ``"central"``).
+    """
 
     def decide_action(
         self,
@@ -35,7 +44,19 @@ class ForwardBaseBehaviour(RoleBehaviour):
         all_players: List["PlayerMatchState"],
         dt: float,
     ) -> None:
-        """Main forward decision-making logic."""
+        """Coordinate attacking decisions for the current frame.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Controlled forward whose behaviour is being updated.
+        ball : BallState
+            Current ball state for the frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of all player states participating in the match.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         from touchline.models.player import Player
 
         player_model: Player = next((p for p in player.team.players if p.player_id == player.player_id), None)
@@ -490,6 +511,7 @@ class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
     """Central striker AI - main goal threat."""
 
     def __init__(self) -> None:
+        """Instantiate the central striker behaviour."""
         super().__init__(role="CF", side="central")
 
     def _adjust_attacking_run(
@@ -510,6 +532,7 @@ class LeftCentreForwardRoleBehaviour(ForwardBaseBehaviour):
     """Left forward / Left winger AI."""
 
     def __init__(self) -> None:
+        """Instantiate the left-sided forward behaviour."""
         super().__init__(role="LCF", side="left")
 
     def _adjust_attacking_run(
@@ -535,6 +558,7 @@ class RightCentreForwardRoleBehaviour(ForwardBaseBehaviour):
     """Right forward / Right winger AI."""
 
     def __init__(self) -> None:
+        """Instantiate the right-sided forward behaviour."""
         super().__init__(role="RCF", side="right")
 
     def _adjust_attacking_run(

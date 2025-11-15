@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Structured logging utilities used to trace match simulations."""
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -22,13 +23,40 @@ from typing import Deque, List, Optional, TextIO, Tuple
 
 @dataclass
 class DebugEvent:
+    """Immutable record representing a single logged event.
+
+    Parameters
+    ----------
+    timestamp : float
+        Simulation time (in seconds) when the event was recorded.
+    event_type : str
+        Category label describing the event, for example ``"GOAL"``.
+    details : str
+        Human-readable description providing additional context.
+    """
+
     timestamp: float
     event_type: str
     details: str
 
 
 class MatchDebugger:
+    """Helper object that streams structured match telemetry to disk.
+
+    Parameters
+    ----------
+    output_dir : str, default="debug_logs"
+        Directory where new session logs are created; created automatically when missing.
+    """
+
     def __init__(self, output_dir: str = "debug_logs") -> None:
+        """Initialise the debugger and start the first logging session.
+
+        Parameters
+        ----------
+        output_dir : str
+            Filesystem directory where log files are created or appended.
+        """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.log_file: Optional[TextIO] = None
@@ -54,7 +82,19 @@ class MatchDebugger:
         velocity: tuple[float, float],
         possession_team: str | None = None,
     ) -> None:
-        """Log the current state of the ball."""
+        """Log the current state of the ball.
+
+        Parameters
+        ----------
+        match_time : float
+            Elapsed match time in seconds.
+        position : tuple[float, float]
+            Ball coordinates on the pitch (x, y).
+        velocity : tuple[float, float]
+            Current velocity in metres per second along x and y axes.
+        possession_team : str | None
+            Identifier for the side deemed to have possession, when known.
+        """
         possession_str = f" | Possession: {possession_team}" if possession_team else ""
         self._write_log(
             "BALL_STATE",
@@ -77,7 +117,31 @@ class MatchDebugger:
         target: tuple[float, float] | None = None,
         player_role: str | None = None,
     ) -> None:
-        """Log the current state of a player."""
+        """Log the current state of a player.
+
+        Parameters
+        ----------
+        match_time : float
+            Elapsed match time in seconds.
+        player_id : int
+            Identifier of the tracked player.
+        team_name : str
+            Label for the player's team.
+        position : tuple[float, float]
+            Player coordinates (x, y) in metres.
+        has_ball : bool
+            Whether the player currently controls the ball.
+        stamina : float
+            Remaining stamina level expressed as a percentage.
+        velocity : tuple[float, float] | None
+            Optional instantaneous velocity vector in metres per second.
+        speed : float | None
+            Optional scalar magnitude of the player's velocity.
+        target : tuple[float, float] | None
+            Optional target position the player is attempting to reach.
+        player_role : str | None
+            Tactical role identifier (for example ``"CM"``) if available.
+        """
         target_str = f" | Target: ({target[0]:.1f}, {target[1]:.1f})" if target else ""
         role_str = f" | Role: {player_role}" if player_role else ""
         velocity_str = ""
@@ -97,15 +161,41 @@ class MatchDebugger:
         )
 
     def log_match_event(self, match_time: float, event_type: str, description: str) -> None:
-        """Log a match event (goal, shot, etc.)."""
+        """Log a match event (goal, shot, etc.).
+
+        Parameters
+        ----------
+        match_time : float
+            Elapsed match time in seconds.
+        event_type : str
+            Short label identifying the event category.
+        description : str
+            Human-readable summary of the event.
+        """
         self._write_log("MATCH_EVENT", f"Time: {match_time:.1f}s | Event: {event_type} | Details: {description}")
 
     def log_error(self, error_type: str, description: str) -> None:
-        """Log an error or warning."""
+        """Log an error or warning.
+
+        Parameters
+        ----------
+        error_type : str
+            Label describing the error classification.
+        description : str
+            Human-readable explanation of the issue.
+        """
         self._write_log("ERROR", f"Type: {error_type} | Details: {description}")
 
     def _write_log(self, event_type: str, details: str) -> None:
-        """Write a log entry to the file."""
+        """Write a log entry to the file.
+
+        Parameters
+        ----------
+        event_type : str
+            Category label for the log entry.
+        details : str
+            Formatted message body to persist.
+        """
         timestamp = time.strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {event_type}: {details}"
 
@@ -119,7 +209,18 @@ class MatchDebugger:
                 self.log_file.flush()
 
     def get_recent_events(self, limit: int = 20) -> List[str]:
-        """Return the latest debug entries with line numbers for live displays."""
+        """Return the latest debug entries with line numbers for live displays.
+
+        Parameters
+        ----------
+        limit : int
+            Maximum number of entries to return.
+
+        Returns
+        -------
+        List[str]
+            Up to ``limit`` most recent log lines with prefixed line numbers.
+        """
         with self._lock:
             selected = list(self._recent_events)[-limit:]
         return [f"{line_no:05d} {entry}" for line_no, entry in selected]

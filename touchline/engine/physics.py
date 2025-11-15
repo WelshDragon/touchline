@@ -12,6 +12,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Low-level physics primitives used by the match engine.
+
+The physics layer provides a small vector maths helper, player and ball state
+containers, and a pitch representation that encodes real-world dimensions. It
+encapsulates the raw numeric operations so higher-level systems can focus on AI
+and tactical behaviour without reimplementing mechanics.
+"""
 import inspect
 import math
 from collections import deque
@@ -25,33 +32,95 @@ from .config import ENGINE_CONFIG
 
 @dataclass
 class Vector2D:
+    """Two-dimensional vector with convenience operations.
+
+    The class intentionally mirrors the bare minimum functionality required by
+    the simulation: addition/subtraction for positional offsets, scalar
+    multiplication for velocity scaling, and helpers for magnitude/normalisation.
+    It keeps the code readable without introducing an external maths library.
+
+    Parameters
+    ----------
+    x : float
+        Horizontal component measured in metres.
+    y : float
+        Vertical component measured in metres.
+    """
+
     x: float
     y: float
 
     def __add__(self, other: "Vector2D") -> "Vector2D":
+        """Return the vector sum of ``self`` and ``other``."""
         return Vector2D(self.x + other.x, self.y + other.y)
 
     def __sub__(self, other: "Vector2D") -> "Vector2D":
+        """Return the vector difference ``self - other``."""
         return Vector2D(self.x - other.x, self.y - other.y)
 
     def __mul__(self, scalar: float) -> "Vector2D":
+        """Scale the vector by ``scalar`` while preserving direction."""
         return Vector2D(self.x * scalar, self.y * scalar)
 
     def magnitude(self) -> float:
+        """Return the Euclidean length of the vector.
+
+        Returns
+        -------
+        float
+            Scalar magnitude measured in metres.
+        """
         return math.sqrt(self.x * self.x + self.y * self.y)
 
     def normalize(self) -> "Vector2D":
+        """Return a unit vector pointing in the same direction as ``self``.
+
+        Returns
+        -------
+        Vector2D
+            Normalised vector; zero vector when ``self`` has no magnitude.
+        """
         mag = self.magnitude()
         if mag == 0:
             return Vector2D(0, 0)
         return Vector2D(self.x / mag, self.y / mag)
 
     def distance_to(self, other: "Vector2D") -> float:
+        """Return the straight-line distance between ``self`` and ``other``.
+
+        Parameters
+        ----------
+        other : Vector2D
+            Vector whose separation from ``self`` should be measured.
+
+        Returns
+        -------
+        float
+            Euclidean distance in metres between the two points.
+        """
         return (other - self).magnitude()
 
 
 @dataclass
 class PlayerState:
+    """Mutable physics state for a single player during the simulation.
+
+    The match engine stores physical quantities (position, velocity, stamina)
+    separately from the higher-level player objects so AI decisions and physics
+    integration can evolve independently.
+
+    Parameters
+    ----------
+    position : Vector2D
+        Current position on the pitch.
+    velocity : Vector2D
+        Current velocity in metres per second.
+    stamina : float
+        Remaining stamina level expressed as a percentage.
+    is_with_ball : bool, optional
+        Whether the player currently controls the ball.
+    """
+
     position: Vector2D
     velocity: Vector2D
     stamina: float  # Current stamina level (0-100)
@@ -66,7 +135,23 @@ class PlayerState:
         deceleration: float,
         arrive_radius: float,
     ) -> None:
-        """Move player towards a target using acceleration limits and arrival dampening."""
+        """Move the player toward ``target`` applying acceleration constraints.
+
+        Parameters
+        ----------
+        target : Vector2D
+            Desired destination for the player.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        max_speed : float
+            Maximum speed for the movement intent in metres per second.
+        acceleration : float
+            Maximum allowed acceleration per second.
+        deceleration : float
+            Maximum allowed deceleration per second.
+        arrive_radius : float
+            Radius in metres at which the player begins slowing down.
+        """
         if dt <= 0:
             return
 
@@ -135,7 +220,13 @@ class PlayerState:
             self.stamina = max(0.0, self.stamina - stamina_drain)
 
     def recover_stamina(self, dt: float) -> None:
-        """Recover stamina when not sprinting."""
+        """Recover stamina when not sprinting.
+
+        Parameters
+        ----------
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         cfg = ENGINE_CONFIG.player_movement
         if self.velocity.magnitude() < cfg.recovery_threshold:  # When almost stationary
             self.stamina = min(100, self.stamina + dt * cfg.recovery_rate)  # Recover stamina when resting
@@ -148,6 +239,21 @@ class BallState:
     through an attached MatchDebugger (if present) along with a short
     caller location (function, file, line) to help track the origin of
     unexpected mutations.
+
+    Parameters
+    ----------
+    position : Vector2D
+        Initial coordinates of the ball relative to the pitch centre.
+    velocity : Vector2D
+        Initial velocity vector in metres per second.
+    last_touched_time : float, optional
+        Simulation timestamp when the ball was last played.
+    last_touched_by : int | None, optional
+        Player identifier for the last touch, if known.
+    last_kick_recipient : int | None, optional
+        Intended recipient identifier for the last kick (used for passes).
+    debugger : MatchDebugger | None, optional
+        Debugger instance used to log instrumentation events when the ball state mutates.
     """
 
     def __init__(
@@ -159,6 +265,24 @@ class BallState:
         last_kick_recipient: Optional[int] = None,
         debugger: Optional[MatchDebugger] = None,
     ) -> None:
+        """Create a new ball state with optional instrumentation.
+
+        Parameters
+        ----------
+        position : Vector2D
+            Initial coordinates of the ball relative to the pitch centre.
+        velocity : Vector2D
+            Initial velocity vector in metres per second.
+        last_touched_time : float, optional
+            Simulation timestamp when the ball was last played.
+        last_touched_by : int | None, optional
+            Player identifier for the last touch, if known.
+        last_kick_recipient : int | None, optional
+            Intended recipient identifier for the last kick (used for passes).
+        debugger : MatchDebugger | None, optional
+            Debugger used to log instrumentation events when the ball state mutates.
+
+        """
         self._position = position
         self._velocity = velocity
         self.last_touched_time = last_touched_time
@@ -173,19 +297,23 @@ class BallState:
     # --- instrumented properties -------------------------------------------------
     @property
     def position(self) -> Vector2D:
+        """Return the current ball position."""
         return self._position
 
     @position.setter
     def position(self, value: Vector2D) -> None:
+        """Update the ball position and emit a debug trace if enabled."""
         self._position = value
         self._log_write("position", (value.x, value.y))
 
     @property
     def velocity(self) -> Vector2D:
+        """Return the ball's velocity vector."""
         return self._velocity
 
     @velocity.setter
     def velocity(self, value: Vector2D) -> None:
+        """Update the ball velocity and ground it if it fully stops."""
         self._velocity = value
         self._log_write("velocity", (value.x, value.y))
         if value.x == 0 and value.y == 0:
@@ -211,7 +339,15 @@ class BallState:
 
     # --- physics operations ------------------------------------------------------
     def update(self, dt: float, friction: Optional[float] = None) -> None:
-        """Update ball position and apply friction."""
+        """Update ball position and apply friction.
+
+        Parameters
+        ----------
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        friction : float | None, optional
+            Override for friction coefficient; defaults to configuration.
+        """
         if friction is None:
             friction = ENGINE_CONFIG.ball_physics.friction
         cfg = ENGINE_CONFIG.ball_physics
@@ -252,7 +388,23 @@ class BallState:
         *,
         kicker_position: Optional[Vector2D] = None,
     ) -> None:
-        """Apply kick force to the ball."""
+        """Apply kick force to the ball.
+
+        Parameters
+        ----------
+        direction : Vector2D
+            Direction vector representing the intended travel path.
+        power : float
+            Magnitude of the kick in metres per second.
+        player_id : int
+            Identifier of the player performing the kick.
+        current_time : float
+            Simulation timestamp when the kick occurred.
+        recipient_id : int | None, optional
+            Intended receiving player identifier for pass tracking.
+        kicker_position : Vector2D | None, optional
+            Origin position of the kick used for debug logging.
+        """
         # Only allow kicks if enough time has passed since last touch
         # or the player who last touched the ball is the one kicking.
         # (Previous logic used `!=` here which allowed other players to
@@ -315,8 +467,30 @@ class BallState:
 
 
 class Pitch:
+    """Rectangular playing surface with goal metadata.
+
+    The pitch exposes helpers to determine whether the ball remains in play,
+    whether a goal has been scored, and to clamp positions to legal bounds.
+    All measurements use metres to align with FIFA regulations.
+
+    Parameters
+    ----------
+    width : float | None, optional
+        Pitch width override in metres; defaults to configuration.
+    height : float | None, optional
+        Pitch height override in metres; defaults to configuration.
+    """
+
     def __init__(self, width: Optional[float] = None, height: Optional[float] = None) -> None:
-        """Initialize pitch with FIFA standard dimensions (in meters)."""
+        """Initialise pitch with FIFA standard dimensions (in metres).
+
+        Parameters
+        ----------
+        width : float | None, optional
+            Pitch width override in metres; defaults to configuration.
+        height : float | None, optional
+            Pitch height override in metres; defaults to configuration.
+        """
         cfg = ENGINE_CONFIG.pitch
         self.width = width if width is not None else cfg.width
         self.height = height if height is not None else cfg.height
@@ -329,11 +503,33 @@ class Pitch:
         self.goal_area_depth = cfg.goal_area_depth
 
     def is_in_bounds(self, position: Vector2D) -> bool:
-        """Check if position is within pitch boundaries."""
+        """Check if position is within pitch boundaries.
+
+        Parameters
+        ----------
+        position : Vector2D
+            Location to check for boundary compliance.
+
+        Returns
+        -------
+        bool
+            ``True`` when the position is inside the legal playing area.
+        """
         return -self.width / 2 <= position.x <= self.width / 2 and -self.height / 2 <= position.y <= self.height / 2
 
     def is_goal(self, position: Vector2D) -> Tuple[bool, str]:
-        """Check if ball position results in a goal."""
+        """Check if ball position results in a goal.
+
+        Parameters
+        ----------
+        position : Vector2D
+            Ball position to evaluate against goal boundaries.
+
+        Returns
+        -------
+        Tuple[bool, str]
+            Tuple of goal flag and scoring side (``"home"`` or ``"away"``) when applicable.
+        """
         if abs(position.x) > self.width / 2:  # Ball crossed goal line
             if abs(position.y) <= self.goal_width / 2:  # Within goal posts
                 # Negative X is the home team's own goal, so the away team scores.
@@ -341,7 +537,18 @@ class Pitch:
         return False, ""
 
     def constrain_to_bounds(self, position: Vector2D) -> Vector2D:
-        """Constrain position to pitch boundaries."""
+        """Constrain position to pitch boundaries.
+
+        Parameters
+        ----------
+        position : Vector2D
+            Location to clamp to the playable area.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted position guaranteed to lie within the field limits.
+        """
         return Vector2D(
             max(-self.width / 2, min(self.width / 2, position.x)),
             max(-self.height / 2, min(self.height / 2, position.y)),

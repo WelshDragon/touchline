@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Entry point for manual match simulations and the optional visualiser."""
 import threading
 import time
 from pathlib import Path
@@ -22,7 +23,13 @@ from touchline.utils.roster import load_teams_from_json  # For loading saved ros
 
 
 def print_match_status(engine: RealTimeMatchEngine) -> None:
-    """Print ongoing match status in a separate thread."""
+    """Print ongoing match status in a separate thread.
+
+    Parameters
+    ----------
+    engine : RealTimeMatchEngine
+        Running match engine instance whose state should be logged.
+    """
     last_event_count = 0
     last_minute = -1
 
@@ -52,6 +59,7 @@ def print_match_status(engine: RealTimeMatchEngine) -> None:
 
 
 def main() -> None:
+    """Spin up a demo match, wiring the engine to optional visual outputs."""
     # Try to load teams from JSON file, fall back to generated teams if not found
     roster_file = Path("data/players.json")
     if roster_file.exists():

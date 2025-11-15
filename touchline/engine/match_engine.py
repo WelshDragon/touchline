@@ -12,6 +12,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""High-level orchestration for real-time football match simulations.
+
+The match engine glues together physics, role behaviour, and officiating to
+advance the simulation tick by tick. The `RealTimeMatchEngine` class exposes a
+control surface for running full matches, while :class:`MatchState` captures
+mutable runtime context shared between subsystems.
+"""
+
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -30,6 +38,38 @@ from touchline.utils.roster import load_teams_from_json
 
 @dataclass
 class MatchState:
+    """Aggregate mutable state required to simulate a single match.
+
+    Parameters
+    ----------
+    home_team : Team
+        Team assigned as the home side.
+    away_team : Team
+        Team assigned as the away side.
+    pitch : Pitch, optional
+        Pitch dimensions and helper utilities for the match.
+    ball : BallState, optional
+        Ball state shared across the simulation tick.
+    player_states : Dict[int, PlayerMatchState], optional
+        Mapping from player identifier to their runtime state wrapper.
+    events : List[MatchEvent], optional
+        Chronological event log captured during the match.
+    match_time : float, optional
+        Current simulation time in seconds.
+    home_score : int, optional
+        Goals scored by the home team.
+    away_score : int, optional
+        Goals scored by the away team.
+    current_half : int, optional
+        Active half number (1 or 2).
+    halftime_triggered : bool, optional
+        Whether the half-time sequence has occurred.
+    starting_kickoff_side : str, optional
+        Side that took the opening kickoff (``"home"`` or ``"away"``).
+    current_kickoff_side : str, optional
+        Side that will take the next kickoff.
+    """
+
     home_team: Team
     away_team: Team
     pitch: Pitch = field(default_factory=lambda: Pitch())
@@ -45,6 +85,7 @@ class MatchState:
     current_kickoff_side: str = "home"
 
     def __post_init__(self) -> None:
+        """Initialise derived state after dataclass construction."""
         self._initialize_player_positions()
         self.current_kickoff_side = self.starting_kickoff_side
 
@@ -127,7 +168,31 @@ class MatchState:
 
 
 class RealTimeMatchEngine:
+    """Run the simulation loop and expose helper utilities for tests.
+
+    Parameters
+    ----------
+    home_team : Team
+        Team instance representing the nominal home side when no JSON override is supplied.
+    away_team : Team
+        Team instance representing the nominal away side when no JSON override is supplied.
+    players_json : str | None, optional
+        Optional path to a ``data/players.json`` style roster for deterministic replacements.
+    """
+
     def __init__(self, home_team: Team, away_team: Team, players_json: Optional[str] = None) -> None:
+        """Prepare a match engine using provided teams or a roster file.
+
+        Parameters
+        ----------
+        home_team : Team
+            Team instance representing the nominal home side when no JSON override is supplied.
+        away_team : Team
+            Team instance representing the nominal away side when no JSON override is supplied.
+        players_json : str | None, optional
+            Optional path to ``data/players.json`` style data for deterministic replacements.
+
+        """
         # If a players JSON file is provided (or a default data/players.json
         # exists in the repo), load teams from that file to ensure deterministic
         # player attributes across runs. Otherwise fall back to the provided
@@ -397,7 +462,6 @@ class RealTimeMatchEngine:
 
     def _settle_new_possession(self, possessor: PlayerMatchState) -> None:
         """Bring the ball under control when a new possessor is awarded."""
-
         ball = self.state.ball
 
         ball.velocity = Vector2D(0, 0)
@@ -532,13 +596,27 @@ class RealTimeMatchEngine:
             self.state.ball.ground()
 
     def force_goal_kick(self, defending_side: str) -> None:
-        """Tests can call this to immediately restart with a goal kick."""
+        """Force the referee to restart play with a goal kick.
+
+        Parameters
+        ----------
+        defending_side : str
+            Side that should be awarded the goal kick (``"home"`` or ``"away"``).
+        """
         goal_line_x = -self.state.pitch.width / 2 if defending_side == "home" else self.state.pitch.width / 2
         mock_position = Vector2D(goal_line_x, 0.0)
         self._restart_goal_kick(defending_side, mock_position)
 
     def force_throw_in(self, awarding_side: str, y_hint: float = 0.0) -> None:
-        """Tests can call this to immediately restart with a throw-in."""
+        """Force the referee to restart play with a throw-in.
+
+        Parameters
+        ----------
+        awarding_side : str
+            Side that should take the throw-in (``"home"`` or ``"away"``).
+        y_hint : float, optional
+            Vertical pitch coordinate suggesting where the ball exited.
+        """
         mock_position = Vector2D(0.0, y_hint)
         self._restart_throw_in(awarding_side, mock_position)
 

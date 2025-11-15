@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Utilities that synthesise test players and teams for quick simulations."""
 import random
 from typing import List, Optional
 
@@ -33,7 +34,22 @@ ROLE_IMPORTANT_ATTRIBUTES = {
 
 
 def generate_random_player(id: int, name: Optional[str] = None, role: Optional[str] = None) -> Player:
-    """Generate a player with random attributes."""
+    """Generate a player with random attributes.
+
+    Parameters
+    ----------
+    id : int
+        Unique identifier assigned to the created player.
+    name : Optional[str]
+        Human-readable name to apply; a pseudo-random name is chosen when omitted.
+    role : Optional[str]
+        Preferred positional role influencing attribute weighting; random when ``None``.
+
+    Returns
+    -------
+    Player
+        A newly constructed player instance with stochastic attribute scores.
+    """
     if name is None:
         # Simple random name generation
         first_names = ["John", "James", "David", "Michael", "Robert", "Carlos", "Juan", "Luis"]
@@ -78,7 +94,24 @@ def generate_random_player(id: int, name: Optional[str] = None, role: Optional[s
 def generate_team(
     id: int, name: Optional[str] = None, formation_name: str = "4-4-2", starting_player_id: int = 1
 ) -> Team:
-    """Generate a team with random players using specified formation."""
+    """Generate a team with random players using specified formation.
+
+    Parameters
+    ----------
+    id : int
+        Unique identifier assigned to the generated team.
+    name : Optional[str]
+        Squad name to apply; synthesised when ``None``.
+    formation_name : str
+        Tactical formation blueprint to instantiate (for example ``"4-4-2"``).
+    starting_player_id : int
+        Identifier to use for the first generated player; increments for each additional player.
+
+    Returns
+    -------
+    Team
+        Team object populated with starting XI and substitutes aligned to the requested formation.
+    """
     if name is None:
         # Simple random team name generation
         prefixes = ["FC", "United", "City", "Athletic", "Sporting"]

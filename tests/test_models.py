@@ -68,6 +68,7 @@ class TestPlayer:
     """Tests for Player class."""
 
     def test_create_player(self) -> None:
+        """Ensure a player instance retains the provided metadata."""
         attrs = PlayerAttributes(
             passing=70,
             shooting=75,
@@ -89,6 +90,7 @@ class TestPlayer:
         assert player.attributes.speed == 80
 
     def test_get_role_rating_keys(self) -> None:
+        """Confirm role ratings return a value for every supported position."""
         attrs = PlayerAttributes(
             passing=80,
             shooting=80,
@@ -120,6 +122,7 @@ class TestPlayer:
             assert 0 <= value <= 1
 
     def test_forward_rating_higher_than_gk(self) -> None:
+        """Check that a forward-focused attribute mix outranks goalkeeper rating."""
         attrs = PlayerAttributes(
             passing=50,
             shooting=90,
@@ -139,7 +142,10 @@ class TestPlayer:
 
 
 class TestFormation:
+    """Tests covering Formation behaviour and validation."""
+
     def test_create_formation(self) -> None:
+        """Create a formation and confirm role counts are stored."""
         formation = Formation(
             name="4-4-2",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},
@@ -150,6 +156,7 @@ class TestFormation:
         assert formation.role_counts["LCF"] == 1
 
     def test_formation_total_players(self) -> None:
+        """Ensure the total player count reflects the specified roles."""
         formation = Formation(
             name="4-3-3",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 1, "LM": 1, "RCF": 1, "CF": 1, "LCF": 1},
@@ -161,6 +168,7 @@ class TestTeam:
     """Tests for Team class."""
 
     def test_create_team(self) -> None:
+        """Construct a valid team with eleven players."""
         formation = Formation(
             name="4-4-2",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},
@@ -173,6 +181,7 @@ class TestTeam:
         assert team.formation.name == "4-4-2"
 
     def test_team_requires_minimum_11_players(self) -> None:
+        """Validate that teams with fewer than eleven players are rejected."""
         formation = Formation(
             name="4-4-2",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},
@@ -181,6 +190,7 @@ class TestTeam:
             Team(team_id=1, name="Test FC", players=self._create_test_players(10), formation=formation)
 
     def test_get_team_rating(self) -> None:
+        """Compute the aggregated team rating and ensure it is normalized."""
         formation = Formation(
             name="4-4-2",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},
@@ -191,6 +201,7 @@ class TestTeam:
         assert 0 <= rating <= 1
 
     def test_team_formation_matches_roles(self) -> None:
+        """Verify that team roles align with the declared formation counts."""
         formation = Formation(
             name="4-4-2",
             role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},

@@ -12,6 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Shared role behaviour scaffolding for all positional AI scripts."""
 from __future__ import annotations
 
 import math
@@ -26,9 +27,26 @@ if TYPE_CHECKING:
 
 
 class RoleBehaviour:
-    """Base AI behaviour framework for all player roles."""
+    """Base AI behaviour framework for all player roles.
+
+    Parameters
+    ----------
+    role : str
+        Positional role code controlled by this behaviour instance.
+    side : str
+        Field side the role normally occupies (for example ``"left"`` or ``"central"``).
+    """
 
     def __init__(self, role: str, side: str = "central") -> None:
+        """Store metadata describing the role being controlled.
+
+        Parameters
+        ----------
+        role : str
+            Positional role code controlled by this behaviour instance.
+        side : str
+            Field side the role normally occupies.
+        """
         self.role = role
         self.side = side
         self._current_all_players: Optional[List["PlayerMatchState"]] = None
@@ -40,7 +58,19 @@ class RoleBehaviour:
         all_players: List["PlayerMatchState"],
         dt: float,
     ) -> None:
-        """Main decision-making method called every frame. Override in subclasses."""
+        """Determine the action to take for the current simulation frame.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            The controlled player whose behaviour is being evaluated.
+        ball : BallState
+            Current ball state for the frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of all players participating in the match.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        """
         pass
 
     # ==================== HELPER METHODS ====================
@@ -48,29 +78,96 @@ class RoleBehaviour:
     def get_teammates(
         self, player: "PlayerMatchState", all_players: List["PlayerMatchState"]
     ) -> List["PlayerMatchState"]:
-        """Get all teammates excluding the player."""
+        """Get all teammates excluding the player.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose teammates should be identified.
+        all_players : List[PlayerMatchState]
+            Full list of players currently on the pitch.
+
+        Returns
+        -------
+        List[PlayerMatchState]
+            Teammates belonging to the same side as ``player``.
+        """
         return [p for p in all_players if p.team == player.team and p.player_id != player.player_id]
 
     def get_opponents(
         self, player: "PlayerMatchState", all_players: List["PlayerMatchState"]
     ) -> List["PlayerMatchState"]:
-        """Get all opponents."""
+        """Get all opponents.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player used as the reference for team membership.
+        all_players : List[PlayerMatchState]
+            Full list of players currently on the pitch.
+
+        Returns
+        -------
+        List[PlayerMatchState]
+            Opponents facing the player's team.
+        """
         return [p for p in all_players if p.team != player.team]
 
     def distance_to_ball(self, player: "PlayerMatchState", ball: "BallState") -> float:
-        """Calculate distance from player to ball."""
+        """Calculate distance from player to ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose proximity to the ball is evaluated.
+        ball : BallState
+            Current ball state.
+
+        Returns
+        -------
+        float
+            Euclidean distance between ``player`` and the ball in metres.
+        """
         return player.state.position.distance_to(ball.position)
 
     def is_closest_to_ball(
         self, player: "PlayerMatchState", ball: "BallState", all_players: List["PlayerMatchState"]
     ) -> bool:
-        """Check if this player is closest to the ball on their team."""
+        """Check if this player is closest to the ball on their team.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Candidate player to evaluate.
+        ball : BallState
+            Current ball state.
+        all_players : List[PlayerMatchState]
+            Full list of players currently on the pitch.
+
+        Returns
+        -------
+        bool
+            ``True`` when ``player`` is the closest teammate to the ball.
+        """
         teammates = self.get_teammates(player, all_players) + [player]
         distances = [p.state.position.distance_to(ball.position) for p in teammates]
         return min(distances) == player.state.position.distance_to(ball.position)
 
     def has_ball_possession(self, player: "PlayerMatchState", ball: "BallState") -> bool:
-        """Check if player has possession of the ball."""
+        """Check if player has possession of the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose possession status should be queried.
+        ball : BallState
+            Current ball state.
+
+        Returns
+        -------
+        bool
+            ``True`` when the player has control of the ball.
+        """
         # Use the is_with_ball flag set by the match engine
         return player.state.is_with_ball
 
@@ -80,7 +177,20 @@ class RoleBehaviour:
         return player.state.position.distance_to(ball.position) <= control_limit
 
     def get_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
-        """Get the opponent's goal position."""
+        """Get the opponent's goal position.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player used to determine which goal is considered the opponent's.
+        pitch_width : Optional[float]
+            Optional pitch width override in metres.
+
+        Returns
+        -------
+        Vector2D
+            Target coordinates of the opponent goal mouth.
+        """
         from touchline.engine.physics import Vector2D
 
         width = pitch_width if pitch_width is not None else ENGINE_CONFIG.pitch.width
@@ -88,7 +198,20 @@ class RoleBehaviour:
         return Vector2D(goal_x, 0)
 
     def get_own_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
-        """Get the player's own goal position."""
+        """Get the player's own goal position.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player used to determine the defending goal.
+        pitch_width : Optional[float]
+            Optional pitch width override in metres.
+
+        Returns
+        -------
+        Vector2D
+            Coordinates representing the player's defending goal.
+        """
         from touchline.engine.physics import Vector2D
 
         width = pitch_width if pitch_width is not None else ENGINE_CONFIG.pitch.width
@@ -96,7 +219,22 @@ class RoleBehaviour:
         return Vector2D(goal_x, 0)
 
     def should_shoot(self, player: "PlayerMatchState", ball: "BallState", shooting_attr: int) -> bool:
-        """Decide if player should attempt a shot."""
+        """Decide if player should attempt a shot.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player evaluating whether to shoot.
+        ball : BallState
+            Current ball state.
+        shooting_attr : int
+            Shooting attribute rating of the player (0-100).
+
+        Returns
+        -------
+        bool
+            ``True`` when the heuristics favour attempting a shot.
+        """
         goal_pos = self.get_goal_position(player)
         distance_to_goal = player.state.position.distance_to(goal_pos)
 
@@ -118,7 +256,20 @@ class RoleBehaviour:
         return random.random() < shoot_probability * shoot_cfg.probability_scale
 
     def calculate_shot_angle_quality(self, player: "PlayerMatchState", goal_pos: "Vector2D") -> float:
-        """Calculate quality of shooting angle (0-1)."""
+        """Calculate quality of shooting angle (0-1).
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player considering a shot on goal.
+        goal_pos : Vector2D
+            Target goal position to compare angles against.
+
+        Returns
+        -------
+        float
+            Normalised angle quality score between 0 and 1.
+        """
         from touchline.engine.physics import Vector2D
 
         # Check angles to goal posts
@@ -148,7 +299,26 @@ class RoleBehaviour:
         vision_attr: int,
         passing_attr: int,
     ) -> Optional["PlayerMatchState"]:
-        """Find the best teammate to pass to."""
+        """Find the best teammate to pass to.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player currently in possession or evaluating a pass.
+        ball : BallState
+            Current ball state used to track recent pass pairs.
+        all_players : List[PlayerMatchState]
+            Full list of players participating in the match.
+        vision_attr : int
+            Vision attribute rating (0-100) influencing pass selection.
+        passing_attr : int
+            Passing attribute rating (0-100) impacting pass range and accuracy.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Chosen teammate if an advantageous pass exists, otherwise ``None``.
+        """
         teammates = self.get_teammates(player, all_players)
         opponents = self.get_opponents(player, all_players)
 
@@ -213,7 +383,22 @@ class RoleBehaviour:
         receiver: "PlayerMatchState",
         opponents: List["PlayerMatchState"],
     ) -> float:
-        """Calculate how clear the passing lane is (0-1)."""
+        """Calculate how clear the passing lane is (0-1).
+
+        Parameters
+        ----------
+        passer : PlayerMatchState
+            Player attempting the pass.
+        receiver : PlayerMatchState
+            Intended teammate to receive the ball.
+        opponents : List[PlayerMatchState]
+            Opposing players whose positions may block the lane.
+
+        Returns
+        -------
+        float
+            Normalised lane quality score where ``1.0`` is unobstructed.
+        """
         pass_vector = receiver.state.position - passer.state.position
         pass_distance = pass_vector.magnitude()
 
@@ -253,7 +438,6 @@ class RoleBehaviour:
         fallback_cap: Optional[float] = None,
     ) -> "Vector2D":
         """Predict where the player can meet the ball along its path."""
-
         intercept_cfg = ENGINE_CONFIG.role.intercept
 
         max_time = intercept_cfg.max_time if max_time is None else max_time
@@ -403,7 +587,21 @@ class RoleBehaviour:
         passing_attr: int,
         current_time: float,
     ) -> None:
-        """Execute a pass to a teammate."""
+        """Execute a pass to a teammate.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player initiating the pass.
+        target : PlayerMatchState
+            Intended teammate to receive the ball.
+        ball : BallState
+            Shared ball state manipulated by the kick.
+        passing_attr : int
+            Passing attribute rating (0-100) influencing power and accuracy.
+        current_time : float
+            Simulation timestamp when the pass occurs.
+        """
         if not self._can_kick_ball(player, ball):
             return
 
@@ -446,7 +644,19 @@ class RoleBehaviour:
         shooting_attr: int,
         current_time: float,
     ) -> None:
-        """Execute a shot on goal."""
+        """Execute a shot on goal.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player attempting the shot.
+        ball : BallState
+            Shared ball state manipulated by the kick.
+        shooting_attr : int
+            Shooting attribute rating (0-100) guiding accuracy and power.
+        current_time : float
+            Simulation timestamp when the shot occurs.
+        """
         if not self._can_kick_ball(player, ball):
             return
         goal_pos = self.get_goal_position(player)
@@ -535,7 +745,25 @@ class RoleBehaviour:
         sprint: bool = False,
         intent: Optional[str] = None,
     ) -> None:
-        """Move player towards target position with role-specific pacing."""
+        """Move player towards target position with role-specific pacing.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose movement should be updated.
+        target : Vector2D
+            Desired location the player should approach.
+        speed_attr : int
+            Speed attribute rating (0-100) influencing locomotion scales.
+        dt : float
+            Simulation timestep in seconds since the previous update.
+        ball : Optional[BallState]
+            Optional ball state used for possession-aware adjustments.
+        sprint : bool
+            When ``True``, biases behaviour toward high-intensity movement.
+        intent : Optional[str]
+            Behavioural intent hint such as ``"press"`` or ``"support"``.
+        """
         movement_cfg = ENGINE_CONFIG.player_movement
         profile = movement_cfg.role_profiles.get(player.player_role, movement_cfg.role_profiles["default"])
 
@@ -724,7 +952,22 @@ class RoleBehaviour:
         ball: "BallState",
         base_position: "Vector2D",
     ) -> "Vector2D":
-        """Calculate defensive position maintaining individual formation positions."""
+        """Calculate defensive position maintaining individual formation positions.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender whose target position is being computed.
+        ball : BallState
+            Current ball state guiding defensive adjustments.
+        base_position : Vector2D
+            Formation anchor point assigned to the player.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted defensive position respecting formation shape.
+        """
         from touchline.engine.physics import Vector2D
 
         own_goal = self.get_own_goal_position(player)
@@ -751,7 +994,7 @@ class RoleBehaviour:
         # Each player keeps their horizontal spacing
         ball_y_offset = (ball.position.y - base_position.y) * defensive_cfg.y_pull_factor
         target_y = base_position.y + ball_y_offset
-        
+
         return Vector2D(target_x, target_y)
 
     def should_press(
@@ -762,7 +1005,26 @@ class RoleBehaviour:
         stamina_threshold: Optional[float] = None,
         distance_threshold: Optional[float] = None,
     ) -> bool:
-        """Decide if player should press the opponent with the ball."""
+        """Decide if player should press the opponent with the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player evaluating whether to initiate a press.
+        ball : BallState
+            Current ball state.
+        all_players : List[PlayerMatchState]
+            Full list of players to inspect for possession.
+        stamina_threshold : Optional[float]
+            Minimum stamina required to attempt a press; defaults to configuration.
+        distance_threshold : Optional[float]
+            Maximum distance to the ball to trigger a press; defaults to configuration.
+
+        Returns
+        -------
+        bool
+            ``True`` when the player should press the opponent in possession.
+        """
         press_cfg = ENGINE_CONFIG.role.pressing
         stamina_threshold = press_cfg.stamina_threshold if stamina_threshold is None else stamina_threshold
         distance_threshold = press_cfg.distance_threshold if distance_threshold is None else distance_threshold
@@ -788,7 +1050,24 @@ class RoleBehaviour:
         preferred_direction: "Vector2D",
         search_radius: Optional[float] = None,
     ) -> "Vector2D":
-        """Find space away from other players."""
+        """Find space away from other players.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player seeking open space.
+        all_players : List[PlayerMatchState]
+            Complete list of players used to evaluate crowding.
+        preferred_direction : Vector2D
+            Initial direction to bias the search towards.
+        search_radius : Optional[float]
+            Radius in metres used when sampling candidate positions.
+
+        Returns
+        -------
+        Vector2D
+            Candidate position representing a low-crowding area.
+        """
         from touchline.engine.physics import Vector2D
 
         space_cfg = ENGINE_CONFIG.role.space_finding

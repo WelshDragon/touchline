@@ -23,7 +23,19 @@ from touchline.models.team import Team
 
 @dataclass
 class MatchEvent:
-    """Snapshot of a noteworthy moment during a simulation."""
+    """Snapshot of a noteworthy moment during a simulation.
+
+    Parameters
+    ----------
+    timestamp : float
+        Seconds elapsed since the start of the match when the event occurred.
+    event_type : str
+        Category of event (for example ``"goal"`` or ``"shot"``).
+    team : Team
+        Team associated with the event.
+    description : str
+        Human-readable summary of what happened.
+    """
 
     timestamp: float  # seconds from match start
     event_type: str  # goal, shot, pass, tackle, etc.

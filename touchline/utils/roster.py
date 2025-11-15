@@ -12,6 +12,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Utilities for constructing team rosters from serialized data sources.
+
+The utilities in this module translate plain dictionaries or JSON payloads into
+rich domain objects that the match engine understands. They are primarily used
+by the CLI entrypoint and test fixtures to quickly spin up realistic squads
+without hand-coding every player. The helper functions deliberately default to
+reasonable attribute values so that incomplete datasets remain usable while
+still producing valid `Player` and `Team` instances.
+"""
 import json
 from pathlib import Path
 from typing import Tuple
@@ -21,9 +30,21 @@ from touchline.models.team import Formation, Team
 
 
 def player_from_dict(d: dict) -> Player:
-    """Create a Player instance from a dict.
+    """Build a ``Player`` from a plain dictionary payload.
 
-    Expected keys: id, name, age, role, attributes (falls back to legacy "position").
+    Parameters
+    ----------
+    d
+        A mapping containing the serialized player information. Supported keys
+        include ``id``, ``name``, ``age``, ``role`` (or legacy ``position``), and
+        an ``attributes`` mapping for technical ratings.
+
+    Returns
+    -------
+    Player
+        A fully initialised player instance with sane defaults for any missing
+        attribute values.
+
     """
     attrs = d.get("attributes", {}) or {}
     pa = PlayerAttributes(
@@ -53,9 +74,27 @@ def player_from_dict(d: dict) -> Player:
 
 
 def load_teams_from_json(path: str) -> Tuple[Team, Team]:
-    """Load home/away teams from a JSON file and return (home, away).
+    """Load home and away teams from the repository's JSON schema.
 
-    File schema matches data/players.json in the repository.
+    Parameters
+    ----------
+    path
+        The filesystem path to the JSON document following the
+        ``data/players.json`` schema.
+
+    Returns
+    -------
+    tuple[Team, Team]
+        A pair of ``Team`` objects in ``(home, away)`` order that are ready for
+        simulation.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised when ``path`` does not exist.
+    KeyError
+        Raised when the JSON payload is missing required top-level sections.
+
     """
     p = Path(path)
     if not p.exists():
