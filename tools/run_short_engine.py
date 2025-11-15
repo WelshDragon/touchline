@@ -63,7 +63,7 @@ away = Team(2, "Away FC", away_players, formation)
 engine = RealTimeMatchEngine(home, away)
 
 # Run 2400 steps of 0.05s (~120 seconds simulated)
-for _ in range(2400):
+for _ in range(3600):
     engine._update(0.05)
 
 # Stop and close debugger

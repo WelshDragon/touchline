@@ -74,6 +74,11 @@ class RoleBehaviour:
         # Use the is_with_ball flag set by the match engine
         return player.state.is_with_ball
 
+    def _can_kick_ball(self, player: "PlayerMatchState", ball: "BallState") -> bool:
+        """Only allow ball strikes when the player is within control range."""
+        control_limit = ENGINE_CONFIG.possession.max_control_distance
+        return player.state.position.distance_to(ball.position) <= control_limit
+
     def get_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
         """Get the opponent's goal position."""
         from touchline.engine.physics import Vector2D
@@ -399,6 +404,9 @@ class RoleBehaviour:
         current_time: float,
     ) -> None:
         """Execute a pass to a teammate."""
+        if not self._can_kick_ball(player, ball):
+            return
+
         distance = player.state.position.distance_to(target.state.position)
 
         # Calculate pass speed using a capped easing curve so long passes travel fast
@@ -422,7 +430,14 @@ class RoleBehaviour:
         adjusted_target = Vector2D(target_pos.x + offset_x, target_pos.y + offset_y)
         direction = (adjusted_target - player.state.position).normalize()
 
-        ball.kick(direction, power, player.player_id, current_time, target.player_id)
+        ball.kick(
+            direction,
+            power,
+            player.player_id,
+            current_time,
+            target.player_id,
+            kicker_position=player.state.position,
+        )
 
     def execute_shot(
         self,
@@ -432,6 +447,8 @@ class RoleBehaviour:
         current_time: float,
     ) -> None:
         """Execute a shot on goal."""
+        if not self._can_kick_ball(player, ball):
+            return
         goal_pos = self.get_goal_position(player)
 
         from touchline.engine.physics import Vector2D
@@ -494,7 +511,13 @@ class RoleBehaviour:
         power = min(shoot_cfg.power_clamp, raw_power)
         power *= shoot_cfg.power_accuracy_base + accuracy * shoot_cfg.power_accuracy_scale
 
-        ball.kick(direction, power, player.player_id, current_time)
+        ball.kick(
+            direction,
+            power,
+            player.player_id,
+            current_time,
+            kicker_position=player.state.position,
+        )
 
         # Log shot event if debugger is available
         if hasattr(player, "debugger") and player.debugger:

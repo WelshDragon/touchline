@@ -193,6 +193,30 @@ class RealTimeMatchEngine:
         # Update ball physics
         self.state.ball.update(dt)
 
+        possession_cfg = ENGINE_CONFIG.possession
+
+        # Validate that any current possessor still has the ball within playable range.
+        for ps in self.state.player_states.values():
+            if not ps.state.is_with_ball:
+                continue
+
+            distance_to_ball = ps.state.position.distance_to(self.state.ball.position)
+            release_limit = possession_cfg.max_control_distance + possession_cfg.release_leeway
+            if distance_to_ball <= release_limit:
+                continue
+
+            ps.state.is_with_ball = False
+            if self.state.ball.last_touched_by == ps.player_id:
+                self.state.ball.last_touched_by = None
+            self.debugger.log_match_event(
+                self.state.match_time,
+                "possession",
+                (
+                    f"Player {ps.player_id} ({ps.team.name}, {ps.player_role}) releases possession "
+                    f"distance={distance_to_ball:.2f}m"
+                ),
+            )
+
         # Let the referee adjudicate key match events (goal, out of play, etc.)
         last_touch_side = self._side_for_player(self.state.ball.last_touched_by)
         possession_side = None
@@ -223,7 +247,6 @@ class RealTimeMatchEngine:
 
         # Update ball possession - player closest to slow ball gets possession
         ball_speed = self.state.ball.velocity.magnitude()
-        possession_cfg = ENGINE_CONFIG.possession
 
         def assign_possession(new_player: PlayerMatchState) -> None:
             previous_possessor = next((p for p in all_players if p.state.is_with_ball), None)
@@ -247,31 +270,8 @@ class RealTimeMatchEngine:
                         f"{new_player.player_role}) gains possession"
                     ),
                 )
+                self._settle_new_possession(new_player)
 
-            if not already_possessing:
-                # Carry the ball at the player's pace rather than freezing it on first touch.
-                self.state.ball.velocity = new_player.state.velocity
-                self.state.ball.position = new_player.state.position
-            else:
-                # When continuing possession, keep the ball nudged ahead of the dribbler so
-                # tackles remain possible and we avoid the glued-to-foot effect.
-                control_direction = None
-                if new_player.state.velocity.magnitude() > 0:
-                    control_direction = new_player.state.velocity.normalize()
-                control_offset = possession_cfg.continue_control_offset
-                blend = possession_cfg.continue_velocity_blend
-
-                if control_direction:
-                    desired_position = new_player.state.position + control_direction * control_offset
-                    # Ease toward the desired spot to stop jittering when players zig-zag.
-                    self.state.ball.position = Vector2D(
-                        self.state.ball.position.x + (desired_position.x - self.state.ball.position.x) * 0.5,
-                        self.state.ball.position.y + (desired_position.y - self.state.ball.position.y) * 0.5,
-                    )
-                    self.state.ball.velocity = new_player.state.velocity * blend
-                else:
-                    self.state.ball.position = new_player.state.position
-                    self.state.ball.velocity = Vector2D(0, 0)
 
         possession_acquired = False
 
@@ -298,8 +298,23 @@ class RealTimeMatchEngine:
                         velocity_norm = self.state.ball.velocity.normalize()
                         direction_alignment = velocity_norm.x * to_target_norm.x + velocity_norm.y * to_target_norm.y
 
-                    if (
-                        distance_to_target < catch_radius
+                    # Let intended recipients gather the ball slightly early to avoid awkward backpedals.
+                    max_receive_distance = (
+                        possession_cfg.max_control_distance + possession_cfg.target_receive_leeway
+                    )
+                    # Only award possession once the ball is within playable control range.
+                    aligned_velocity = self.state.ball.velocity.magnitude() * max(0.0, direction_alignment)
+                    velocity_gate = aligned_velocity > possession_cfg.target_velocity_gate
+
+                    within_control = distance_to_target <= possession_cfg.max_control_distance
+
+                    if within_control:
+                        assign_possession(target_player)
+                        possession_acquired = True
+                    elif (
+                        velocity_gate
+                        and distance_to_target <= max_receive_distance
+                        and distance_to_target < catch_radius
                         and direction_alignment > possession_cfg.direction_alignment_min
                     ):
                         assign_possession(target_player)
@@ -379,6 +394,18 @@ class RealTimeMatchEngine:
                     target=target_tuple,
                     player_role=player_state.player_role,
                 )
+
+    def _settle_new_possession(self, possessor: PlayerMatchState) -> None:
+        """Bring the ball under control when a new possessor is awarded."""
+
+        ball = self.state.ball
+
+        ball.velocity = Vector2D(0, 0)
+
+        # Remove any airborne state now that the ball is under control.
+        ball.is_airborne = False
+        ball.just_bounced = False
+        ball.time_until_ground = 0.0
 
     def _handle_goal(self, scoring_team: str) -> None:
         """Handle goal scored."""

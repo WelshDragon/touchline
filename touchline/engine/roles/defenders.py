@@ -141,7 +141,14 @@ class DefenderBaseBehaviour(RoleBehaviour):
                 clear_direction = (ball.position - own_goal).normalize()
 
                 # Clear upfield
-                ball.kick(clear_direction, def_cfg.clear_power, player.player_id, current_time)
+                if self._can_kick_ball(player, ball):
+                    ball.kick(
+                        clear_direction,
+                        def_cfg.clear_power,
+                        player.player_id,
+                        current_time,
+                        kicker_position=player.state.position,
+                    )
 
     def _should_intercept(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int) -> bool:
         """Decide if should attempt to intercept a pass."""

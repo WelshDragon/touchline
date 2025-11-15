@@ -53,6 +53,10 @@ class PossessionConfig:
     slow_radius: float = 1.0
     continue_control_offset: float = 0.45
     continue_velocity_blend: float = 0.8
+    max_control_distance: float = 0.6
+    target_receive_leeway: float = 0.35
+    release_leeway: float = 0.15
+    target_velocity_gate: float = 2.0
 
 
 @dataclass(slots=True)

@@ -249,6 +249,8 @@ class BallState:
         player_id: int,
         current_time: float,
         recipient_id: Optional[int] = None,
+        *,
+        kicker_position: Optional[Vector2D] = None,
     ) -> None:
         """Apply kick force to the ball."""
         # Only allow kicks if enough time has passed since last touch
@@ -265,9 +267,14 @@ class BallState:
                 self.recent_pass_pairs.append((player_id, recipient_id))
             # Log kick details if a debugger was attached
             if self.debugger:
+                distance_text = ""
+                if kicker_position is not None:
+                    distance = kicker_position.distance_to(self.position)
+                    distance_text = f" distance={distance:.2f}m"
                 msg = (
                     f"Kick: player {player_id} power={power:.1f} "
                     f"recipient={recipient_id} -> vel=({self.velocity.x:.2f},{self.velocity.y:.2f})"
+                    f"{distance_text}"
                 )
                 self.debugger.log_match_event(current_time, "kick", msg)
 
