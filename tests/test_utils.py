@@ -52,6 +52,21 @@ class TestGenerator:
         assert len(team.players) >= 11
         assert team.formation is not None
         assert isinstance(team.formation, Formation)
+        assert team.players[0].start_position is not None
+        assert team.players[0].start_position[0] < 0  # Home sides default to negative half
+
+    def test_generate_team_side_orientation(self) -> None:
+        """Start positions should mirror depending on the requested side."""
+        home_team = generate_team(id=10, name="Home Test", side="home")
+        away_team = generate_team(id=11, name="Away Test", side="away")
+
+        home_gk = home_team.players[0]
+        away_gk = away_team.players[0]
+
+        assert home_gk.start_position is not None
+        assert away_gk.start_position is not None
+        assert home_gk.start_position[0] < 0
+        assert away_gk.start_position[0] > 0
 
     def test_generate_multiple_teams_unique(self) -> None:
         """Test generating multiple teams produces unique players."""
@@ -94,6 +109,32 @@ class TestRoster:
         assert player.role == "CM"
         assert player.attributes.speed == 80
         assert player.attributes.shooting == 75
+        assert player.start_position is None
+
+    def test_player_from_dict_with_start_position(self) -> None:
+        """Start positions supplied in payloads should be captured."""
+        player_data = {
+            "id": 2,
+            "name": "Anchored Midfielder",
+            "age": 24,
+            "role": "CM",
+            "start_position": {"x": -12.5, "y": 3.0},
+            "attributes": {
+                "passing": 65,
+                "shooting": 55,
+                "dribbling": 60,
+                "tackling": 68,
+                "heading": 50,
+                "speed": 62,
+                "stamina": 77,
+                "strength": 70,
+                "vision": 72,
+                "positioning": 69,
+                "decisions": 71,
+            },
+        }
+        player = player_from_dict(player_data)
+        assert player.start_position == (-12.5, 3.0)
 
     def test_load_teams_from_json(self) -> None:
         """Test loading teams from JSON file."""
@@ -106,3 +147,10 @@ class TestRoster:
                 assert team.name
                 assert len(team.players) >= 11
                 assert team.formation is not None
+                kickoff_x = [p.start_position[0] for p in team.players[:11] if p.start_position is not None]
+                assert len(kickoff_x) == 11
+                # Home squad should line up in negative half, away in positive
+                if team.team_id == 1:
+                    assert all(x <= 0 for x in kickoff_x)
+                else:
+                    assert all(x >= 0 for x in kickoff_x)

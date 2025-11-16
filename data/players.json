@@ -3,42 +3,479 @@
     "id": 1,
     "name": "Manchester United",
     "formation": {
-    "name": "4-4-2",
-    "roles": { "RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1 }
+      "name": "4-3-3",
+      "roles": {
+        "RD": 1,
+        "CD": 2,
+        "LD": 1,
+        "RM": 1,
+        "CM": 1,
+        "LM": 1,
+        "RCF": 1,
+        "CF": 1,
+        "LCF": 1
+      }
     },
     "players": [
-    { "id": 1, "name": "Home Player 1", "age": 25, "role": "GK", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 2, "name": "Home Player 2", "age": 25, "role": "RD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 3, "name": "Home Player 3", "age": 25, "role": "CD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 4, "name": "Home Player 4", "age": 25, "role": "CD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 5, "name": "Home Player 5", "age": 25, "role": "LD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 6, "name": "Home Player 6", "age": 25, "role": "RM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 7, "name": "Home Player 7", "age": 25, "role": "CM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 8, "name": "Home Player 8", "age": 25, "role": "CM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 9, "name": "Home Player 9", "age": 25, "role": "LM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 10, "name": "Home Player 10", "age": 25, "role": "RCF", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 11, "name": "Home Player 11", "age": 25, "role": "LCF", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} }
+      {
+        "id": 1,
+        "name": "Home Player 1",
+        "age": 25,
+        "role": "GK",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -45.0, "y": 0.0}
+      },
+      {
+        "id": 2,
+        "name": "Home Player 2",
+        "age": 25,
+        "role": "RD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -30.0, "y": -15.0}
+      },
+      {
+        "id": 3,
+        "name": "Home Player 3",
+        "age": 25,
+        "role": "CD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -32.0, "y": -6.0}
+      },
+      {
+        "id": 4,
+        "name": "Home Player 4",
+        "age": 25,
+        "role": "CD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -32.0, "y": 6.0}
+      },
+      {
+        "id": 5,
+        "name": "Home Player 5",
+        "age": 25,
+        "role": "LD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -30.0, "y": 15.0}
+      },
+      {
+        "id": 6,
+        "name": "Home Player 6",
+        "age": 25,
+        "role": "RM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -20.0, "y": -8.0}
+      },
+      {
+        "id": 7,
+        "name": "Home Player 7",
+        "age": 25,
+        "role": "CM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -22.0, "y": 0.0}
+      },
+      {
+        "id": 8,
+        "name": "Home Player 8",
+        "age": 25,
+        "role": "CF",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -10.0, "y": 0.0}
+      },
+      {
+        "id": 9,
+        "name": "Home Player 9",
+        "age": 25,
+        "role": "LM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -20.0, "y": 8.0}
+      },
+      {
+        "id": 10,
+        "name": "Home Player 10",
+        "age": 25,
+        "role": "RCF",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -8.0, "y": -12.0}
+      },
+      {
+        "id": 11,
+        "name": "Home Player 11",
+        "age": 25,
+        "role": "LCF",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": -8.0, "y": 12.0}
+      }
     ]
   },
   "away": {
     "id": 2,
     "name": "Liverpool FC",
     "formation": {
-    "name": "4-4-2",
-    "roles": { "RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1 }
+      "name": "4-4-2",
+      "roles": {
+        "RD": 1,
+        "CD": 2,
+        "LD": 1,
+        "RM": 1,
+        "CM": 2,
+        "LM": 1,
+        "RCF": 1,
+        "LCF": 1
+      }
     },
     "players": [
-    { "id": 100, "name": "Away Player 100", "age": 25, "role": "GK", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 101, "name": "Away Player 101", "age": 25, "role": "RD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 102, "name": "Away Player 102", "age": 25, "role": "CD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 103, "name": "Away Player 103", "age": 25, "role": "CD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 104, "name": "Away Player 104", "age": 25, "role": "LD", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 105, "name": "Away Player 105", "age": 25, "role": "RM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 106, "name": "Away Player 106", "age": 25, "role": "CM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 107, "name": "Away Player 107", "age": 25, "role": "CM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 108, "name": "Away Player 108", "age": 25, "role": "LM", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 109, "name": "Away Player 109", "age": 25, "role": "RCF", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} },
-  { "id": 110, "name": "Away Player 110", "age": 25, "role": "LCF", "attributes": {"passing":50,"shooting":50,"dribbling":60,"tackling":40,"heading":40,"speed":60,"stamina":80,"strength":60,"vision":50,"positioning":50,"decisions":50} }
+      {
+        "id": 100,
+        "name": "Away Player 100",
+        "age": 25,
+        "role": "GK",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 45.0, "y": 0.0}
+      },
+      {
+        "id": 101,
+        "name": "Away Player 101",
+        "age": 25,
+        "role": "RD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 35.0, "y": -12.0}
+      },
+      {
+        "id": 102,
+        "name": "Away Player 102",
+        "age": 25,
+        "role": "CD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 35.0, "y": -6.0}
+      },
+      {
+        "id": 103,
+        "name": "Away Player 103",
+        "age": 25,
+        "role": "CD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 35.0, "y": 6.0}
+      },
+      {
+        "id": 104,
+        "name": "Away Player 104",
+        "age": 25,
+        "role": "LD",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 35.0, "y": 12.0}
+      },
+      {
+        "id": 105,
+        "name": "Away Player 105",
+        "age": 25,
+        "role": "RM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 20.0, "y": -15.0}
+      },
+      {
+        "id": 106,
+        "name": "Away Player 106",
+        "age": 25,
+        "role": "CM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 18.0, "y": -8.0}
+      },
+      {
+        "id": 107,
+        "name": "Away Player 107",
+        "age": 25,
+        "role": "CM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 18.0, "y": 8.0}
+      },
+      {
+        "id": 108,
+        "name": "Away Player 108",
+        "age": 25,
+        "role": "LM",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 20.0, "y": 15.0}
+      },
+      {
+        "id": 109,
+        "name": "Away Player 109",
+        "age": 25,
+        "role": "RCF",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 8.0, "y": -10.0}
+      },
+      {
+        "id": 110,
+        "name": "Away Player 110",
+        "age": 25,
+        "role": "LCF",
+        "attributes": {
+          "passing": 50,
+          "shooting": 50,
+          "dribbling": 60,
+          "tackling": 40,
+          "heading": 40,
+          "speed": 60,
+          "stamina": 80,
+          "strength": 60,
+          "vision": 50,
+          "positioning": 50,
+          "decisions": 50
+        },
+        "start_position": {"x": 8.0, "y": 10.0}
+      }
     ]
   }
 }

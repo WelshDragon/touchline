@@ -14,8 +14,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Utilities that synthesise test players and teams for quick simulations."""
 import random
-from typing import List, Optional
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
+from touchline.engine.config import ENGINE_CONFIG
 from touchline.models.player import Player, PlayerAttributes
 from touchline.models.team import Formation, Team
 
@@ -92,7 +94,11 @@ def generate_random_player(id: int, name: Optional[str] = None, role: Optional[s
 
 
 def generate_team(
-    id: int, name: Optional[str] = None, formation_name: str = "4-4-2", starting_player_id: int = 1
+    id: int,
+    name: Optional[str] = None,
+    formation_name: str = "4-4-2",
+    starting_player_id: int = 1,
+    side: str = "home",
 ) -> Team:
     """Generate a team with random players using specified formation.
 
@@ -106,6 +112,9 @@ def generate_team(
         Tactical formation blueprint to instantiate (for example ``"4-4-2"``).
     starting_player_id : int
         Identifier to use for the first generated player; increments for each additional player.
+    side : {"home", "away"}
+        Which half of the pitch the generated starting XI should occupy. Home
+        sides line up in the negative X half, away sides in the positive half.
 
     Returns
     -------
@@ -144,9 +153,73 @@ def generate_team(
             players.append(generate_random_player(player_id, role=role_name))
             player_id += 1
 
+    # Assign default kick-off locations for the starting XI
+    _assign_start_positions(players, side)
+
     # Add some substitutes
     for _ in range(7):  # 7 substitutes
         players.append(generate_random_player(player_id, role=random.choice(list(ROLE_IMPORTANT_ATTRIBUTES.keys()))))
         player_id += 1
 
     return Team(team_id=id, name=name, players=players, formation=formation)
+
+
+def _assign_start_positions(players: List[Player], side: str) -> None:
+    """Populate ``start_position`` for the first eleven players in-place."""
+    if side not in {"home", "away"}:
+        raise ValueError("side must be either 'home' or 'away'")
+
+    direction = -1 if side == "home" else 1
+    role_counts: Dict[str, int] = defaultdict(int)
+
+    for player in players[:11]:
+        role_key = player.role.upper()
+        slot_index = role_counts[role_key]
+        role_counts[role_key] += 1
+        base_x, base_y = _formation_slot_offset(role_key, slot_index)
+        player.start_position = (direction * base_x, base_y)
+
+
+def _formation_slot_offset(role: str, index: int) -> Tuple[float, float]:
+    """Return the default formation slot coordinates for ``role``."""
+    cfg = ENGINE_CONFIG.formation
+    role = role.upper()
+
+    if role == "GK":
+        return (cfg.goalkeeper_x, 0.0)
+
+    if role in {"RD", "LD"}:
+        base_offset = -cfg.fullback_base_offset if role == "RD" else cfg.fullback_base_offset
+        stagger = -cfg.fullback_stagger if role == "RD" else cfg.fullback_stagger
+        y = base_offset + index * stagger
+        return (cfg.fullback_x, y)
+
+    if role == "CD":
+        offsets = cfg.centreback_offsets
+        y = offsets[index] if index < len(offsets) else 0.0
+        return (cfg.centreback_x, y)
+
+    if role in {"RM", "LM"}:
+        base_offset = -cfg.wide_midfielder_base_offset if role == "RM" else cfg.wide_midfielder_base_offset
+        stagger = -cfg.wide_midfielder_stagger if role == "RM" else cfg.wide_midfielder_stagger
+        y = base_offset + index * stagger
+        return (cfg.wide_midfielder_x, y)
+
+    if role == "CM":
+        offsets = cfg.central_midfielder_offsets
+        y = offsets[index] if index < len(offsets) else 0.0
+        return (cfg.central_midfielder_x, y)
+
+    if role in {"RCF", "LCF"}:
+        base_offset = -cfg.wide_forward_base_offset if role == "RCF" else cfg.wide_forward_base_offset
+        stagger = -cfg.wide_forward_stagger if role == "RCF" else cfg.wide_forward_stagger
+        y = base_offset + index * stagger
+        return (cfg.centre_forward_x, y)
+
+    if role == "CF":
+        offsets = cfg.centre_forward_offsets
+        y = offsets[index] if index < len(offsets) else 0.0
+        return (cfg.centre_forward_x, y)
+
+    # Fallback to a central midfielder slot when the role is unknown.
+    return (cfg.central_midfielder_x, 0.0)

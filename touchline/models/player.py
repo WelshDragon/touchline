@@ -14,7 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Domain models representing football players and their attributes."""
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional, Tuple
 
 
 @dataclass
@@ -87,6 +87,11 @@ class Player:
         Preferred tactical role, for example ``"CM"``.
     attributes : PlayerAttributes
         Structured attribute ratings attached to the player.
+    start_position : tuple[float, float] | None, optional
+        Default starting coordinates for kick-off expressed as ``(x, y)`` metres
+        relative to the pitch centre. Home sides should use negative ``x``
+        values so they line up in their defensive half. When omitted the engine
+        will fall back to configuration defaults.
     """
 
     player_id: int
@@ -94,6 +99,7 @@ class Player:
     age: int
     role: str  # GK, RD, CD, LD, RM, CM, LM, CF, LCF, RCF
     attributes: PlayerAttributes
+    start_position: Optional[Tuple[float, float]] = None
 
     def get_role_rating(self) -> Dict[str, float]:
         """Compute role-specific effectiveness scores derived from attributes.

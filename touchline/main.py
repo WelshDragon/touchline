@@ -68,13 +68,13 @@ def main() -> None:
         except Exception as e:
             print(f"Error loading teams from {roster_file}: {e}")
             print("Falling back to generated teams...")
-            home_team = generate_team(1, "Manchester United", "4-3-3", starting_player_id=1)
-            away_team = generate_team(2, "Liverpool FC", "4-4-2", starting_player_id=100)
+            home_team = generate_team(1, "Manchester United", "4-3-3", starting_player_id=1, side="home")
+            away_team = generate_team(2, "Liverpool FC", "4-4-2", starting_player_id=100, side="away")
     else:
         print(f"No roster file found at {roster_file}")
         print("Using generated teams...")
-        home_team = generate_team(1, "Manchester United", "4-3-3", starting_player_id=1)
-        away_team = generate_team(2, "Liverpool FC", "4-4-2", starting_player_id=100)
+        home_team = generate_team(1, "Manchester United", "4-3-3", starting_player_id=1, side="home")
+        away_team = generate_team(2, "Liverpool FC", "4-4-2", starting_player_id=100, side="away")
 
     # Create real-time match engine
     engine = RealTimeMatchEngine(home_team, away_team)

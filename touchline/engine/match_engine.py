@@ -21,7 +21,6 @@ mutable runtime context shared between subsystems.
 """
 
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -90,19 +89,23 @@ class MatchState:
         self.current_kickoff_side = self.starting_kickoff_side
 
     def _initialize_player_positions(self) -> None:
-        """Set up initial player positions based on formations."""
+        """Set up initial player positions using roster-defined coordinates."""
 
         def setup_team_positions(team: Team, is_home: bool) -> None:
-            direction = -1 if is_home else 1  # Home team starts in negative half
             players = team.players[:11]
-            role_counts: Dict[str, int] = defaultdict(int)
 
             for player in players:
-                role_key = player.role
-                slot_index = role_counts[role_key]
-                role_counts[role_key] += 1
-                base_position = self._role_slot_offset(role_key, slot_index)
-                position = Vector2D(direction * base_position.x, base_position.y)
+                if player.start_position is None:
+                    raise ValueError(
+                        f"Player {player.name} (role {player.role}) is missing a start_position in the roster."
+                    )
+
+                x, y = player.start_position
+                position = Vector2D(float(x), float(y))
+
+                # Mirror home-orientated coordinates if a roster is reused for the away side.
+                if not is_home and position.x < 0:
+                    position = Vector2D(-position.x, position.y)
 
                 self.player_states[player.player_id] = PlayerMatchState(
                     player_id=player.player_id,
@@ -115,56 +118,6 @@ class MatchState:
 
         setup_team_positions(self.home_team, True)
         setup_team_positions(self.away_team, False)
-
-    def _role_slot_offset(self, role: str, index: int) -> Vector2D:
-        """Return the default formation slot for a given role (home perspective)."""
-        role = role.upper()
-        formation = ENGINE_CONFIG.formation
-
-        if role == "GK":
-            return Vector2D(formation.goalkeeper_x, 0)
-
-        if role in {"RD", "LD"}:
-            base_offset = -formation.fullback_base_offset if role == "RD" else formation.fullback_base_offset
-            stagger = -formation.fullback_stagger if role == "RD" else formation.fullback_stagger
-            y = base_offset + index * stagger
-            return Vector2D(formation.fullback_x, y)
-
-        if role == "CD":
-            offsets = formation.centreback_offsets
-            y = offsets[index] if index < len(offsets) else 0.0
-            return Vector2D(formation.centreback_x, y)
-
-        if role in {"RM", "LM"}:
-            base_offset = (
-                -formation.wide_midfielder_base_offset if role == "RM" else formation.wide_midfielder_base_offset
-            )
-            stagger = (
-                -formation.wide_midfielder_stagger if role == "RM" else formation.wide_midfielder_stagger
-            )
-            y = base_offset + index * stagger
-            return Vector2D(formation.wide_midfielder_x, y)
-
-        if role == "CM":
-            offsets = formation.central_midfielder_offsets
-            y = offsets[index] if index < len(offsets) else 0.0
-            return Vector2D(formation.central_midfielder_x, y)
-
-        if role in {"RCF", "LCF"}:
-            base_offset = (
-                -formation.wide_forward_base_offset if role == "RCF" else formation.wide_forward_base_offset
-            )
-            stagger = -formation.wide_forward_stagger if role == "RCF" else formation.wide_forward_stagger
-            y = base_offset + index * stagger
-            return Vector2D(formation.centre_forward_x, y)
-
-        if role == "CF":
-            offsets = formation.centre_forward_offsets
-            y = offsets[index] if index < len(offsets) else 0.0
-            return Vector2D(formation.centre_forward_x, y)
-
-        # Fallback: treat as central midfielder in absence of explicit mapping
-        return Vector2D(formation.central_midfielder_x, 0)
 
 
 class RealTimeMatchEngine:

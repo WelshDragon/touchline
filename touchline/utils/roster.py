@@ -23,7 +23,7 @@ still producing valid `Player` and `Team` instances.
 """
 import json
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from touchline.models.player import Player, PlayerAttributes
 from touchline.models.team import Formation, Team
@@ -63,12 +63,21 @@ def player_from_dict(d: dict) -> Player:
 
     role_value = d.get("role") or d.get("position", "CM")
 
+    start_raw = d.get("start_position") or d.get("starting_position")
+    start_position: Optional[Tuple[float, float]] = None
+    if isinstance(start_raw, dict):
+        if "x" in start_raw and "y" in start_raw:
+            start_position = (float(start_raw["x"]), float(start_raw["y"]))
+    elif isinstance(start_raw, (list, tuple)) and len(start_raw) >= 2:
+        start_position = (float(start_raw[0]), float(start_raw[1]))
+
     p = Player(
         player_id=d.get("id", 0),
         name=d.get("name", f"player_{d.get('id', 0)}"),
         age=d.get("age", 25),
         role=role_value,
         attributes=pa,
+        start_position=start_position,
     )
     return p
 
