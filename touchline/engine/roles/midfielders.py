@@ -15,6 +15,7 @@
 """Role behaviours for central and wide midfielders."""
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING, List, Optional
 
 from touchline.engine.config import ENGINE_CONFIG
@@ -22,6 +23,7 @@ from touchline.engine.config import ENGINE_CONFIG
 from .base import RoleBehaviour
 
 if TYPE_CHECKING:
+    from touchline.engine.config import MidfielderConfig
     from touchline.engine.physics import BallState, Vector2D
     from touchline.engine.player_state import PlayerMatchState
 
@@ -119,7 +121,22 @@ class MidfielderBaseBehaviour(RoleBehaviour):
     def _team_has_possession(
         self, player: "PlayerMatchState", ball: "BallState", all_players: List["PlayerMatchState"]
     ) -> bool:
-        """Check if team has possession of ball."""
+        """Check if the midfielder's team currently controls the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder querying team state.
+        ball : BallState
+            Ball state shared by the simulation.
+        all_players : List[PlayerMatchState]
+            All players on the pitch.
+
+        Returns
+        -------
+        bool
+            ``True`` when any teammate (including the player) has possession.
+        """
         teammates = self.get_teammates(player, all_players) + [player]
 
         for teammate in teammates:
@@ -138,7 +155,27 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         dribbling_attr: int,
         current_time: float,
     ) -> None:
-        """Decide action when midfielder has the ball."""
+        """Decide the next action when the midfielder controls the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball carrier.
+        ball : BallState
+            Shared ball state.
+        all_players : List[PlayerMatchState]
+            All players used for decision making.
+        passing_attr : int
+            Passing attribute rating (0-100).
+        vision_attr : int
+            Vision attribute rating (0-100).
+        shooting_attr : int
+            Shooting attribute rating (0-100).
+        dribbling_attr : int
+            Dribbling attribute rating (0-100).
+        current_time : float
+            Simulation timestamp for recorded actions.
+        """
         # Check if in shooting position
         if self.should_shoot(player, ball, shooting_attr):
             self.execute_shot(player, ball, shooting_attr, current_time)
@@ -146,25 +183,116 @@ class MidfielderBaseBehaviour(RoleBehaviour):
 
         opponents = self.get_opponents(player, all_players)
         mid_cfg = ENGINE_CONFIG.role.midfielder
+        under_pressure = self._is_under_pressure(player, opponents)
 
-        # Look for forward pass
+        goal_pos = self.get_goal_position(player)
+        player_distance_to_goal = player.state.position.distance_to(goal_pos)
+
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)
-
+        progress_gain = 0.0
         if target:
-            # Check if pass is progressive
-            goal_pos = self.get_goal_position(player)
-            target_closer = target.state.position.distance_to(goal_pos) < player.state.position.distance_to(goal_pos)
+            progress_gain = player_distance_to_goal - target.state.position.distance_to(goal_pos)
 
-            if target_closer or vision_attr >= mid_cfg.progressive_pass_vision_threshold:
-                self.execute_pass(player, target, ball, passing_attr, current_time)
+        pass_viable = bool(
+            target
+            and (
+                progress_gain >= mid_cfg.pass_progress_break_threshold
+                or under_pressure
+            )
+        )
+
+        if player.tempo_hold_until > player.match_time:
+            if pass_viable:
+                player.tempo_hold_until = 0.0
+            else:
+                self._log_decision(player, "shield_wait", reason="tempo_hold_active")
+                self._reset_space_move(player)
+                self._shield_ball(player, ball)
                 return
 
-            # If under pressure, take the safe pass even if it's not progressive
-            if self._is_under_pressure(player, opponents) and target:
-                self.execute_pass(player, target, ball, passing_attr, current_time)
+        if pass_viable and target:
+            self._log_decision(
+                player,
+                "execute_pass",
+                target=target.player_id,
+                progress=f"{progress_gain:.1f}m",
+            )
+            self._reset_space_move(player)
+            self.execute_pass(player, target, ball, passing_attr, current_time)
+            return
+
+        lane_blocked = self._forward_lane_blocked(
+            player,
+            opponents,
+            max_distance=mid_cfg.hold_lane_block_distance,
+            half_width=mid_cfg.hold_lane_block_width,
+            min_blockers=mid_cfg.hold_blocker_count,
+        )
+
+        if not lane_blocked:
+            self._log_decision(player, "dribble_lane_clear")
+            self._reset_space_move(player)
+            self._dribble_forward(
+                player,
+                ball,
+                dribbling_attr,
+                passing_attr,
+                vision_attr,
+                all_players,
+                opponents,
+                current_time,
+            )
+            return
+
+        if under_pressure:
+            relief_target = self._find_relief_pass(player, ball, all_players, opponents, vision_attr)
+            if relief_target:
+                self._log_decision(player, "relief_pass", target=relief_target.player_id)
+                self._reset_space_move(player)
+                self.execute_pass(player, relief_target, ball, passing_attr, current_time)
                 return
+
+            if self._attempt_backpass(player, ball, all_players, opponents, passing_attr, current_time):
+                self._reset_space_move(player)
+                return
+
+            self._log_decision(player, "dribble_under_pressure")
+            self._reset_space_move(player)
+            self._dribble_forward(
+                player,
+                ball,
+                dribbling_attr,
+                passing_attr,
+                vision_attr,
+                all_players,
+                opponents,
+                current_time,
+            )
+            return
+
+        if self._move_to_support_space(player, ball, opponents, mid_cfg):
+            return
+
+        if (
+            mid_cfg.space_move_patience_loops > 0
+            and player.space_probe_loops >= mid_cfg.space_move_patience_loops
+        ):
+            self._log_decision(
+                player,
+                "probe_breakout",
+                loops=player.space_probe_loops,
+            )
+            self._reset_space_move(player)
+        elif self._begin_hold_window(player, ball, mid_cfg):
+            return
+
+        if self._attempt_backpass(player, ball, all_players, opponents, passing_attr, current_time):
+            self._reset_space_move(player)
+            return
 
         # Dribble forward if no good pass
+        self._log_decision(player, "dribble_default", lane_blocked=lane_blocked)
+        self._reset_space_move(player)
         self._dribble_forward(
             player,
             ball,
@@ -187,9 +315,30 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         current_time: float,
     ) -> None:
-        """Dribble the ball forward."""
+        """Dribble the ball forward when no high-quality pass is available.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball carrier.
+        ball : BallState
+            Shared ball state manipulated by the dribble.
+        dribbling_attr : int
+            Dribbling attribute rating (0-100).
+        passing_attr : int
+            Passing attribute rating (0-100) for bailout passes.
+        vision_attr : int
+            Vision attribute rating (0-100) for relief passes.
+        all_players : List[PlayerMatchState]
+            All players for evaluating outlets.
+        opponents : List[PlayerMatchState]
+            Opposing players applying pressure.
+        current_time : float
+            Simulation timestamp for any fallback passes.
+        """
         from touchline.engine.physics import Vector2D
 
+        self._reset_space_move(player)
         goal_pos = self.get_goal_position(player)
         mid_cfg = ENGINE_CONFIG.role.midfielder
 
@@ -200,6 +349,7 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             relief_target = self._find_relief_pass(player, ball, all_players, opponents, vision_attr)
 
             if relief_target:
+                self._log_decision(player, "relief_pass", target=relief_target.player_id, context="dribble_abort")
                 self.execute_pass(player, relief_target, ball, passing_attr, current_time)
             else:
                 # Shield the ball but add small backpedal to avoid freezing in place
@@ -228,13 +378,95 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             ball.position = player.state.position
             ball.velocity = Vector2D(0, 0)
 
+    def _move_to_support_space(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        opponents: List["PlayerMatchState"],
+        mid_cfg: "MidfielderConfig",
+    ) -> bool:
+        """Glide laterally to open passing windows before initiating a hold.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder responsible for probing for space.
+        ball : BallState
+            Ball instance pinned to the player's feet while drifting.
+        opponents : List[PlayerMatchState]
+            Opponents whose pressure determines whether probing is allowed.
+        mid_cfg : MidfielderConfig
+            Configuration section providing probe duration and speed.
+
+        Returns
+        -------
+        bool
+            ``True`` when the midfielder continues a lateral move this frame; ``False`` otherwise.
+        """
+        from touchline.engine.physics import Vector2D
+
+        if self._is_under_pressure(player, opponents, radius=mid_cfg.hold_pressure_release_radius):
+            self._reset_space_move(player)
+            return False
+
+        if player.space_move_heading and player.space_move_until <= player.match_time:
+            # One probe cycle finished – allow callers to transition into hold logic.
+            player.space_probe_loops += 1
+            self._reset_space_move(player, reset_history=False)
+            return False
+
+        if not player.space_move_heading:
+            goal_pos = self.get_goal_position(player)
+            forward = goal_pos - player.state.position
+            if forward.magnitude() <= 1e-5:
+                return False
+
+            lateral = Vector2D(-forward.y, forward.x)
+            if lateral.magnitude() <= 1e-5:
+                return False
+
+            direction = lateral.normalize()
+            side = 1 if random.random() < 0.5 else -1
+            player.space_move_heading = direction * side
+            player.space_move_until = player.match_time + mid_cfg.space_move_duration
+            lane = "right" if side > 0 else "left"
+            self._log_decision(
+                player,
+                "probe_space_move",
+                side=lane,
+                duration=f"{mid_cfg.space_move_duration:.2f}s",
+            )
+
+        if not player.space_move_heading:
+            return False
+
+        player.state.velocity = player.space_move_heading.normalize() * mid_cfg.space_move_speed
+        ball.position = player.state.position
+        ball.velocity = Vector2D(0, 0)
+        return True
+
     def _is_under_pressure(
         self,
         player: "PlayerMatchState",
         opponents: List["PlayerMatchState"],
         radius: Optional[float] = None,
     ) -> bool:
-        """Detect if any opponent is within pressing distance."""
+        """Detect if any opponent is within pressing distance.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player being evaluated.
+        opponents : List[PlayerMatchState]
+            Opposing players to test.
+        radius : Optional[float]
+            Custom pressure radius override in metres.
+
+        Returns
+        -------
+        bool
+            ``True`` when at least one opponent is within ``radius``.
+        """
         mid_cfg = ENGINE_CONFIG.role.midfielder
         radius = mid_cfg.pressure_radius if radius is None else radius
         return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
@@ -247,7 +479,26 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         vision_attr: int,
     ) -> "PlayerMatchState" | None:
-        """Find a nearby safe teammate to recycle possession under pressure."""
+        """Find a nearby safe teammate to recycle possession under pressure.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball carrier.
+        ball : BallState
+            Shared ball state.
+        all_players : List[PlayerMatchState]
+            All players considered for outlets.
+        opponents : List[PlayerMatchState]
+            Defensive players applying pressure.
+        vision_attr : int
+            Vision attribute rating (0-100) scaling awareness.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Safe outlet teammate, or ``None`` if no candidate meets the threshold.
+        """
         teammates = self.get_teammates(player, all_players)
 
         if not teammates:
@@ -295,6 +546,162 @@ class MidfielderBaseBehaviour(RoleBehaviour):
 
         return best_target if best_score > mid_cfg.relief_score_threshold else None
 
+    def _begin_hold_window(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        mid_cfg: "MidfielderConfig",
+    ) -> bool:
+        """Start or maintain a patient hold to allow teammates to advance.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player initiating the tempo hold.
+        ball : BallState
+            Ball state that should be shielded.
+        mid_cfg : MidfielderConfig
+            Configuration section controlling hold durations.
+
+        Returns
+        -------
+        bool
+            Always ``True`` to indicate the hold window is active.
+        """
+        started_hold = False
+        if player.tempo_hold_until > player.match_time:
+            hold_duration = max(0.0, player.tempo_hold_until - player.match_time)
+        else:
+            if player.match_time < player.tempo_hold_cooldown_until:
+                return False
+
+            hold_duration = random.uniform(mid_cfg.hold_min_duration, mid_cfg.hold_max_duration)
+            player.tempo_hold_until = player.match_time + hold_duration
+            player.tempo_hold_cooldown_until = player.tempo_hold_until + mid_cfg.hold_retry_cooldown
+            started_hold = True
+
+        self._reset_space_move(player, reset_history=False)
+        self._shield_ball(player, ball, reason="hold_window")
+        remaining = max(0.0, player.tempo_hold_until - player.match_time)
+        if started_hold:
+            self._log_decision(player, "hold_window_start", duration=f"{hold_duration:.2f}s")
+        else:
+            self._log_decision(player, "hold_window_active", remaining=f"{remaining:.2f}s")
+        return True
+
+    def _attempt_backpass(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        passing_attr: int,
+        current_time: float,
+    ) -> bool:
+        """Recycle possession through defenders when forward lanes are blocked.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder seeking to reset play.
+        ball : BallState
+            Shared ball state.
+        all_players : List[PlayerMatchState]
+            All players available for selection.
+        opponents : List[PlayerMatchState]
+            Opposing players whose positions affect target selection.
+        passing_attr : int
+            Passing attribute rating (0-100).
+        current_time : float
+            Simulation timestamp recorded with the pass.
+
+        Returns
+        -------
+        bool
+            ``True`` when a backpass target was found and the pass executed.
+        """
+        target = self._select_backpass_target(player, all_players, opponents)
+        if not target:
+            return False
+
+        self.execute_pass(player, target, ball, passing_attr, current_time)
+        return True
+
+    def _select_backpass_target(
+        self,
+        player: "PlayerMatchState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+    ) -> "PlayerMatchState" | None:
+        """Pick a suitable teammate for a possession-reset backpass.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder looking backwards.
+        all_players : List[PlayerMatchState]
+            Available teammates.
+        opponents : List[PlayerMatchState]
+            Opponents whose positioning affects safety.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Preferred backpass target, or ``None`` when no safe option exists.
+        """
+        teammates = self.get_teammates(player, all_players)
+        mid_cfg = ENGINE_CONFIG.role.midfielder
+
+        if not teammates:
+            return None
+
+        from touchline.engine.physics import Vector2D
+
+        own_goal = self.get_own_goal_position(player)
+        back_direction = (own_goal - player.state.position).normalize()
+        lateral_axis = Vector2D(-back_direction.y, back_direction.x)
+
+        best_target: Optional["PlayerMatchState"] = None
+        best_score = 0.0
+
+        for teammate in teammates:
+            if teammate.player_role not in mid_cfg.backpass_roles:
+                continue
+
+            offset = teammate.state.position - player.state.position
+            backward_distance = offset.x * back_direction.x + offset.y * back_direction.y
+            if backward_distance < mid_cfg.backpass_min_offset or backward_distance > mid_cfg.backpass_max_distance:
+                continue
+
+            lateral_offset = abs(offset.x * lateral_axis.x + offset.y * lateral_axis.y)
+            if lateral_offset > mid_cfg.hold_lane_block_width * 1.5:
+                continue
+
+            lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
+            nearest_opponent = min(
+                (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
+                default=mid_cfg.backpass_space_divisor,
+            )
+            space_score = min(nearest_opponent / mid_cfg.backpass_space_divisor, 1.0)
+
+            distance = player.state.position.distance_to(teammate.state.position)
+            distance_score = 1 - min(distance / mid_cfg.backpass_max_distance, 1.0)
+
+            total_score = (
+                lane_quality * mid_cfg.backpass_lane_weight
+                + space_score * mid_cfg.backpass_space_weight
+                + distance_score * mid_cfg.backpass_distance_weight
+            )
+
+            if total_score > best_score:
+                best_score = total_score
+                best_target = teammate
+
+        if best_score < mid_cfg.backpass_score_threshold:
+            return None
+
+        return best_target
+
     def _press_opponent(
         self,
         player: "PlayerMatchState",
@@ -304,7 +711,23 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         tackling_attr: int,
         dt: float,
     ) -> None:
-        """Press the opponent with the ball."""
+        """Press the opponent currently in possession.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder applying pressure.
+        ball : BallState
+            Ball state used to confirm possession.
+        opponents : List[PlayerMatchState]
+            Opposing players who might hold the ball.
+        speed_attr : int
+            Speed attribute rating (0-100).
+        tackling_attr : int
+            Tackling attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         # Find opponent with ball
         target_opp = None
         for opp in opponents:
@@ -348,7 +771,23 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         speed_attr: int,
         dt: float,
     ) -> None:
-        """Move to support the attack."""
+        """Move to a supporting attacking lane.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder making the support run.
+        ball : BallState
+            Ball location guiding support depth.
+        all_players : List[PlayerMatchState]
+            Unused but kept for parity; may assist future spacing logic.
+        vision_attr : int
+            Vision attribute rating (0-100); placeholder for future expansions.
+        speed_attr : int
+            Speed attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         goal_pos = self.get_goal_position(player)
         mid_cfg = ENGINE_CONFIG.role.midfielder
 
@@ -374,7 +813,21 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         tackling_attr: int,
         dt: float,
     ) -> None:
-        """Track back and support defense."""
+        """Track back and support the defensive line.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder contributing defensively.
+        ball : BallState
+            Ball state guiding depth.
+        all_players : List[PlayerMatchState]
+            Currently unused; kept for parity with other helpers.
+        tackling_attr : int
+            Tackling attribute rating (0-100) reused for movement pace.
+        dt : float
+            Simulation timestep in seconds.
+        """
         # Get defensive position
         defensive_pos = self.get_defensive_position(player, ball, player.role_position)
 
@@ -392,7 +845,22 @@ class MidfielderBaseBehaviour(RoleBehaviour):
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Adjust support position based on side (overridden by subclasses)."""
+        """Adjust support position based on side responsibilities.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Midfielder whose positioning is being tuned.
+        position : Vector2D
+            Base support location.
+        ball : BallState
+            Ball position informing any bias.
+
+        Returns
+        -------
+        Vector2D
+            Updated support coordinate.
+        """
         return position
 
 
@@ -406,7 +874,22 @@ class RightMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay wide on the right flank."""
+        """Stay wide on the right flank while supporting.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Right-sided midfielder.
+        position : Vector2D
+            Proposed support coordinate.
+        ball : BallState
+            Ball state used for slight adjustments.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted position respecting minimum right-side width.
+        """
         from touchline.engine.physics import Vector2D
 
         # Maintain width on right touchline
@@ -425,7 +908,22 @@ class CentralMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay central but shift slightly towards ball."""
+        """Stay central but shift slightly towards the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Central midfielder.
+        position : Vector2D
+            Base support coordinate.
+        ball : BallState
+            Ball state influencing the lateral shift.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted position constrained to the central corridor.
+        """
         from touchline.engine.physics import Vector2D
 
         # Central but can drift
@@ -448,7 +946,22 @@ class LeftMidfielderRoleBehaviour(MidfielderBaseBehaviour):
     def _adjust_support_position(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay wide on the left flank."""
+        """Stay wide on the left flank while supporting.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Left-sided midfielder.
+        position : Vector2D
+            Initial support coordinate.
+        ball : BallState
+            Ball position for fine tuning.
+
+        Returns
+        -------
+        Vector2D
+            Updated position respecting minimum width on the left flank.
+        """
         from touchline.engine.physics import Vector2D
 
         # Maintain width on left touchline

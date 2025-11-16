@@ -115,7 +115,24 @@ class DefenderBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         tackling_attr: int,
     ) -> bool:
-        """Decide if should attempt tackle."""
+        """Decide if the defender should attempt a tackle.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender evaluating the tackle.
+        ball : BallState
+            Current ball state.
+        opponents : List[PlayerMatchState]
+            Opposing players used to detect the ball carrier.
+        tackling_attr : int
+            Tackling attribute rating (0-100).
+
+        Returns
+        -------
+        bool
+            ``True`` when the defender should commit to a tackle.
+        """
         def_cfg = ENGINE_CONFIG.role.defender
 
         if self.distance_to_ball(player, ball) > def_cfg.tackle_ball_distance:
@@ -143,7 +160,23 @@ class DefenderBaseBehaviour(RoleBehaviour):
         dt: float,
         current_time: float,
     ) -> None:
-        """Attempt to tackle and win the ball."""
+        """Attempt to tackle and win the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender executing the tackle.
+        ball : BallState
+            Shared ball state for the match.
+        tackling_attr : int
+            Tackling attribute rating (0-100).
+        speed_attr : int
+            Speed attribute rating (0-100) for approach speed.
+        dt : float
+            Simulation timestep in seconds.
+        current_time : float
+            Absolute simulation time used for logging kicks.
+        """
         # Move towards ball aggressively
         self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True, intent="press")
 
@@ -172,7 +205,22 @@ class DefenderBaseBehaviour(RoleBehaviour):
                     )
 
     def _should_intercept(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int) -> bool:
-        """Decide if should attempt to intercept a pass."""
+        """Decide if the defender should attempt to intercept a pass.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender evaluating an interception.
+        ball : BallState
+            Current ball state.
+        speed_attr : int
+            Speed attribute rating (0-100).
+
+        Returns
+        -------
+        bool
+            ``True`` when an interception attempt is advisable.
+        """
         # Ball must be moving
         def_cfg = ENGINE_CONFIG.role.defender
 
@@ -196,7 +244,19 @@ class DefenderBaseBehaviour(RoleBehaviour):
         return future_distance < distance_to_ball * def_cfg.intercept_improvement_factor
 
     def _attempt_intercept(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int, dt: float) -> None:
-        """Move to intercept the ball."""
+        """Move to intercept the ball in flight.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender attempting the interception.
+        ball : BallState
+            Ball whose trajectory needs interrupting.
+        speed_attr : int
+            Speed attribute rating (0-100) for chase velocity.
+        dt : float
+            Simulation timestep in seconds.
+        """
         # Predict where ball will be
         distance = self.distance_to_ball(player, ball)
         def_cfg = ENGINE_CONFIG.role.defender
@@ -215,7 +275,24 @@ class DefenderBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         teammates: List["PlayerMatchState"],
     ) -> Optional["PlayerMatchState"]:
-        """Find the most dangerous opponent to mark."""
+        """Find the most dangerous opponent to mark.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender searching for a marking assignment.
+        ball : BallState
+            Current ball state.
+        opponents : List[PlayerMatchState]
+            Opposing players to score for threat.
+        teammates : List[PlayerMatchState]
+            Nearby teammates used to detect existing marking coverage.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Opponent considered highest priority, or ``None`` if none qualify.
+        """
         own_goal = self.get_own_goal_position(player)
         max_threat = -1
         biggest_threat = None
@@ -271,7 +348,21 @@ class DefenderBaseBehaviour(RoleBehaviour):
         positioning_attr: int,
         dt: float,
     ) -> None:
-        """Mark an opponent."""
+        """Mark an opponent by positioning between them and goal.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender assigned to the opponent.
+        opponent : PlayerMatchState
+            Target attacker that must be tracked.
+        ball : BallState
+            Current ball state for contextual nudges.
+        positioning_attr : int
+            Positioning attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         own_goal = self.get_own_goal_position(player)
 
         # Position between opponent and goal
@@ -299,7 +390,19 @@ class DefenderBaseBehaviour(RoleBehaviour):
         positioning_attr: int,
         dt: float,
     ) -> None:
-        """Maintain defensive shape."""
+        """Maintain defensive shape by returning to the formation spot.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender whose position is updated.
+        ball : BallState
+            Ball whose location drives the line depth.
+        positioning_attr : int
+            Positioning attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         # Get defensive position relative to ball
         defensive_pos = self.get_defensive_position(player, ball, player.role_position)
 
@@ -312,7 +415,22 @@ class DefenderBaseBehaviour(RoleBehaviour):
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Adjust position based on defender side (overridden by subclasses)."""
+        """Adjust defensive position based on side responsibilities.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender being repositioned.
+        position : Vector2D
+            Baseline defensive position before adjustments.
+        ball : BallState
+            Ball location used for slight shifting.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted defensive destination.
+        """
         return position
 
     def _play_out_from_back(
@@ -324,7 +442,23 @@ class DefenderBaseBehaviour(RoleBehaviour):
         vision_attr: int,
         current_time: float,
     ) -> None:
-        """Play ball out from defensive position."""
+        """Play the ball out from defence via pass or carry.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Defender in possession.
+        ball : BallState
+            Shared ball state to manipulate.
+        all_players : List[PlayerMatchState]
+            Full list of players used to evaluate pass targets.
+        passing_attr : int
+            Passing attribute rating (0-100).
+        vision_attr : int
+            Vision attribute rating (0-100) for target selection.
+        current_time : float
+            Simulation timestamp for the pass event.
+        """
         # Look for progressive pass
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)
 
@@ -357,7 +491,22 @@ class RightDefenderRoleBehaviour(DefenderBaseBehaviour):
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay wider on the right flank."""
+        """Stay wider on the right flank when adjusting shape.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Right-sided defender.
+        position : Vector2D
+            Proposed base position.
+        ball : BallState
+            Ball location allowing minor biasing.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted coordinate respecting minimum width.
+        """
         from touchline.engine.physics import Vector2D
 
         # Maintain width on right side
@@ -376,7 +525,22 @@ class CentralDefenderRoleBehaviour(DefenderBaseBehaviour):
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay central with slight adjustment towards ball."""
+        """Stay central with slight adjustment towards the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Central defender applying the adjustment.
+        position : Vector2D
+            Baseline defensive location.
+        ball : BallState
+            Ball state guiding the lateral shift.
+
+        Returns
+        -------
+        Vector2D
+            Updated position limited to the central channel.
+        """
         from touchline.engine.physics import Vector2D
 
         # Use the player's role_position to maintain individual spacing
@@ -404,7 +568,22 @@ class LeftDefenderRoleBehaviour(DefenderBaseBehaviour):
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
     ) -> "Vector2D":
-        """Stay wider on the left flank."""
+        """Stay wider on the left flank when adjusting defensive shape.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Left-sided defender.
+        position : Vector2D
+            Proposed base position.
+        ball : BallState
+            Ball location allowing slight nudges.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted coordinate respecting minimum width on the flank.
+        """
         from touchline.engine.physics import Vector2D
 
         # Maintain width on left side

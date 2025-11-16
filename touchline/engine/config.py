@@ -111,6 +111,8 @@ class PossessionConfig:
         Buffer applied when releasing the ball.
     target_velocity_gate : float, default=2.0
         Velocity threshold limiting control target updates.
+    team_possession_linger : float, default=1.2
+        Duration in seconds a team retains possession when the ball is in transit.
     """
 
     loose_ball_speed_threshold: float = 5.0
@@ -129,6 +131,7 @@ class PossessionConfig:
     target_receive_leeway: float = 0.35
     release_leeway: float = 0.15
     target_velocity_gate: float = 2.0
+    team_possession_linger: float = 1.2
 
 
 @dataclass(slots=True)
@@ -510,6 +513,14 @@ class PassingConfig:
         Decay rate for repeated pass penalties.
     immediate_return_penalty : float, default=0.3
         Penalty applied if the pass is immediately returned.
+    progressive_gain_min : float, default=6.0
+        Minimum forward progress (metres) required to allow low-pressure passes.
+    under_pressure_radius : float, default=6.0
+        Radius used to determine if the passer is under immediate pressure.
+    space_release_threshold : float, default=7.0
+        Minimum nearest-opponent distance at the receiver to allow recycling passes.
+    progress_bonus_weight : float, default=0.2
+        Multiplier applied to additional progressive gain when scoring passes.
     """
 
     max_distance_base: float = 30.0
@@ -530,6 +541,10 @@ class PassingConfig:
     repeat_penalty_base: float = 0.25
     repeat_penalty_decay: float = 0.05
     immediate_return_penalty: float = 0.3
+    progressive_gain_min: float = 6.0
+    under_pressure_radius: float = 6.0
+    space_release_threshold: float = 7.0
+    progress_bonus_weight: float = 0.2
 
 
 @dataclass(slots=True)
@@ -638,6 +653,12 @@ class PossessionSupportConfig:
         Support weighting when only slightly ahead of the ball.
     ahead_factor_high : float, default=0.7
         Support weighting when well ahead of the ball.
+    build_up_limit : float, default=18.0
+        Threshold in metres (relative to goal) marking the end of the build-up phase.
+    midfield_limit : float, default=38.0
+        Threshold in metres marking when possession moves from midfield into the final third.
+    release_recipient_window : float, default=0.9
+        Blend factor weighting the intended recipient when anchoring support spacing.
     """
 
     gap_weight: float = 0.8
@@ -645,6 +666,9 @@ class PossessionSupportConfig:
     ahead_threshold: float = 15.0
     ahead_factor_low: float = 0.4
     ahead_factor_high: float = 0.7
+    build_up_limit: float = 18.0
+    midfield_limit: float = 38.0
+    release_recipient_window: float = 0.9
 
 
 @dataclass(slots=True)
@@ -884,6 +908,44 @@ class MidfielderConfig:
         Factor controlling how central midfielders adjust laterally.
     central_max_width : float, default=15.0
         Maximum lateral range for central midfielders.
+    hold_lane_block_distance : float, default=20.0
+        Forward scan distance used to detect defenders blocking dribble lanes.
+    hold_lane_block_width : float, default=8.0
+        Half-width of the lane considered when checking for blockers.
+    hold_blocker_count : int, default=2
+        Minimum number of opponents needed to consider the lane clogged.
+    hold_pressure_release_radius : float, default=2.5
+        Pressure radius that cancels a patient hold and forces earlier action.
+    hold_min_duration : float, default=0.6
+        Minimum time spent shielding while waiting for support.
+    hold_max_duration : float, default=1.4
+        Maximum time spent shielding before re-evaluating options.
+    hold_retry_cooldown : float, default=0.8
+        Cooldown applied after a hold window finishes before another can begin.
+    space_move_duration : float, default=0.9
+        Duration of lateral probing runs attempted before committing to a hold.
+    space_move_speed : float, default=2.4
+        Movement speed used while drifting laterally to create passing lanes.
+    space_move_patience_loops : int, default=2
+        Number of completed probe cycles allowed before forcing an alternate action.
+    pass_progress_break_threshold : float, default=3.0
+        Forward progress (metres) required to justify an immediate pass when not pressed.
+    backpass_roles : Tuple[str, ...], default=("CD", "LD", "RD")
+        Roles prioritized for recycling possession.
+    backpass_min_offset : float, default=6.0
+        Minimum backward separation required for a recycling option.
+    backpass_max_distance : float, default=32.0
+        Maximum allowed distance to a recycling teammate.
+    backpass_lane_weight : float, default=0.45
+        Weight applied to passing lane quality when scoring back-passes.
+    backpass_space_weight : float, default=0.35
+        Weight assigned to the free space around the recycling target.
+    backpass_distance_weight : float, default=0.2
+        Weight penalising excessively long backward passes.
+    backpass_space_divisor : float, default=7.0
+        Divisor mapping opponent spacing to a 0-1 score for back-passes.
+    backpass_score_threshold : float, default=0.3
+        Minimum score required before attempting a recycling pass.
     """
 
     press_stamina_threshold: float = 25.0
@@ -915,6 +977,24 @@ class MidfielderConfig:
     left_width: float = 12.0
     central_shift_factor: float = 0.3
     central_max_width: float = 15.0
+    hold_lane_block_distance: float = 20.0
+    hold_lane_block_width: float = 8.0
+    hold_blocker_count: int = 2
+    hold_pressure_release_radius: float = 2.5
+    hold_min_duration: float = 0.6
+    hold_max_duration: float = 1.4
+    hold_retry_cooldown: float = 0.8
+    space_move_duration: float = 0.9
+    space_move_speed: float = 2.4
+    pass_progress_break_threshold: float = 3.0
+    backpass_roles: Tuple[str, ...] = ("CD", "LD", "RD")
+    backpass_min_offset: float = 6.0
+    backpass_max_distance: float = 32.0
+    backpass_lane_weight: float = 0.45
+    backpass_space_weight: float = 0.35
+    backpass_distance_weight: float = 0.2
+    backpass_space_divisor: float = 7.0
+    backpass_score_threshold: float = 0.3
 
 
 @dataclass(slots=True)
@@ -997,6 +1077,44 @@ class ForwardConfig:
         Maximum lateral range for wide forwards.
     cut_inside_factor : float, default=0.7
         Weight encouraging wide forwards to cut inside.
+    hold_lane_block_distance : float, default=18.0
+        Forward scan distance that triggers a patient hold when clogged.
+    hold_lane_block_width : float, default=7.0
+        Half-width of the lane considered when evaluating blockers.
+    hold_blocker_count : int, default=1
+        Opponent count needed to declare the lane congested for forwards.
+    hold_pressure_release_radius : float, default=2.0
+        Pressure radius that cancels the hold and forces an action.
+    hold_min_duration : float, default=0.45
+        Minimum shielding time while waiting for support runs.
+    hold_max_duration : float, default=1.0
+        Maximum shielding time before re-evaluating options.
+    hold_retry_cooldown : float, default=0.7
+        Delay enforced before the same forward is allowed to start another hold.
+    space_move_duration : float, default=0.7
+        Duration of lateral probes to manufacture a passing lane before shielding.
+    space_move_speed : float, default=3.0
+        Drift speed applied while the forward carries the ball into space.
+    space_move_patience_loops : int, default=2
+        Number of probe cycles tolerated before forcing a different action.
+    pass_progress_break_threshold : float, default=6.0
+        Minimum progress gain needed to override the dribble-first preference.
+    backpass_roles : Tuple[str, ...], default=("CD", "LD", "RD")
+        Roles favoured for recycling possession when pressed.
+    backpass_min_offset : float, default=5.0
+        Minimum backward offset required for a recycling target.
+    backpass_max_distance : float, default=28.0
+        Maximum distance allowed for a recycling pass.
+    backpass_lane_weight : float, default=0.4
+        Weight applied to lane quality when picking recycling targets.
+    backpass_space_weight : float, default=0.4
+        Weight applied to available space around the recycling teammate.
+    backpass_distance_weight : float, default=0.2
+        Weight penalising long backward passes.
+    backpass_space_divisor : float, default=6.0
+        Divisor mapping spacing to a 0-1 score for recycling passes.
+    backpass_score_threshold : float, default=0.28
+        Minimum score required before playing a recycling pass.
     """
 
     shoot_distance_threshold: float = 25.0
@@ -1036,6 +1154,25 @@ class ForwardConfig:
     wide_min_offset: float = 5.0
     wide_max_width: float = 15.0
     cut_inside_factor: float = 0.7
+    hold_lane_block_distance: float = 18.0
+    hold_lane_block_width: float = 7.0
+    hold_blocker_count: int = 1
+    hold_pressure_release_radius: float = 2.0
+    hold_min_duration: float = 0.45
+    hold_max_duration: float = 1.0
+    hold_retry_cooldown: float = 0.7
+    space_move_duration: float = 0.7
+    space_move_speed: float = 3.0
+    space_move_patience_loops: int = 2
+    pass_progress_break_threshold: float = 6.0
+    backpass_roles: Tuple[str, ...] = ("CD", "LD", "RD")
+    backpass_min_offset: float = 5.0
+    backpass_max_distance: float = 28.0
+    backpass_lane_weight: float = 0.4
+    backpass_space_weight: float = 0.4
+    backpass_distance_weight: float = 0.2
+    backpass_space_divisor: float = 6.0
+    backpass_score_threshold: float = 0.28
 
 
 @dataclass(slots=True)
@@ -1145,8 +1282,8 @@ class RoleBehaviourConfig:
         Specialised configuration for forwards.
     goalkeeper : GoalkeeperConfig, default=GoalkeeperConfig()
         Specialised configuration for goalkeepers.
-    support_profiles : Dict[str, Tuple[float, float, float]]
-        Support lane preferences mapped by role code.
+    support_phase_profiles : Dict[str, Dict[str, Tuple[float, float, float]]]
+        Phase-specific support spacing keyed by role and possession phase.
     """
 
     shooting: ShootingConfig = field(default_factory=ShootingConfig)
@@ -1163,19 +1300,63 @@ class RoleBehaviourConfig:
     midfielder: MidfielderConfig = field(default_factory=MidfielderConfig)
     forward: ForwardConfig = field(default_factory=ForwardConfig)
     goalkeeper: GoalkeeperConfig = field(default_factory=GoalkeeperConfig)
-    support_profiles: Dict[str, Tuple[float, float, float]] = field(
+    support_phase_profiles: Dict[str, Dict[str, Tuple[float, float, float]]] = field(
         default_factory=lambda: {
-            "GK": (0.0, 12.0, 0.0),
-            "CD": (8.0, 14.0, 4.0),
-            "LD": (8.0, 14.0, 4.0),
-            "RD": (8.0, 14.0, 4.0),
-            "CM": (14.0, 8.0, 12.0),
-            "RM": (14.0, 8.0, 12.0),
-            "LM": (14.0, 8.0, 12.0),
-            "CF": (9.0, 5.0, 10.0),
-            "LCF": (9.0, 5.0, 10.0),
-            "RCF": (9.0, 5.0, 10.0),
-            "default": (7.0, 10.0, 8.0),
+            "GK": {
+                "build": (0.0, 12.0, 0.0),
+                "mid": (0.0, 14.0, 0.0),
+                "final": (0.0, 16.0, 0.0),
+            },
+            "CD": {
+                "build": (6.0, 15.0, 2.0),
+                "mid": (10.0, 13.0, 4.0),
+                "final": (12.0, 11.0, 6.0),
+            },
+            "LD": {
+                "build": (7.0, 14.0, 3.0),
+                "mid": (11.0, 12.0, 6.0),
+                "final": (13.0, 10.0, 9.0),
+            },
+            "RD": {
+                "build": (7.0, 14.0, 3.0),
+                "mid": (11.0, 12.0, 6.0),
+                "final": (13.0, 10.0, 9.0),
+            },
+            "default": {
+                "build": (6.0, 12.0, 6.0),
+                "mid": (10.0, 9.0, 12.0),
+                "final": (14.0, 6.0, 18.0),
+            },
+            "CM": {
+                "build": (10.0, 10.0, 10.0),
+                "mid": (15.0, 7.0, 14.0),
+                "final": (18.0, 5.0, 22.0),
+            },
+            "RM": {
+                "build": (10.0, 10.0, 12.0),
+                "mid": (16.0, 7.0, 16.0),
+                "final": (20.0, 4.0, 24.0),
+            },
+            "LM": {
+                "build": (10.0, 10.0, 12.0),
+                "mid": (16.0, 7.0, 16.0),
+                "final": (20.0, 4.0, 24.0),
+            },
+            "CF": {
+                "build": (9.0, 6.0, 14.0),
+                "mid": (14.0, 4.0, 20.0),
+                "final": (18.0, 3.0, 26.0),
+            },
+            "LCF": {
+                "build": (9.0, 6.0, 14.0),
+                "mid": (14.0, 4.0, 20.0),
+                "final": (18.0, 3.0, 26.0),
+            },
+            "RCF": {
+                "build": (9.0, 6.0, 14.0),
+                "mid": (14.0, 4.0, 20.0),
+                "final": (18.0, 3.0, 26.0),
+            },
         }
     )
 

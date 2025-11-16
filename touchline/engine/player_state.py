@@ -162,6 +162,11 @@ class PlayerMatchState:
         self.pending_save_target: Optional[Vector2D] = None
         self.pending_save_eta: float = float("inf")
         self.off_ball_state: str = "idle"
+        self.tempo_hold_until: float = 0.0
+        self.tempo_hold_cooldown_until: float = 0.0
+        self.space_move_until: float = 0.0
+        self.space_move_heading: Optional[Vector2D] = None
+        self.space_probe_loops: int = 0
 
     def update_ai(self, ball: BallState, dt: float, all_players: List["PlayerMatchState"]) -> None:
         """Advance the per-player AI, updating timers and delegating to the role.

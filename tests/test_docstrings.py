@@ -51,21 +51,30 @@ def _collect_public_callables(modules: Iterable[ModuleType]) -> List[object]:
             items.append(obj)
 
     for module in modules:
+        include_private = True
         add(module)
         for name, obj in inspect.getmembers(module):
-            if name.startswith("_"):
+            if name.startswith("__"):
+                continue
+            if not include_private and name.startswith("_"):
                 continue
             if inspect.isfunction(obj) and obj.__module__ == module.__name__:
                 add(obj)
             elif inspect.isclass(obj) and obj.__module__ == module.__name__:
                 add(obj)
+                class_private = include_private
                 for meth_name, meth in inspect.getmembers(obj):
-                    if meth_name.startswith("_"):
+                    if meth_name.startswith("__"):
+                        continue
+                    if not class_private and meth_name.startswith("_"):
                         continue
                     if inspect.isfunction(meth):
-                        add(meth)
+                        if meth.__module__ == obj.__module__:
+                            add(meth)
                     elif inspect.ismethod(meth):
-                        add(meth.__func__)
+                        func = meth.__func__
+                        if func.__module__ == obj.__module__:
+                            add(func)
 
     return items
 

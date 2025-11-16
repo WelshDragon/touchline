@@ -29,7 +29,24 @@ from touchline.engine.physics import Vector2D
 def _world_to_screen(
     pos: Vector2D, pitch_width: float, pitch_height: float, screen_size: Tuple[int, int]
 ) -> Tuple[int, int]:
-    """Return screen coordinates for a pitch-space vector (deprecated helper)."""
+    """Return screen coordinates for a pitch-space vector (deprecated helper).
+
+    Parameters
+    ----------
+    pos : Vector2D
+        World-space coordinate centered on the pitch origin.
+    pitch_width : float
+        Full pitch width in metres.
+    pitch_height : float
+        Full pitch height in metres.
+    screen_size : Tuple[int, int]
+        Screen resolution expressed as ``(width_px, height_px)``.
+
+    Returns
+    -------
+    Tuple[int, int]
+        Pixel coordinate corresponding to ``pos`` on the screen.
+    """
     w, h = screen_size
     sx = int((pos.x + pitch_width / 2) / pitch_width * w)
     sy = int((pitch_height / 2 - pos.y) / pitch_height * h)
@@ -387,7 +404,13 @@ def start_visualizer(
 
 
 def _force_debug_goal_kick(engine: RealTimeMatchEngine) -> None:
-    """Trigger a goal kick for the team currently defending the goal line."""
+    """Trigger a goal kick for the team currently defending the goal line.
+
+    Parameters
+    ----------
+    engine : RealTimeMatchEngine
+        Engine instance whose referee sequence should be overridden.
+    """
     last_side = engine._side_for_player(engine.state.ball.last_touched_by)  # type: ignore[attr-defined]
     if last_side is None:
         last_side = "home"
@@ -396,7 +419,13 @@ def _force_debug_goal_kick(engine: RealTimeMatchEngine) -> None:
 
 
 def _force_debug_throw_in(engine: RealTimeMatchEngine) -> None:
-    """Trigger a throw-in favoring the team currently in possession."""
+    """Trigger a throw-in favoring the team currently in possession.
+
+    Parameters
+    ----------
+    engine : RealTimeMatchEngine
+        Engine instance receiving the forced restart.
+    """
     possessor = next((p for p in engine.state.player_states.values() if p.state.is_with_ball), None)
     if possessor is not None:
         side = "home" if possessor.is_home_team else "away"

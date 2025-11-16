@@ -125,6 +125,13 @@ class Player:
         return ratings
 
     def _goalkeeper_rating(self) -> float:
+        """Return a normalised suitability score for goalkeeper duties.
+
+        Returns
+        -------
+        float
+            Rating between 0 and 1 composed of positioning, decisions, speed, and strength.
+        """
         return (
             self.attributes.positioning * 0.3
             + self.attributes.decisions * 0.2
@@ -133,6 +140,13 @@ class Player:
         ) / 100
 
     def _central_defender_rating(self) -> float:
+        """Return a central-defender suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted mixture of tackling, heading, strength, and positioning attributes.
+        """
         return (
             self.attributes.tackling * 0.3
             + self.attributes.heading * 0.2
@@ -141,6 +155,13 @@ class Player:
         ) / 100
 
     def _wide_defender_rating(self) -> float:
+        """Return a wide-defender suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted blend of tackling, pace, stamina, passing, and positioning.
+        """
         return (
             self.attributes.tackling * 0.25
             + self.attributes.speed * 0.25
@@ -150,6 +171,13 @@ class Player:
         ) / 100
 
     def _central_midfielder_rating(self) -> float:
+        """Return a central-midfielder suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted blend of passing, vision, stamina, decisions, and tackling.
+        """
         return (
             self.attributes.passing * 0.3
             + self.attributes.vision * 0.2
@@ -159,6 +187,13 @@ class Player:
         ) / 100
 
     def _wide_midfielder_rating(self) -> float:
+        """Return a wide-midfielder suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted blend of dribbling, speed, passing, stamina, and vision.
+        """
         return (
             self.attributes.dribbling * 0.3
             + self.attributes.speed * 0.25
@@ -168,6 +203,13 @@ class Player:
         ) / 100
 
     def _central_forward_rating(self) -> float:
+        """Return a central-forward suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted blend of shooting, dribbling, speed, and positioning.
+        """
         return (
             self.attributes.shooting * 0.3
             + self.attributes.dribbling * 0.2
@@ -176,6 +218,13 @@ class Player:
         ) / 100
 
     def _support_forward_rating(self) -> float:
+        """Return a support-forward suitability score scaled to ``0-1``.
+
+        Returns
+        -------
+        float
+            Weighted blend of shooting, dribbling, speed, passing, and vision.
+        """
         return (
             self.attributes.shooting * 0.25
             + self.attributes.dribbling * 0.25

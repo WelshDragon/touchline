@@ -100,6 +100,20 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         player: "PlayerMatchState",
         ball: "BallState",
     ) -> Optional[Tuple["Vector2D", float]]:
+        """Calculate where and when the keeper can meet the incoming shot.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper evaluating the save.
+        ball : BallState
+            Ball state describing the shot trajectory.
+
+        Returns
+        -------
+        Optional[Tuple[Vector2D, float]]
+            ``(intercept_position, time_to_plane)`` if the shot is reachable, otherwise ``None``.
+        """
         ball_speed = ball.velocity.magnitude()
         gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
@@ -141,7 +155,20 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         return intercept_pos, time_to_plane
 
     def _is_ball_dangerous(self, player: "PlayerMatchState", ball: "BallState") -> bool:
-        """Check if ball poses immediate threat (shot on goal)."""
+        """Check if the current ball trajectory poses an immediate threat.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper evaluating the situation.
+        ball : BallState
+            Ball state being inspected.
+
+        Returns
+        -------
+        bool
+            ``True`` when ``player.pending_save_target`` should be populated for an imminent save.
+        """
         save_window = self._compute_save_window(player, ball)
 
         if not save_window:
@@ -159,7 +186,19 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         speed_attr: int,
         dt: float,
     ) -> None:
-        """Attempt to save/intercept the ball."""
+        """Attempt to save or intercept the in-flight ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper attempting the save.
+        ball : BallState
+            Incoming ball state.
+        speed_attr : int
+            Speed attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         current_time = player.match_time
         ball_speed = ball.velocity.magnitude()
         gk_cfg = ENGINE_CONFIG.role.goalkeeper
@@ -236,7 +275,24 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
     def _should_collect_ball(
         self, player: "PlayerMatchState", ball: "BallState", decisions_attr: int, all_players: List["PlayerMatchState"]
     ) -> bool:
-        """Decide if goalkeeper should come out to collect loose ball."""
+        """Decide if the goalkeeper should sweep up a loose ball inside the box.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper considering the action.
+        ball : BallState
+            Ball state within or near the penalty area.
+        decisions_attr : int
+            Decisions attribute rating (0-100) affecting safe distances.
+        all_players : List[PlayerMatchState]
+            Player list used to gauge nearby opponents.
+
+        Returns
+        -------
+        bool
+            ``True`` when the keeper should rush out to collect the ball.
+        """
         goal_pos = self.get_own_goal_position(player)
         gk_cfg = ENGINE_CONFIG.role.goalkeeper
 
@@ -265,7 +321,19 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         return True
 
     def _collect_ball(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int, dt: float) -> None:
-        """Move to collect loose ball."""
+        """Move to collect a loose ball inside the keeper's domain.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper leaving the line.
+        ball : BallState
+            Loose ball to secure.
+        speed_attr : int
+            Speed attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         self.move_to_position(player, ball.position, speed_attr, dt, ball, sprint=True, intent="press")
 
         # Collect if close
@@ -284,7 +352,19 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         positioning_attr: int,
         dt: float,
     ) -> None:
-        """Position goalkeeper on goal line based on ball position."""
+        """Position the goalkeeper on the goal line based on ball location.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper being repositioned.
+        ball : BallState
+            Ball whose location dictates the optimal spot.
+        positioning_attr : int
+            Positioning attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
         from touchline.engine.physics import Vector2D
 
         goal_pos = self.get_own_goal_position(player)
@@ -334,7 +414,21 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         player_model: "Player",
         current_time: float,
     ) -> None:
-        """Distribute ball to teammates (throw or kick)."""
+        """Distribute the ball to teammates via throw or kick.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Goalkeeper restarting play.
+        ball : BallState
+            Ball state to be kicked or thrown.
+        all_players : List[PlayerMatchState]
+            All players used to evaluate distribution targets.
+        player_model : Player
+            Player model providing attribute ratings.
+        current_time : float
+            Simulation timestamp applied to the kick.
+        """
         passing_attr = player_model.attributes.passing
         vision_attr = player_model.attributes.vision
 

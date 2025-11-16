@@ -67,6 +67,12 @@ class MatchState:
         Side that took the opening kickoff (``"home"`` or ``"away"``).
     current_kickoff_side : str, optional
         Side that will take the next kickoff.
+    team_in_possession : str | None, optional
+        Side currently credited with possession even if the ball is in transit.
+    team_possession_since : float, optional
+        Simulation time when the latest team possession window started.
+    last_possession_player_id : int | None, optional
+        Player identifier most recently trusted with the ball.
     """
 
     home_team: Team
@@ -82,6 +88,9 @@ class MatchState:
     halftime_triggered: bool = False
     starting_kickoff_side: str = "home"
     current_kickoff_side: str = "home"
+    team_in_possession: Optional[str] = None
+    team_possession_since: float = 0.0
+    last_possession_player_id: Optional[int] = None
 
     def __post_init__(self) -> None:
         """Initialise derived state after dataclass construction."""
@@ -202,8 +211,15 @@ class RealTimeMatchEngine:
             time.sleep(ENGINE_CONFIG.simulation.frame_sleep)
 
     def _update(self, dt: float) -> None:
-        """Update match state for the given time step."""
+        """Update match state for a single simulation step.
+
+        Parameters
+        ----------
+        dt : float
+            Delta time in seconds that should elapse this tick (already scaled by ``simulation_speed``).
+        """
         half_time_mark = ENGINE_CONFIG.simulation.match_duration / 2
+        self.state.ball.set_log_match_time(self.state.match_time)
         if not self.state.halftime_triggered and self.state.match_time >= half_time_mark:
             self._start_second_half(half_time_mark)
             return
@@ -258,6 +274,7 @@ class RealTimeMatchEngine:
         all_players = list(self.state.player_states.values())
 
         self.state.match_time += dt
+        self.state.ball.set_log_match_time(self.state.match_time)
         # Keep per-player match clock aligned with global clock so role logic
         # that depends on time (e.g. kick cooldowns) sees real match seconds.
         for player_state in all_players:
@@ -277,6 +294,8 @@ class RealTimeMatchEngine:
             self.state.ball.last_touched_by = new_player.player_id
             self.state.ball.last_touched_time = self.state.match_time
             self.state.ball.last_kick_recipient = None
+            team_side = "home" if new_player.is_home_team else "away"
+            self._set_team_possession(team_side, player_id=new_player.player_id, reason="player_control")
 
             # Log possession change
             if not already_possessing:
@@ -363,10 +382,14 @@ class RealTimeMatchEngine:
             for p in all_players:
                 p.state.is_with_ball = False
 
+        self._decay_team_possession(all_players)
+
         # Update AI for all players
         for player_state in all_players:
             # Call role-specific AI
-            player_state.role_behaviour.decide_action(player_state, self.state.ball, all_players, dt)
+            behaviour = player_state.role_behaviour
+            behaviour._match_state = self.state  # type: ignore[attr-defined]
+            behaviour.decide_action(player_state, self.state.ball, all_players, dt)
 
             # Update player position based on velocity (for dribbling, movement, etc.)
             player_state.state.position = player_state.state.position + player_state.state.velocity * dt
@@ -414,7 +437,13 @@ class RealTimeMatchEngine:
                 )
 
     def _settle_new_possession(self, possessor: PlayerMatchState) -> None:
-        """Bring the ball under control when a new possessor is awarded."""
+        """Bring the ball under control when a new possessor is awarded.
+
+        Parameters
+        ----------
+        possessor : PlayerMatchState
+            Player who just established possession.
+        """
         ball = self.state.ball
 
         ball.velocity = Vector2D(0, 0)
@@ -425,7 +454,13 @@ class RealTimeMatchEngine:
         ball.time_until_ground = 0.0
 
     def _handle_goal(self, scoring_team: str) -> None:
-        """Handle goal scored."""
+        """Process bookkeeping and restart flow when a goal is scored.
+
+        Parameters
+        ----------
+        scoring_team : str
+            Side that scored (``"home"`` or ``"away"``).
+        """
         if scoring_team == "home":
             self.state.home_score += 1
             team = self.state.home_team
@@ -444,7 +479,13 @@ class RealTimeMatchEngine:
         self._prepare_kickoff(next_kickoff_side, reset_players=True, log_reason="Kickoff after goal")
 
     def _apply_restart(self, decision: RefereeDecision) -> None:
-        """Carry out the restart the referee selected."""
+        """Carry out the restart selected by the referee.
+
+        Parameters
+        ----------
+        decision : RefereeDecision
+            Decision emitted by the referee containing restart context.
+        """
         restart_type = decision.restart_type
         awarded_side = decision.awarded_side
         restart_spot = decision.restart_spot or self.state.ball.position
@@ -468,7 +509,13 @@ class RealTimeMatchEngine:
             self.state.ball.velocity = Vector2D(0, 0)
 
     def _start_second_half(self, half_time_mark: float) -> None:
-        """Trigger the second-half kickoff sequence."""
+        """Trigger the second-half kickoff sequence.
+
+        Parameters
+        ----------
+        half_time_mark : float
+            Simulation timestamp representing half-time.
+        """
         self.state.halftime_triggered = True
         self.state.current_half = 2
         self.state.match_time = half_time_mark
@@ -476,7 +523,17 @@ class RealTimeMatchEngine:
         self._prepare_kickoff(second_half_side, reset_players=True, log_reason="Second half kickoff")
 
     def _prepare_kickoff(self, kicking_side: str, *, reset_players: bool, log_reason: str) -> None:
-        """Center the ball and assign possession for the next kickoff."""
+        """Center the ball and assign possession for the next kickoff.
+
+        Parameters
+        ----------
+        kicking_side : str
+            Side taking the kickoff (``"home"`` or ``"away"``).
+        reset_players : bool
+            When ``True``, reinitialise player states before placing them.
+        log_reason : str
+            Text description included in debugger logs for traceability.
+        """
         if reset_players:
             self._reset_player_states()
         else:
@@ -513,6 +570,8 @@ class RealTimeMatchEngine:
                 self.state.ball.last_kick_recipient = support_player.player_id
             else:
                 self.state.ball.last_kick_recipient = None
+
+            self._set_team_possession(kicking_side, player_id=kicker.player_id, reason="kickoff")
         else:
             self.state.ball.position = Vector2D(0, 0)
             self.state.ball.last_touched_by = None
@@ -547,6 +606,9 @@ class RealTimeMatchEngine:
             self.state.ball.recent_pass_pairs.clear()
         if hasattr(self.state.ball, "ground"):
             self.state.ball.ground()
+        if hasattr(self.state.ball, "set_log_match_time"):
+            self.state.ball.set_log_match_time(self.state.match_time)
+        self._set_team_possession(None, reason="reset_ball_state")
 
     def force_goal_kick(self, defending_side: str) -> None:
         """Force the referee to restart play with a goal kick.
@@ -574,7 +636,18 @@ class RealTimeMatchEngine:
         self._restart_throw_in(awarding_side, mock_position)
 
     def _get_team_players(self, side: str) -> List[PlayerMatchState]:
-        """Return players belonging to the requested side."""
+        """Return players belonging to the requested side.
+
+        Parameters
+        ----------
+        side : str
+            ``"home"`` or ``"away"``.
+
+        Returns
+        -------
+        List[PlayerMatchState]
+            Player states matching the requested team.
+        """
         return [
             ps
             for ps in self.state.player_states.values()
@@ -582,7 +655,18 @@ class RealTimeMatchEngine:
         ]
 
     def _select_kickoff_player(self, candidates: List[PlayerMatchState]) -> Optional[PlayerMatchState]:
-        """Pick the player who will take the kickoff for the given side."""
+        """Pick the player who will take the kickoff for the given side.
+
+        Parameters
+        ----------
+        candidates : List[PlayerMatchState]
+            Player states eligible to take the kickoff.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Preferred kicker, or ``None`` when no players are available.
+        """
         if not candidates:
             return None
 
@@ -609,7 +693,20 @@ class RealTimeMatchEngine:
     def _select_support_player(
         self, candidates: List[PlayerMatchState], kicker: PlayerMatchState
     ) -> Optional[PlayerMatchState]:
-        """Choose a second player to receive the kickoff tap."""
+        """Choose a second player to receive the kickoff tap.
+
+        Parameters
+        ----------
+        candidates : List[PlayerMatchState]
+            Player states from the kicking side.
+        kicker : PlayerMatchState
+            Player already designated to take the kickoff.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Support player positioned near the centre circle, or ``None`` if unavailable.
+        """
         others = [p for p in candidates if p.player_id != kicker.player_id]
         if not others:
             return None
@@ -619,7 +716,20 @@ class RealTimeMatchEngine:
     def _select_throw_in_recipient(
         self, candidates: List[PlayerMatchState], thrower: PlayerMatchState
     ) -> Optional[PlayerMatchState]:
-        """Pick a teammate to receive the throw-in."""
+        """Pick a teammate to receive the throw-in.
+
+        Parameters
+        ----------
+        candidates : List[PlayerMatchState]
+            Player states belonging to the throwing team.
+        thrower : PlayerMatchState
+            Player tasked with delivering the throw-in.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Intended recipient closest to the touchline, or ``None`` if no teammates qualify.
+        """
         others = [p for p in candidates if p.player_id != thrower.player_id]
         if not others:
             return None
@@ -627,7 +737,18 @@ class RealTimeMatchEngine:
         return min(others, key=lambda p: p.state.position.distance_to(thrower.state.position))
 
     def _side_for_player(self, player_id: Optional[int]) -> Optional[str]:
-        """Return which side ('home' or 'away') a player belongs to."""
+        """Return which side ("home" or "away") a player belongs to.
+
+        Parameters
+        ----------
+        player_id : Optional[int]
+            Player identifier, or ``None`` if unknown.
+
+        Returns
+        -------
+        Optional[str]
+            ``"home"`` or ``"away"`` if the player exists, else ``None``.
+        """
         if player_id is None:
             return None
 
@@ -638,7 +759,76 @@ class RealTimeMatchEngine:
         return "home" if player_state.is_home_team else "away"
 
     def _team_for_side(self, side: str) -> Team:
+        """Return the :class:`Team` object for the requested side.
+
+        Parameters
+        ----------
+        side : str
+            ``"home"`` or ``"away"``.
+
+        Returns
+        -------
+        Team
+            Team instance representing the requested side.
+        """
         return self.state.home_team if side == "home" else self.state.away_team
+
+    def _set_team_possession(
+        self,
+        side: Optional[str],
+        *,
+        player_id: Optional[int] = None,
+        reason: str = "",
+    ) -> None:
+        """Record which side currently controls play, even between touches.
+
+        Parameters
+        ----------
+        side : Optional[str]
+            ``"home"``, ``"away"``, or ``None`` when clearing possession.
+        player_id : Optional[int], keyword-only
+            Player responsible for the possession change.
+        reason : str, keyword-only
+            Short text explaining why possession changed.
+        """
+        previous = self.state.team_in_possession
+        self.state.team_in_possession = side
+        self.state.team_possession_since = self.state.match_time
+        self.state.last_possession_player_id = player_id if side else None
+
+        if previous == side:
+            return
+
+        detail = f"team possession -> {side or 'none'}"
+        if player_id is not None and side is not None:
+            detail += f" (player #{player_id})"
+        if reason:
+            detail += f" [{reason}]"
+
+        self.debugger.log_match_event(self.state.match_time, "team_possession", detail)
+
+    def _decay_team_possession(self, all_players: List[PlayerMatchState]) -> None:
+        """Release team control if no one settles the ball within the linger window.
+
+        Parameters
+        ----------
+        all_players : List[PlayerMatchState]
+            Player states to inspect for live possession.
+        """
+        if not self.state.team_in_possession:
+            return
+
+        if any(p.state.is_with_ball for p in all_players):
+            return
+
+        if self.state.ball.last_kick_recipient is not None:
+            return
+
+        linger = ENGINE_CONFIG.possession.team_possession_linger
+        if self.state.match_time - self.state.team_possession_since <= linger:
+            return
+
+        self._set_team_possession(None, reason="linger_expired")
 
     def _clear_possession(self) -> None:
         """Remove possession flags so a restart can be set up cleanly."""
@@ -646,9 +836,18 @@ class RealTimeMatchEngine:
             ps.state.is_with_ball = False
             ps.state.velocity = Vector2D(0, 0)
             ps.current_target = None
+        self._set_team_possession(None, reason="clear_possession")
 
     def _restart_goal_kick(self, defending_side: str, out_position: Vector2D) -> None:
-        """Place the ball for a goal kick and give it to the defending goalkeeper."""
+        """Place the ball for a goal kick and give it to the defending goalkeeper.
+
+        Parameters
+        ----------
+        defending_side : str
+            ``"home"`` or ``"away"`` depending on who takes the kick.
+        out_position : Vector2D
+            Location where the ball exited, used to position the restart laterally.
+        """
         self._clear_possession()
 
         team_players = self._get_team_players(defending_side)
@@ -690,13 +889,23 @@ class RealTimeMatchEngine:
         if hasattr(ball, "ground"):
             ball.ground()
 
+        self._set_team_possession(defending_side, player_id=kicker.player_id, reason="goal_kick")
+
         team = self._team_for_side(defending_side)
         description = f"Goal kick awarded to {team.name}."
         self.state.events.append(MatchEvent(self.state.match_time, "goal_kick", team, description))
         self.debugger.log_match_event(self.state.match_time, "restart", description)
 
     def _restart_throw_in(self, awarding_side: str, out_position: Vector2D) -> None:
-        """Award a throw-in and place the ball just inside the touchline."""
+        """Award a throw-in and place the ball just inside the touchline.
+
+        Parameters
+        ----------
+        awarding_side : str
+            Side receiving the throw-in.
+        out_position : Vector2D
+            Ball exit position used to approximate restart coordinates.
+        """
         self._clear_possession()
 
         team_players = self._get_team_players(awarding_side)
@@ -741,6 +950,8 @@ class RealTimeMatchEngine:
 
         if hasattr(ball, "ground"):
             ball.ground()
+
+        self._set_team_possession(awarding_side, player_id=thrower.player_id, reason="throw_in")
 
         team = self._team_for_side(awarding_side)
         if recipient:

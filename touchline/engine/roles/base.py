@@ -22,8 +22,10 @@ from typing import TYPE_CHECKING, List, Optional
 from touchline.engine.config import ENGINE_CONFIG
 
 if TYPE_CHECKING:
+    from touchline.engine.match_engine import MatchState
     from touchline.engine.physics import BallState, Vector2D
     from touchline.engine.player_state import PlayerMatchState
+    from touchline.utils.debug import MatchDebugger
 
 
 class RoleBehaviour:
@@ -50,6 +52,75 @@ class RoleBehaviour:
         self.role = role
         self.side = side
         self._current_all_players: Optional[List["PlayerMatchState"]] = None
+        self._match_state: Optional["MatchState"] = None
+
+    def _player_debugger(self, player: "PlayerMatchState") -> Optional["MatchDebugger"]:
+        """Return the debugger attached to ``player`` when available.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose debugger reference is being requested.
+
+        Returns
+        -------
+        Optional[MatchDebugger]
+            Debugger bound to ``player`` or ``None`` when absent.
+        """
+        return getattr(player, "debugger", None)
+
+    def _player_label(self, player: "PlayerMatchState") -> str:
+        """Return a compact label used in debug output for the player.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose identifying label should be constructed.
+
+        Returns
+        -------
+        str
+            Human-readable identifier combining id, team, and role.
+        """
+        team_name = getattr(player.team, "name", "?")
+        return f"#{player.player_id} {team_name} {player.player_role}"
+
+    def _log_player_event(self, player: "PlayerMatchState", event_type: str, details: str) -> None:
+        """Emit a structured debug line for the provided player.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose action should be recorded in the debug log.
+        event_type : str
+            Short category label (for example ``"pass"`` or ``"decision"``).
+        details : str
+            Free-form description that supplies event context.
+        """
+        debugger = self._player_debugger(player)
+        if not debugger:
+            return
+        prefix = self._player_label(player)
+        debugger.log_match_event(player.match_time, event_type, f"{prefix} {details}")
+
+    def _log_decision(self, player: "PlayerMatchState", action: str, **context: object) -> None:
+        """Log a role decision along with optional context key-value pairs.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player making the decision being documented.
+        action : str
+            Verb summarizing the high-level action, such as ``"dribble"``.
+        **context : object
+            Keyword arguments containing structured telemetry to append.
+        """
+        if not context:
+            detail = action
+        else:
+            kv = " ".join(f"{key}={value}" for key, value in context.items())
+            detail = f"{action} {kv}"
+        self._log_player_event(player, "decision", detail)
 
     def decide_action(
         self,
@@ -113,6 +184,24 @@ class RoleBehaviour:
         """
         return [p for p in all_players if p.team != player.team]
 
+    def _player_by_id(self, player_id: Optional[int]) -> Optional["PlayerMatchState"]:
+        """Lookup helper scoped to the cached player list for the frame.
+
+        Parameters
+        ----------
+        player_id : Optional[int]
+            Identifier belonging to the player of interest.
+
+        Returns
+        -------
+        Optional[PlayerMatchState]
+            Matching player from ``self._current_all_players`` or ``None`` if missing.
+        """
+        if player_id is None or not self._current_all_players:
+            return None
+
+        return next((p for p in self._current_all_players if p.player_id == player_id), None)
+
     def distance_to_ball(self, player: "PlayerMatchState", ball: "BallState") -> float:
         """Calculate distance from player to ball.
 
@@ -171,8 +260,122 @@ class RoleBehaviour:
         # Use the is_with_ball flag set by the match engine
         return player.state.is_with_ball
 
+    def _shield_ball(self, player: "PlayerMatchState", ball: "BallState", reason: Optional[str] = None) -> None:
+        """Stabilize the player's movement and keep the ball tight while waiting.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player who should protect possession.
+        ball : BallState
+            Ball instance that needs to remain within control range.
+        reason : Optional[str], default=None
+            Free-form explanation describing why shielding is triggered.
+        """
+        from touchline.engine.physics import Vector2D
+
+        player.state.velocity = Vector2D(0, 0)
+        ball.position = player.state.position
+        ball.velocity = Vector2D(0, 0)
+        detail_reason = reason or "protect"
+        self._log_player_event(
+            player,
+            "shield",
+            (
+                f"holding ball reason={detail_reason} "
+                f"tempo_hold={max(0.0, player.tempo_hold_until - player.match_time):.2f}s"
+            ),
+        )
+
+    def _reset_space_move(self, player: "PlayerMatchState", *, reset_history: bool = True) -> None:
+        """Clear any active lateral space-making movement for ``player``.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose probing state should be reset.
+        reset_history : bool, default=True
+            When ``True`` also clears any accumulated probe loop counters.
+        """
+        player.space_move_until = 0.0
+        player.space_move_heading = None
+        if reset_history:
+            player.space_probe_loops = 0
+
+    def _forward_lane_blocked(
+        self,
+        player: "PlayerMatchState",
+        opponents: List["PlayerMatchState"],
+        *,
+        max_distance: float,
+        half_width: float,
+        min_blockers: int = 1,
+    ) -> bool:
+        """Determine if opponents are clogging the forward lane toward goal.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball carrier evaluating space ahead.
+        opponents : List[PlayerMatchState]
+            Opposing players used to detect obstruction.
+        max_distance : float
+            Maximum forward distance to inspect for blockers.
+        half_width : float
+            Half-width of the corridor centred on the player's forward path.
+        min_blockers : int, default=1
+            Minimum number of opponents required before considering the lane blocked.
+
+        Returns
+        -------
+        bool
+            ``True`` when at least ``min_blockers`` opponents occupy the lane.
+        """
+        if not opponents or max_distance <= 0 or half_width <= 0:
+            return False
+
+        from touchline.engine.physics import Vector2D
+
+        goal_pos = self.get_goal_position(player)
+        direction = goal_pos - player.state.position
+        if direction.magnitude() <= 1e-5:
+            return False
+
+        direction = direction.normalize()
+        lateral_axis = Vector2D(-direction.y, direction.x)
+        blockers = 0
+
+        for opponent in opponents:
+            offset = opponent.state.position - player.state.position
+            forward = offset.x * direction.x + offset.y * direction.y
+            if forward <= 0 or forward > max_distance:
+                continue
+
+            lateral = abs(offset.x * lateral_axis.x + offset.y * lateral_axis.y)
+            if lateral > half_width:
+                continue
+
+            blockers += 1
+            if blockers >= min_blockers:
+                return True
+
+        return False
+
     def _can_kick_ball(self, player: "PlayerMatchState", ball: "BallState") -> bool:
-        """Only allow ball strikes when the player is within control range."""
+        """Only allow ball strikes when the player is within control range.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player attempting to interact with the ball.
+        ball : BallState
+            Ball instance whose proximity is evaluated.
+
+        Returns
+        -------
+        bool
+            ``True`` when the ball sits within the configured control distance.
+        """
         control_limit = ENGINE_CONFIG.possession.max_control_distance
         return player.state.position.distance_to(ball.position) <= control_limit
 
@@ -285,7 +488,22 @@ class RoleBehaviour:
         return min(1.0, total_angle / 30)  # Normalize to 0-1
 
     def _angle_between(self, pos: "Vector2D", target1: "Vector2D", target2: "Vector2D") -> float:
-        """Calculate angle between two targets from a position."""
+        """Calculate angle between two targets from a position.
+
+        Parameters
+        ----------
+        pos : Vector2D
+            Origin point used as the vertex.
+        target1 : Vector2D
+            First vector endpoint.
+        target2 : Vector2D
+            Second vector endpoint.
+
+        Returns
+        -------
+        float
+            Angle in degrees between the rays ``pos->target1`` and ``pos->target2``.
+        """
         v1 = (target1 - pos).normalize()
         v2 = (target2 - pos).normalize()
         dot = v1.x * v2.x + v1.y * v2.y
@@ -331,6 +549,18 @@ class RoleBehaviour:
         goal_pos = self.get_goal_position(player)
         pass_cfg = ENGINE_CONFIG.role.passing
 
+        pressure_distance = float("inf")
+        if opponents:
+            pressure_distance = min(
+                opp.state.position.distance_to(player.state.position) for opp in opponents
+            )
+        under_pressure = pressure_distance <= pass_cfg.under_pressure_radius
+
+        vision_scale = 0.55 + (vision_attr / 100) * 0.45
+
+        trace_enabled = self._player_debugger(player) is not None
+        candidate_records: list[tuple[int, float, float, float]] = []
+
         for teammate in teammates:
             # Skip if too far based on passing ability
             distance = player.state.position.distance_to(teammate.state.position)
@@ -342,20 +572,43 @@ class RoleBehaviour:
             # Check if pass lane is clear
             lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
 
-            # Prefer passes towards goal
+            # Prefer passes towards goal but demand meaningful gain when not pressed
             teammate_distance_to_goal = teammate.state.position.distance_to(goal_pos)
             player_distance_to_goal = player.state.position.distance_to(goal_pos)
-            progress_score = max(0, player_distance_to_goal - teammate_distance_to_goal) / 50
+            progress_gain = max(0.0, player_distance_to_goal - teammate_distance_to_goal)
+
+            receiver_space = float("inf")
+            if opponents:
+                receiver_space = min(
+                    opp.state.position.distance_to(teammate.state.position) for opp in opponents
+                )
+            has_release_space = receiver_space >= pass_cfg.space_release_threshold
+
+            progress_score = progress_gain / 50.0
+            progress_multiplier = 1.0
+
+            if progress_gain <= pass_cfg.progressive_gain_min and not under_pressure:
+                progress_multiplier *= 0.35
+
+            if progress_gain > pass_cfg.progressive_gain_min:
+                surplus = progress_gain - pass_cfg.progressive_gain_min
+                progress_score += (surplus / 25.0) * pass_cfg.progress_bonus_weight
+
+            if not has_release_space:
+                progress_multiplier *= 0.5
+            elif under_pressure:
+                progress_multiplier *= 1.15
+
+            progress_score *= progress_multiplier
 
             # Weight factors
             distance_score = 1 - (distance / max_pass_distance)
-            vision_factor = vision_attr / 100
 
             total_score = (
                 lane_quality * pass_cfg.lane_weight
                 + distance_score * pass_cfg.distance_weight
                 + progress_score * pass_cfg.progress_weight
-            ) * vision_factor
+            ) * vision_scale
 
             recent_pairs = getattr(ball, "recent_pass_pairs", None)
             penalty = 0.0
@@ -375,7 +628,34 @@ class RoleBehaviour:
                 best_score = total_score
                 best_target = teammate
 
-        return best_target if best_score > pass_cfg.score_threshold else None
+            if trace_enabled:
+                candidate_records.append(
+                    (
+                        teammate.player_id,
+                        total_score,
+                        lane_quality,
+                        progress_gain,
+                    )
+                )
+
+        passes_threshold = best_score > pass_cfg.score_threshold
+
+        if trace_enabled and candidate_records:
+            preview = ", ".join(
+                f"#{pid} s={score:.2f} lane={lane:.2f} prog={prog:.1f}"
+                for pid, score, lane, prog in sorted(candidate_records, key=lambda item: item[1], reverse=True)[:3]
+            )
+            best_label = f"#{best_target.player_id}" if best_target else "none"
+            self._log_player_event(
+                player,
+                "decision",
+                (
+                    f"pass_candidates best={best_label} score={best_score:.2f} "
+                    f"thresh={pass_cfg.score_threshold:.2f} opts=[{preview}]"
+                ),
+            )
+
+        return best_target if passes_threshold else None
 
     def calculate_pass_lane_quality(
         self,
@@ -437,7 +717,32 @@ class RoleBehaviour:
         fallback_fraction: Optional[float] = None,
         fallback_cap: Optional[float] = None,
     ) -> "Vector2D":
-        """Predict where the player can meet the ball along its path."""
+        """Predict where the player can meet the ball along its path.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player chasing the ball.
+        ball : BallState
+            Ball state used for trajectory projection.
+        player_speed : float
+            Maximum travel speed in metres per second for the player.
+        max_time : Optional[float]
+            Maximum future time horizon to consider when scanning intercepts.
+        time_step : Optional[float]
+            Step size between future samples.
+        reaction_buffer : Optional[float]
+            Additional preparation time the player needs before moving.
+        fallback_fraction : Optional[float]
+            Fraction of current ball travel used when estimating a fallback intercept.
+        fallback_cap : Optional[float]
+            Maximum fallback travel distance.
+
+        Returns
+        -------
+        Vector2D
+            Estimated contact point where the player can reach the ball.
+        """
         intercept_cfg = ENGINE_CONFIG.role.intercept
 
         max_time = intercept_cfg.max_time if max_time is None else max_time
@@ -479,7 +784,24 @@ class RoleBehaviour:
         speed_attr: int,
         dt: float,
     ) -> bool:
-        """Guide intended recipient towards the incoming ball to secure the pass."""
+        """Guide intended recipient towards the incoming ball to secure the pass.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Intended recipient.
+        ball : BallState
+            Ball travelling toward the teammate.
+        speed_attr : int
+            Speed attribute rating (0-100) influencing reaction speed.
+        dt : float
+            Simulation timestep in seconds.
+
+        Returns
+        -------
+        bool
+            ``True`` when the helper takes control of the player's movement.
+        """
         if ball.last_kick_recipient != player.player_id:
             return False
 
@@ -522,7 +844,24 @@ class RoleBehaviour:
         all_players: List["PlayerMatchState"],
         speed_attr: int,
     ) -> bool:
-        """Send the nearest teammate after an unattached ball."""
+        """Send the nearest teammate after an unattached ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player evaluating whether to chase the loose ball.
+        ball : BallState
+            Ball state with trajectory data.
+        all_players : List[PlayerMatchState]
+            All nearby players used to determine the closest teammate.
+        speed_attr : int
+            Speed attribute rating (0-100) used for chase speed scaling.
+
+        Returns
+        -------
+        bool
+            ``True`` when the caller becomes the designated chaser.
+        """
         if ball.last_kick_recipient is not None:
             return False
 
@@ -602,10 +941,19 @@ class RoleBehaviour:
         current_time : float
             Simulation timestamp when the pass occurs.
         """
-        if not self._can_kick_ball(player, ball):
-            return
-
+        distance_to_ball = player.state.position.distance_to(ball.position)
         distance = player.state.position.distance_to(target.state.position)
+
+        if not self._can_kick_ball(player, ball):
+            self._log_player_event(
+                player,
+                "pass",
+                (
+                    f"blocked target=#{target.player_id} distance_to_ball={distance_to_ball:.2f}m "
+                    f"distance={distance:.2f}m"
+                ),
+            )
+            return
 
         # Calculate pass speed using a capped easing curve so long passes travel fast
         # enough without turning into shots, while short passes remain controlled.
@@ -635,6 +983,15 @@ class RoleBehaviour:
             current_time,
             target.player_id,
             kicker_position=player.state.position,
+        )
+
+        self._log_player_event(
+            player,
+            "pass",
+            (
+                f"completed target=#{target.player_id} power={power:.1f} "
+                f"distance={distance:.1f}m offset=({offset_x:.2f},{offset_y:.2f})"
+            ),
         )
 
     def execute_shot(
@@ -834,39 +1191,78 @@ class RoleBehaviour:
         target: "Vector2D",
         ball: "BallState",
     ) -> "Vector2D":
-        """Push teammates forward when their side is in possession."""
+        """Push teammates forward when their side is in possession.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose support position is adjusted.
+        target : Vector2D
+            Original movement target.
+        ball : BallState
+            Ball state used to check team possession context.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted target factoring in possession-phase support nudges.
+        """
         if player.state.is_with_ball:
             return target
 
-        possessor: Optional["PlayerMatchState"] = None
+        possessor = self._player_by_id(ball.last_touched_by)
+        next_recipient = self._player_by_id(ball.last_kick_recipient)
 
-        if ball.last_touched_by is not None and self._current_all_players:
-            possessor = next(
-                (p for p in self._current_all_players if p.player_id == ball.last_touched_by),
-                None,
-            )
+        team_side = "home" if player.is_home_team else "away"
+        match_state = self._match_state
+        team_flag = match_state.team_in_possession if match_state else None
 
-        if possessor is None or possessor.team != player.team:
+        anchor_player = possessor if possessor and possessor.team == player.team else None
+        team_controls = anchor_player is not None or team_flag == team_side
+
+        if not team_controls:
             return target
+
+        if (anchor_player is None or anchor_player.team != player.team) and match_state:
+            fallback = self._player_by_id(match_state.last_possession_player_id)
+            if fallback and fallback.team == player.team:
+                anchor_player = fallback
+
+        if anchor_player and anchor_player.player_id == player.player_id:
+            return target
+
+        phase = self._determine_possession_phase(player, ball, anchor_player, next_recipient)
 
         # Goal direction is positive X for home, negative for away.
         goal_dir = 1.0 if player.is_home_team else -1.0
         relative_target = target.x * goal_dir
         relative_ball = ball.position.x * goal_dir
-        relative_possessor = possessor.state.position.x * goal_dir
+        relative_possessor = (
+            anchor_player.state.position.x * goal_dir
+            if anchor_player is not None
+            else relative_ball
+        )
+
+        if next_recipient and next_recipient.team == player.team:
+            relative_recipient = next_recipient.state.position.x * goal_dir
+        else:
+            relative_recipient = relative_possessor
 
         support_cfg = ENGINE_CONFIG.role.possession_support
-        push_distance, trailing_buffer, forward_margin = self._support_profile(player)
+        blend = support_cfg.release_recipient_window
+        anchor_relative = relative_possessor * (1.0 - blend) + relative_recipient * blend
+
+        push_distance, trailing_buffer, forward_margin = self._support_profile(player, phase)
         if push_distance <= 0 and forward_margin <= 0:
             return target
 
         from touchline.engine.physics import Vector2D
 
         # Encourage players to close the space to the ball while respecting role-based buffers.
-        gap_to_possessor = max(0.0, relative_possessor - relative_target)
+        gap_to_anchor = max(0.0, anchor_relative - relative_target)
         desired_relative = relative_target + min(
             push_distance,
-            gap_to_possessor * support_cfg.gap_weight + push_distance * support_cfg.push_bias,
+            gap_to_anchor * support_cfg.gap_weight + push_distance * support_cfg.push_bias,
         )
 
         # Clamp relative X within trailing buffer behind the ball and a forward margin ahead of it.
@@ -890,11 +1286,87 @@ class RoleBehaviour:
 
         return Vector2D(new_relative * goal_dir, target.y)
 
-    def _support_profile(self, player: "PlayerMatchState") -> tuple[float, float, float]:
-        """Return (push_distance, trailing_buffer, forward_margin) for support."""
-        profiles = ENGINE_CONFIG.role.support_profiles
+    def _support_profile(
+        self,
+        player: "PlayerMatchState",
+        phase: str,
+    ) -> tuple[float, float, float]:
+        """Return ``(push_distance, trailing_buffer, forward_margin)`` for support.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player requesting support offsets.
+        phase : str
+            Possession phase key such as ``"build"`` or ``"final"``.
+
+        Returns
+        -------
+        tuple[float, float, float]
+            The push distance, trailing buffer, and forward margin for the role/phase.
+        """
+        phase_profiles = ENGINE_CONFIG.role.support_phase_profiles
         role = player.player_role
-        return profiles.get(role, profiles["default"])
+
+        role_phase_profiles = phase_profiles.get(role)
+        if role_phase_profiles and phase in role_phase_profiles:
+            return role_phase_profiles[phase]
+
+        default_phase_profiles = phase_profiles.get("default", {})
+        if default_phase_profiles and phase in default_phase_profiles:
+            return default_phase_profiles[phase]
+
+        if role_phase_profiles:
+            return next(iter(role_phase_profiles.values()))
+
+        if default_phase_profiles:
+            return next(iter(default_phase_profiles.values()))
+
+        return (0.0, 0.0, 0.0)
+
+    def _determine_possession_phase(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        possessor: Optional["PlayerMatchState"],
+        next_recipient: Optional["PlayerMatchState"] = None,
+    ) -> str:
+        """Classify the current possession phase for support spacing logic.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose team context should be evaluated.
+        ball : BallState
+            Ball state currently in play.
+        possessor : Optional[PlayerMatchState]
+            Player currently in control of the ball, if known.
+        next_recipient : Optional[PlayerMatchState], default=None
+            Predicted recipient that influences the anchor position.
+
+        Returns
+        -------
+        str
+            Phase label of ``"build"``, ``"mid"``, or ``"final"``.
+        """
+        support_cfg = ENGINE_CONFIG.role.possession_support
+        goal_dir = 1.0 if player.is_home_team else -1.0
+
+        anchor_x = ball.position.x
+        if possessor and possessor.team == player.team:
+            anchor_x = possessor.state.position.x
+
+        if next_recipient and next_recipient.team == player.team:
+            blend = support_cfg.release_recipient_window
+            anchor_x = anchor_x * (1.0 - blend) + next_recipient.state.position.x * blend
+
+        relative_anchor = anchor_x * goal_dir
+
+        if relative_anchor <= support_cfg.build_up_limit:
+            return "build"
+        if relative_anchor <= support_cfg.midfield_limit:
+            return "mid"
+        return "final"
 
     def _apply_lane_spacing(
         self,
@@ -903,7 +1375,24 @@ class RoleBehaviour:
         lane_weight: Optional[float] = None,
         min_spacing: Optional[float] = None,
     ) -> "Vector2D":
-        """Blend target with base lane and push away from nearby teammates to avoid crowding."""
+        """Blend target with base lane and push away from nearby teammates.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player whose destination is being adjusted.
+        target : Vector2D
+            Desired destination before spacing corrections.
+        lane_weight : Optional[float]
+            Weighting applied when blending between the lane and ``target``.
+        min_spacing : Optional[float]
+            Minimum distance to maintain from teammates.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted target respecting lane bias and separation rules.
+        """
         from touchline.engine.physics import Vector2D
 
         adjusted = Vector2D(target.x, target.y)

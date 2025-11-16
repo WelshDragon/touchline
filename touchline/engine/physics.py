@@ -293,6 +293,7 @@ class BallState:
         self.is_airborne = False
         self.time_until_ground = 0.0
         self.just_bounced = False
+        self._log_match_time = 0.0
 
     # --- instrumented properties -------------------------------------------------
     @property
@@ -319,7 +320,26 @@ class BallState:
         if value.x == 0 and value.y == 0:
             self.ground()
 
+    def set_log_match_time(self, match_time: float) -> None:
+        """Update the timestamp used when emitting debug write events.
+
+        Parameters
+        ----------
+        match_time : float
+            Match clock timestamp applied to subsequent log entries.
+        """
+        self._log_match_time = match_time
+
     def _log_write(self, field: str, value: tuple[float, float]) -> None:
+        """Emit a debugger trace describing a write to ``field``.
+
+        Parameters
+        ----------
+        field : str
+            Name of the BallState property being modified (for example ``"position"``).
+        value : tuple[float, float]
+            Snapshot of the written value encoded as a 2-D tuple for logging.
+        """
         if not self.debugger:
             return
         # Inspect the stack to find a concise caller location (skip our own frames)
@@ -330,9 +350,8 @@ class BallState:
         lineno = caller_frame.lineno
         func = caller_frame.function
         desc = f"Ball {field} write -> ({value[0]:.2f},{value[1]:.2f}) by {func} at {fname}:{lineno}"
-        # Use 0.0 as match_time for these internal traces (engine will correlate by time)
         try:
-            self.debugger.log_match_event(0.0, "debug", desc)
+            self.debugger.log_match_event(self._log_match_time, "debug", desc)
         except Exception:
             # Never let logging instrumentation raise during simulation
             pass

@@ -15,6 +15,7 @@
 """Role behaviours for centre forwards and wide attackers."""
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING, List, Optional
 
 from touchline.engine.config import ENGINE_CONFIG
@@ -22,6 +23,7 @@ from touchline.engine.config import ENGINE_CONFIG
 from .base import RoleBehaviour
 
 if TYPE_CHECKING:
+    from touchline.engine.config import ForwardConfig
     from touchline.engine.physics import BallState, Vector2D
     from touchline.engine.player_state import PlayerMatchState
 
@@ -73,15 +75,37 @@ class ForwardBaseBehaviour(RoleBehaviour):
         passing_attr = player_model.attributes.passing
         vision_attr = player_model.attributes.vision
 
+        hold_remaining = max(0.0, player.tempo_hold_until - player.match_time)
+        player_has_ball = self.has_ball_possession(player, ball)
+        team_controls = self._team_has_possession(player, ball, all_players)
+        self._log_decision(
+            player,
+            "decide_action",
+            has_ball=player_has_ball,
+            team_possession=team_controls,
+            hold_remaining=f"{hold_remaining:.2f}s",
+        )
+
         try:
             if self._move_to_receive_pass(player, ball, speed_attr, dt):
+                self._log_decision(
+                    player,
+                    "move_to_receive_pass",
+                    target=ball.last_kick_recipient or "unknown",
+                )
                 return
 
             if self._pursue_loose_ball(player, ball, all_players, speed_attr):
+                self._log_decision(
+                    player,
+                    "pursue_loose_ball",
+                    ball_speed=f"{ball.velocity.magnitude():.2f}mps",
+                )
                 return
 
             # If forward has the ball, look to score or pass
-            if self.has_ball_possession(player, ball):
+            if player_has_ball:
+                self._log_decision(player, "attack_with_ball_entry")
                 self._attack_with_ball(
                     player,
                     ball,
@@ -95,17 +119,20 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 return
 
             # Check if team has possession
-            if self._team_has_possession(player, ball, all_players):
+            if team_controls:
                 # Make attacking run
+                self._log_decision(player, "make_attacking_run")
                 self._make_attacking_run(player, ball, all_players, speed_attr, positioning_attr, dt)
                 return
 
             # Press defenders when out of possession
             if self._should_press_defender(player, ball, all_players):
+                self._log_decision(player, "press_defender")
                 self._press_defender(player, ball, all_players, speed_attr, dt)
                 return
 
             # Hold position and wait for opportunity
+            self._log_decision(player, "hold_position")
             self._hold_position(player, ball, positioning_attr, dt)
         finally:
             self._current_all_players = None
@@ -113,7 +140,22 @@ class ForwardBaseBehaviour(RoleBehaviour):
     def _team_has_possession(
         self, player: "PlayerMatchState", ball: "BallState", all_players: List["PlayerMatchState"]
     ) -> bool:
-        """Check if team has possession of ball."""
+        """Determine whether the attacking team currently controls the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward whose team context is being inspected.
+        ball : BallState
+            Live ball state for the current frame.
+        all_players : List[PlayerMatchState]
+            Snapshot of every player on the pitch used to locate ball carriers.
+
+        Returns
+        -------
+        bool
+            ``True`` if any teammate (including ``player``) is flagged as possessing the ball.
+        """
         teammates = self.get_teammates(player, all_players) + [player]
 
         for teammate in teammates:
@@ -132,15 +174,46 @@ class ForwardBaseBehaviour(RoleBehaviour):
         vision_attr: int,
         current_time: float,
     ) -> None:
-        """Decide action when forward has the ball in attacking position."""
+        """Resolve the forward's decision tree when they control the ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward currently in possession.
+        ball : BallState
+            Shared ball state containing last touch metadata.
+        all_players : List[PlayerMatchState]
+            All participants on the pitch for spatial queries.
+        shooting_attr : int
+            Shooter rating guiding whether finishing attempts are viable.
+        dribbling_attr : int
+            Dribbling attribute controlling carry speed and press resistance.
+        passing_attr : int
+            Passing quality used when executing passes.
+        vision_attr : int
+            Vision rating that unlocks progressive or pressure-release passes.
+        current_time : float
+            Simulation timestamp used for kick timing.
+        """
         goal_pos = self.get_goal_position(player)
         distance_to_goal = player.state.position.distance_to(goal_pos)
 
         opponents = self.get_opponents(player, all_players)
         fwd_cfg = ENGINE_CONFIG.role.forward
+        under_pressure = self._is_under_pressure(player, opponents)
+        hold_remaining = max(0.0, player.tempo_hold_until - player.match_time)
+        self._log_decision(
+            player,
+            "attack_with_ball_state",
+            dist_goal=f"{distance_to_goal:.1f}m",
+            pressure=under_pressure,
+            hold_remaining=f"{hold_remaining:.2f}s",
+        )
 
         # Prioritize shooting if in good position
         if distance_to_goal < fwd_cfg.shoot_distance_threshold and self.should_shoot(player, ball, shooting_attr):
+            self._log_decision(player, "shoot_attempt", dist_goal=f"{distance_to_goal:.1f}m")
+            self._reset_space_move(player)
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
 
@@ -153,21 +226,117 @@ class ForwardBaseBehaviour(RoleBehaviour):
             passing_attr,
         )
 
+        progress_gain = 0.0
         if best_target:
-            teammate_distance = best_target.state.position.distance_to(goal_pos)
-            progressive = teammate_distance < distance_to_goal
+            progress_gain = distance_to_goal - best_target.state.position.distance_to(goal_pos)
 
-            if progressive or vision_attr >= fwd_cfg.vision_progressive_threshold:
-                self.execute_pass(player, best_target, ball, passing_attr, current_time)
+        if best_target:
+            self._log_decision(
+                player,
+                "pass_option",
+                target=best_target.player_id,
+                progress=f"{progress_gain:.1f}m",
+                under_pressure=under_pressure,
+            )
+
+        pass_viable = bool(
+            best_target
+            and (
+                progress_gain >= fwd_cfg.pass_progress_break_threshold
+                or (
+                    under_pressure
+                    and vision_attr >= fwd_cfg.vision_pressure_release_threshold
+                )
+            )
+        )
+
+        if player.tempo_hold_until > player.match_time:
+            if pass_viable:
+                player.tempo_hold_until = 0.0
+            else:
+                self._log_decision(player, "shield_wait", reason="tempo_hold_active")
+                self._reset_space_move(player)
+                self._shield_ball(player, ball, reason="tempo_hold_active")
                 return
 
-            if self._is_under_pressure(player, opponents) and vision_attr >= fwd_cfg.vision_pressure_release_threshold:
-                self.execute_pass(player, best_target, ball, passing_attr, current_time)
+        if pass_viable and best_target:
+            self._log_decision(
+                player,
+                "execute_pass",
+                target=best_target.player_id,
+                progress=f"{progress_gain:.1f}m",
+            )
+            self._reset_space_move(player)
+            self.execute_pass(player, best_target, ball, passing_attr, current_time)
+            return
+
+        lane_blocked = self._forward_lane_blocked(
+            player,
+            opponents,
+            max_distance=fwd_cfg.hold_lane_block_distance,
+            half_width=fwd_cfg.hold_lane_block_width,
+            min_blockers=fwd_cfg.hold_blocker_count,
+        )
+
+        if not lane_blocked:
+            self._log_decision(player, "dribble_lane_clear")
+            self._reset_space_move(player)
+            self._dribble_at_goal(
+                player,
+                ball,
+                dribbling_attr,
+                passing_attr,
+                vision_attr,
+                all_players,
+                opponents,
+                current_time,
+            )
+            return
+
+        if under_pressure:
+            relief_target = self._find_relief_pass(
+                player,
+                ball,
+                all_players,
+                opponents,
+                vision_attr,
+            )
+
+            if relief_target:
+                self._log_decision(player, "relief_pass", target=relief_target.player_id)
+                self._reset_space_move(player)
+                self.execute_pass(player, relief_target, ball, passing_attr, current_time)
                 return
+
+            if self._attempt_backpass(player, ball, all_players, opponents, passing_attr, current_time):
+                self._reset_space_move(player)
+                return
+
+            self._dribble_at_goal(
+                player,
+                ball,
+                dribbling_attr,
+                passing_attr,
+                vision_attr,
+                all_players,
+                opponents,
+                current_time,
+            )
+            return
+
+        if self._move_to_support_space(player, ball, opponents, fwd_cfg):
+            return
+
+        if self._begin_hold_window(player, ball, fwd_cfg):
+            return
+
+        if self._attempt_backpass(player, ball, all_players, opponents, passing_attr, current_time):
+            self._reset_space_move(player)
+            return
 
         # Try to recycle possession if being swarmed
         relief_target = None
-        if self._is_under_pressure(player, opponents):
+        if under_pressure:
             relief_target = self._find_relief_pass(
                 player,
                 ball,
@@ -177,10 +346,13 @@ class ForwardBaseBehaviour(RoleBehaviour):
             )
 
         if relief_target:
+            self._log_decision(player, "relief_pass", target=relief_target.player_id)
+            self._reset_space_move(player)
             self.execute_pass(player, relief_target, ball, passing_attr, current_time)
             return
 
         # Dribble towards goal
+        self._log_decision(player, "dribble_default", lane_blocked=lane_blocked)
         self._dribble_at_goal(
             player,
             ball,
@@ -203,9 +375,30 @@ class ForwardBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         current_time: float,
     ) -> None:
-        """Dribble towards goal."""
+        """Carry the ball toward goal or recycle if pressure is overwhelming.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball-carrying forward.
+        ball : BallState
+            Shared ball state to update while dribbling.
+        dribbling_attr : int
+            Attribute influencing dribble velocity and pressure escapes.
+        passing_attr : int
+            Passing rating applied if the dribble is aborted.
+        vision_attr : int
+            Vision level used when searching for relief passes.
+        all_players : List[PlayerMatchState]
+            Full player set used for teammate/opponent lookups.
+        opponents : List[PlayerMatchState]
+            Opposing players applying pressure.
+        current_time : float
+            Simulation timestamp for pass execution.
+        """
         from touchline.engine.physics import Vector2D
 
+        self._reset_space_move(player)
         goal_pos = self.get_goal_position(player)
         fwd_cfg = ENGINE_CONFIG.role.forward
 
@@ -222,6 +415,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
             )
 
             if relief_target:
+                self._log_decision(player, "relief_pass", target=relief_target.player_id, context="dribble_pressure")
                 self.execute_pass(player, relief_target, ball, passing_attr, current_time)
                 return
 
@@ -233,6 +427,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 + (dribbling_attr / 100) * fwd_cfg.dribble_pressure_attr_scale
             )
             player.state.velocity = space_direction.normalize() * dribble_speed
+            self._log_decision(player, "dribble_escape", speed=f"{dribble_speed:.2f}")
         else:
             # Dribble directly at goal
             direction = (goal_pos - player.state.position).normalize()
@@ -241,6 +436,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 + (dribbling_attr / 100) * fwd_cfg.dribble_speed_attr_scale
             )
             player.state.velocity = direction * dribble_speed
+            self._log_decision(player, "dribble_goal", speed=f"{dribble_speed:.2f}")
 
         # Keep the ball just ahead of the dribbler so opponents can challenge.
         control_offset = fwd_cfg.dribble_control_offset
@@ -260,7 +456,20 @@ class ForwardBaseBehaviour(RoleBehaviour):
     def _find_escape_direction(
         self, player: "PlayerMatchState", opponents: List["PlayerMatchState"]
     ) -> "Vector2D":
-        """Find direction with least pressure."""
+        """Sample headings to find the path with the lowest opponent pressure.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward attempting to break pressure.
+        opponents : List[PlayerMatchState]
+            Nearby defenders considered when measuring congestion.
+
+        Returns
+        -------
+        Vector2D
+            Unit vector pointing toward the most open space.
+        """
         import math
 
         from touchline.engine.physics import Vector2D
@@ -289,6 +498,259 @@ class ForwardBaseBehaviour(RoleBehaviour):
 
         return best_direction
 
+    def _move_to_support_space(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        opponents: List["PlayerMatchState"],
+        fwd_cfg: "ForwardConfig",
+    ) -> bool:
+        """Drift laterally to manufacture a passing angle before holding.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward currently in possession of the ball.
+        ball : BallState
+            Shared ball state kept under control during the probe.
+        opponents : List[PlayerMatchState]
+            Nearby defenders whose pressure cancels the probe.
+        fwd_cfg : ForwardConfig
+            Configuration values for lateral space moves.
+
+        Returns
+        -------
+        bool
+            ``True`` when the player moves laterally this frame; otherwise ``False``.
+        """
+        from touchline.engine.physics import Vector2D
+
+        if self._is_under_pressure(player, opponents, radius=fwd_cfg.hold_pressure_release_radius):
+            self._reset_space_move(player)
+            return False
+
+        if player.space_move_heading and player.space_move_until <= player.match_time:
+            # Probe finished; fall back to hold logic rather than re-triggering immediately.
+            self._reset_space_move(player)
+            return False
+
+        if not player.space_move_heading:
+            goal_pos = self.get_goal_position(player)
+            forward = goal_pos - player.state.position
+            if forward.magnitude() <= 1e-5:
+                return False
+
+            lateral = Vector2D(-forward.y, forward.x)
+            if lateral.magnitude() <= 1e-5:
+                return False
+
+            direction = lateral.normalize()
+            side = 1 if random.random() < 0.5 else -1
+            player.space_move_heading = direction * side
+            player.space_move_until = player.match_time + fwd_cfg.space_move_duration
+            lane = "right" if side > 0 else "left"
+            self._log_decision(
+                player,
+                "probe_space_move",
+                side=lane,
+                duration=f"{fwd_cfg.space_move_duration:.2f}s",
+            )
+
+        if not player.space_move_heading:
+            return False
+
+        player.state.velocity = player.space_move_heading.normalize() * fwd_cfg.space_move_speed
+        ball.position = player.state.position
+        ball.velocity = Vector2D(0, 0)
+        return True
+
+
+    def _begin_hold_window(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        fwd_cfg: "ForwardConfig",
+    ) -> bool:
+        """Initiate a temporary hold period so runners can advance.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Ball carrier initiating the hold.
+        ball : BallState
+            Ball instance that should be pinned to the player's feet.
+        fwd_cfg : ForwardConfig
+            Forward configuration supplying hold timing values.
+
+        Returns
+        -------
+        bool
+            Always ``True`` once the hold window is started to signal the caller to exit.
+        """
+        started_hold = False
+        if player.tempo_hold_until > player.match_time:
+            hold_duration = max(0.0, player.tempo_hold_until - player.match_time)
+        else:
+            if player.match_time < player.tempo_hold_cooldown_until:
+                return False
+
+            hold_duration = random.uniform(fwd_cfg.hold_min_duration, fwd_cfg.hold_max_duration)
+            player.tempo_hold_until = player.match_time + hold_duration
+            player.tempo_hold_cooldown_until = player.tempo_hold_until + fwd_cfg.hold_retry_cooldown
+            started_hold = True
+
+        self._reset_space_move(player)
+        self._shield_ball(player, ball, reason="hold_window")
+        remaining = max(0.0, player.tempo_hold_until - player.match_time)
+        if started_hold:
+            self._log_decision(player, "hold_window_start", duration=f"{hold_duration:.2f}s")
+        else:
+            self._log_decision(player, "hold_window_active", remaining=f"{remaining:.2f}s")
+        return True
+
+    def _attempt_backpass(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+        passing_attr: int,
+        current_time: float,
+    ) -> bool:
+        """Play a recycling pass to a deeper teammate when possible.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward relinquishing the ball.
+        ball : BallState
+            Ball to kick toward the recycling target.
+        all_players : List[PlayerMatchState]
+            Squad list used to locate qualifying teammates.
+        opponents : List[PlayerMatchState]
+            Defenders used when scoring passing lanes.
+        passing_attr : int
+            Passing quality that influences pass execution.
+        current_time : float
+            Simulation timestamp for the pass animation.
+
+        Returns
+        -------
+        bool
+            ``True`` if a back-pass was executed, otherwise ``False`` to continue evaluation.
+        """
+        target = self._select_backpass_target(player, all_players, opponents)
+        if not target:
+            self._log_decision(player, "backpass_unavailable")
+            return False
+
+        self._log_decision(player, "backpass_execute", target=target.player_id)
+        self.execute_pass(player, target, ball, passing_attr, current_time)
+        return True
+
+    def _select_backpass_target(
+        self,
+        player: "PlayerMatchState",
+        all_players: List["PlayerMatchState"],
+        opponents: List["PlayerMatchState"],
+    ) -> "PlayerMatchState" | None:
+        """Score defenders and midfielders to identify the safest recycling target.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward under pressure.
+        all_players : List[PlayerMatchState]
+            All active players used to filter teammates.
+        opponents : List[PlayerMatchState]
+            Opposing players affecting lane and space scores.
+
+        Returns
+        -------
+        PlayerMatchState | None
+            Best back-pass recipient or ``None`` when no safe outlet exists.
+        """
+        teammates = self.get_teammates(player, all_players)
+        fwd_cfg = ENGINE_CONFIG.role.forward
+
+        if not teammates:
+            return None
+
+        from touchline.engine.physics import Vector2D
+
+        own_goal = self.get_own_goal_position(player)
+        back_direction = (own_goal - player.state.position).normalize()
+        lateral_axis = Vector2D(-back_direction.y, back_direction.x)
+
+        best_target: Optional["PlayerMatchState"] = None
+        best_score = 0.0
+
+        trace_enabled = self._player_debugger(player) is not None
+        trace_candidates: list[tuple[int, float, float, float]] = []
+
+        for teammate in teammates:
+            if teammate.player_role not in fwd_cfg.backpass_roles:
+                continue
+
+            offset = teammate.state.position - player.state.position
+            backward_distance = offset.x * back_direction.x + offset.y * back_direction.y
+            if backward_distance < fwd_cfg.backpass_min_offset or backward_distance > fwd_cfg.backpass_max_distance:
+                continue
+
+            lateral = abs(offset.x * lateral_axis.x + offset.y * lateral_axis.y)
+            if lateral > fwd_cfg.hold_lane_block_width * 1.5:
+                continue
+
+            lane_quality = self.calculate_pass_lane_quality(player, teammate, opponents)
+            nearest_opponent = min(
+                (opp.state.position.distance_to(teammate.state.position) for opp in opponents),
+                default=fwd_cfg.backpass_space_divisor,
+            )
+            space_score = min(nearest_opponent / fwd_cfg.backpass_space_divisor, 1.0)
+
+            distance = player.state.position.distance_to(teammate.state.position)
+            distance_score = 1 - min(distance / fwd_cfg.backpass_max_distance, 1.0)
+
+            total_score = (
+                lane_quality * fwd_cfg.backpass_lane_weight
+                + space_score * fwd_cfg.backpass_space_weight
+                + distance_score * fwd_cfg.backpass_distance_weight
+            )
+
+            if total_score > best_score:
+                best_score = total_score
+                best_target = teammate
+
+            if trace_enabled:
+                trace_candidates.append((teammate.player_id, total_score, lane_quality, space_score))
+
+        if best_score < fwd_cfg.backpass_score_threshold:
+            if trace_enabled and trace_candidates:
+                preview = ", ".join(
+                    f"#{pid} s={score:.2f} lane={lane:.2f} space={space:.2f}"
+                    for pid, score, lane, space in sorted(trace_candidates, key=lambda item: item[1], reverse=True)[:3]
+                )
+                self._log_player_event(
+                    player,
+                    "decision",
+                    f"backpass_candidates best=none score={best_score:.2f} opts=[{preview}]",
+                )
+            return None
+
+        if trace_enabled and trace_candidates:
+            preview = ", ".join(
+                f"#{pid} s={score:.2f} lane={lane:.2f} space={space:.2f}"
+                for pid, score, lane, space in sorted(trace_candidates, key=lambda item: item[1], reverse=True)[:3]
+            )
+            best_label = f"#{best_target.player_id}" if best_target else "none"
+            self._log_player_event(
+                player,
+                "decision",
+                f"backpass_candidates best={best_label} score={best_score:.2f} opts=[{preview}]",
+            )
+
+        return best_target
+
     def _make_attacking_run(
         self,
         player: "PlayerMatchState",
@@ -298,7 +760,23 @@ class ForwardBaseBehaviour(RoleBehaviour):
         positioning_attr: int,
         dt: float,
     ) -> None:
-        """Make an attacking run to receive the ball."""
+        """Guide the forward's movement while teammates build play.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward making the run.
+        ball : BallState
+            Current ball state to assess teammates in possession.
+        all_players : List[PlayerMatchState]
+            All player states for spacing and support logic.
+        speed_attr : int
+            Speed attribute controlling run pace.
+        positioning_attr : int
+            Positioning rating used when choosing run targets.
+        dt : float
+            Frame delta time for motion integration.
+        """
         goal_pos = self.get_goal_position(player)
         opponents = self.get_opponents(player, all_players)
         fwd_cfg = ENGINE_CONFIG.role.forward
@@ -314,17 +792,32 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 ball_carrier = teammate
                 break
 
-        # Sprint if ball carrier is looking to pass
-        sprint = (
-            ball_carrier
-            and ball_carrier.state.position.distance_to(player.state.position)
-            < fwd_cfg.run_ballcarrier_distance
-        )
+        upcoming_recipient: Optional["PlayerMatchState"] = None
+        if ball.last_kick_recipient is not None:
+            upcoming_recipient = next(
+                (p for p in all_players if p.player_id == ball.last_kick_recipient),
+                None,
+            )
+
+        # Encourage earlier commitment if the ball is already on its way
+        sprint = False
+        if ball_carrier:
+            distance_to_carrier = ball_carrier.state.position.distance_to(player.state.position)
+            if distance_to_carrier < fwd_cfg.run_ballcarrier_distance:
+                sprint = True
+
+        if upcoming_recipient and upcoming_recipient.team == player.team:
+            if upcoming_recipient.player_id == player.player_id:
+                sprint = True
+            else:
+                distance_to_recipient = upcoming_recipient.state.position.distance_to(player.state.position)
+                if distance_to_recipient < fwd_cfg.run_ballcarrier_distance * 0.8:
+                    sprint = True
 
         # Adjust run target based on forward type
         run_target = self._adjust_attacking_run(player, run_target, ball, goal_pos)
 
-        intent = "press" if sprint else "support"
+        intent = "press" if sprint and ball_carrier else "support"
         self.move_to_position(
             player,
             run_target,
@@ -343,7 +836,26 @@ class ForwardBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         positioning_attr: int,
     ) -> "Vector2D":
-        """Find space in attacking third."""
+        """Select a run destination that exploits gaps near the goal.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward making the supporting run.
+        ball : BallState
+            Ball state used to bias runs relative to possession.
+        goal_pos : Vector2D
+            Coordinates of the opponent goal mouth.
+        opponents : List[PlayerMatchState]
+            Defenders whose spacing determines viable channels.
+        positioning_attr : int
+            Positioning attribute influencing how aggressively to attack gaps.
+
+        Returns
+        -------
+        Vector2D
+            Target location for the player's next movement command.
+        """
         from touchline.engine.physics import Vector2D
 
         # Look for space between defenders and goal
@@ -376,13 +888,45 @@ class ForwardBaseBehaviour(RoleBehaviour):
     def _adjust_attacking_run(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState", goal_pos: "Vector2D"
     ) -> "Vector2D":
-        """Adjust attacking run based on forward type (overridden by subclasses)."""
+        """Tweak the baseline run target based on the forward's archetype.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward whose stylistic adjustments are being applied.
+        position : Vector2D
+            Initial run destination before the adjustment.
+        ball : BallState
+            Ball context that can influence lateral bias.
+        goal_pos : Vector2D
+            Opponent goal location used for centering logic.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted run destination; subclasses override to customize behaviour.
+        """
         return position
 
     def _should_press_defender(
         self, player: "PlayerMatchState", ball: "BallState", all_players: List["PlayerMatchState"]
     ) -> bool:
-        """Decide if should press defender with ball."""
+        """Check if the forward should trigger a press on a defender in possession.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward considering a press.
+        ball : BallState
+            Ball state used to see which opponent controls it.
+        all_players : List[PlayerMatchState]
+            All players used to locate defenders.
+
+        Returns
+        -------
+        bool
+            ``True`` when a nearby defender has the ball within the pressing radius.
+        """
         opponents = self.get_opponents(player, all_players)
         fwd_cfg = ENGINE_CONFIG.role.forward
 
@@ -402,7 +946,21 @@ class ForwardBaseBehaviour(RoleBehaviour):
         speed_attr: int,
         dt: float,
     ) -> None:
-        """Press defender with the ball."""
+        """Move toward the defender in possession to apply pressure.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward executing the press.
+        ball : BallState
+            Ball state used to locate the current carrier.
+        all_players : List[PlayerMatchState]
+            List of players to identify the pressing target.
+        speed_attr : int
+            Speed rating used to determine closing velocity.
+        dt : float
+            Frame delta time for the chase movement.
+        """
         opponents = self.get_opponents(player, all_players)
 
         for opp in opponents:
@@ -418,7 +976,19 @@ class ForwardBaseBehaviour(RoleBehaviour):
         positioning_attr: int,
         dt: float,
     ) -> None:
-        """Hold attacking position."""
+        """Maintain attacking shape when no immediate action is required.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward being repositioned.
+        ball : BallState
+            Ball reference for relative positioning.
+        positioning_attr : int
+            Attribute influencing how aggressively to adjust toward ideal lanes.
+        dt : float
+            Frame delta time for smoothing player motion.
+        """
         goal_pos = self.get_goal_position(player)
 
         # Stay high up the pitch
@@ -441,7 +1011,22 @@ class ForwardBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         radius: Optional[float] = None,
     ) -> bool:
-        """Detect if any opponent is within pressing distance."""
+        """Determine whether opponents are within a configurable pressure radius.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward being evaluated.
+        opponents : List[PlayerMatchState]
+            Opposing players to measure distances against.
+        radius : Optional[float]
+            Optional override for the pressure radius measured in metres.
+
+        Returns
+        -------
+        bool
+            ``True`` when at least one opponent is inside the radius.
+        """
         fwd_cfg = ENGINE_CONFIG.role.forward
         radius = fwd_cfg.pressure_radius if radius is None else radius
         return any(opp.state.position.distance_to(player.state.position) < radius for opp in opponents)
@@ -454,7 +1039,26 @@ class ForwardBaseBehaviour(RoleBehaviour):
         opponents: List["PlayerMatchState"],
         vision_attr: int,
     ) -> "PlayerMatchState" | None:
-        """Find a nearby teammate with space to recycle possession."""
+        """Identify a teammate who can relieve pressure when the forward is trapped.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Forward under pressure searching for help.
+        ball : BallState
+            Ball state to read recent recipients and context.
+        all_players : List[PlayerMatchState]
+            All player states used to evaluate candidates.
+        opponents : List[PlayerMatchState]
+            Defenders whose spacing informs lane safety.
+        vision_attr : int
+            Vision rating scaling the pass scoring weights.
+
+        Returns
+        -------
+        PlayerMatchState | None
+            Relief target if one exceeds the configured score threshold.
+        """
         teammates = self.get_teammates(player, all_players)
 
         if not teammates:
@@ -464,6 +1068,9 @@ class ForwardBaseBehaviour(RoleBehaviour):
         best_score = 0.0
         goal_pos = self.get_goal_position(player)
         fwd_cfg = ENGINE_CONFIG.role.forward
+
+        trace_enabled = self._player_debugger(player) is not None
+        candidate_records: list[tuple[int, float, float, float]] = []
 
         for teammate in teammates:
             distance = player.state.position.distance_to(teammate.state.position)
@@ -504,7 +1111,34 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 best_score = total_score
                 best_target = teammate
 
-        return best_target if best_score > fwd_cfg.relief_score_threshold else None
+            if trace_enabled:
+                candidate_records.append(
+                    (
+                        teammate.player_id,
+                        total_score,
+                        lane_quality,
+                        space_score,
+                    )
+                )
+
+        passes_threshold = best_score > fwd_cfg.relief_score_threshold
+
+        if trace_enabled and candidate_records:
+            preview = ", ".join(
+                f"#{pid} s={score:.2f} lane={lane:.2f} space={space:.2f}"
+                for pid, score, lane, space in sorted(candidate_records, key=lambda item: item[1], reverse=True)[:3]
+            )
+            best_label = f"#{best_target.player_id}" if best_target else "none"
+            self._log_player_event(
+                player,
+                "decision",
+                (
+                    f"relief_candidates best={best_label} score={best_score:.2f} "
+                    f"thresh={fwd_cfg.relief_score_threshold:.2f} opts=[{preview}]"
+                ),
+            )
+
+        return best_target if passes_threshold else None
 
 
 class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
@@ -517,7 +1151,24 @@ class CentreForwardRoleBehaviour(ForwardBaseBehaviour):
     def _adjust_attacking_run(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState", goal_pos: "Vector2D"
     ) -> "Vector2D":
-        """Stay central, make runs through the middle."""
+        """Keep central forwards narrow to threaten the middle channel.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Central forward executing the run.
+        position : Vector2D
+            Baseline run target before stylistic tweaks.
+        ball : BallState
+            Ball location influencing lateral drift.
+        goal_pos : Vector2D
+            Opponent goal position for reference.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted run destination constrained near the centre.
+        """
         from touchline.engine.physics import Vector2D
 
         # Stay in central channel
@@ -538,7 +1189,24 @@ class LeftCentreForwardRoleBehaviour(ForwardBaseBehaviour):
     def _adjust_attacking_run(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState", goal_pos: "Vector2D"
     ) -> "Vector2D":
-        """Make diagonal runs from left."""
+        """Encourage diagonal runs that originate from the left touchline.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Left-sided forward.
+        position : Vector2D
+            Proposed run destination before adjustment.
+        ball : BallState
+            Ball position impacting whether to stay wide or cut inside.
+        goal_pos : Vector2D
+            Goal location to bias diagonal cuts.
+
+        Returns
+        -------
+        Vector2D
+            Updated run point tailored for a left winger archetype.
+        """
         from touchline.engine.physics import Vector2D
 
         # Prefer left side or diagonal runs towards center
@@ -564,7 +1232,24 @@ class RightCentreForwardRoleBehaviour(ForwardBaseBehaviour):
     def _adjust_attacking_run(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState", goal_pos: "Vector2D"
     ) -> "Vector2D":
-        """Make diagonal runs from right."""
+        """Steer runs for right-sided forwards to balance width and cut-ins.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Right-sided forward.
+        position : Vector2D
+            Initial run target before stylistic tweaks.
+        ball : BallState
+            Ball location guiding whether to hug the touchline.
+        goal_pos : Vector2D
+            Goal coordinates for determining when to cut inside.
+
+        Returns
+        -------
+        Vector2D
+            Adjusted run destination suited for right-flank behaviour.
+        """
         from touchline.engine.physics import Vector2D
 
         # Prefer right side or diagonal runs towards center

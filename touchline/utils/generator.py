@@ -165,7 +165,15 @@ def generate_team(
 
 
 def _assign_start_positions(players: List[Player], side: str) -> None:
-    """Populate ``start_position`` for the first eleven players in-place."""
+    """Populate ``start_position`` for the first eleven players in-place.
+
+    Parameters
+    ----------
+    players : List[Player]
+        Roster whose leading eleven entries should receive starting coordinates.
+    side : str
+        ``"home"`` or ``"away"``; home teams start on the negative X half, away teams on the positive half.
+    """
     if side not in {"home", "away"}:
         raise ValueError("side must be either 'home' or 'away'")
 
@@ -181,7 +189,20 @@ def _assign_start_positions(players: List[Player], side: str) -> None:
 
 
 def _formation_slot_offset(role: str, index: int) -> Tuple[float, float]:
-    """Return the default formation slot coordinates for ``role``."""
+    """Return the default formation slot coordinates for ``role``.
+
+    Parameters
+    ----------
+    role : str
+        Role identifier such as ``"CM"`` or ``"RCF"``.
+    index : int
+        Zero-based slot index among teammates sharing the same role.
+
+    Returns
+    -------
+    Tuple[float, float]
+        ``(x, y)`` coordinates relative to the pitch centre.
+    """
     cfg = ENGINE_CONFIG.formation
     role = role.upper()
 
