@@ -125,6 +125,14 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 self._make_attacking_run(player, ball, all_players, speed_attr, positioning_attr, dt)
                 return
 
+            # Attempt interception if ball is loose and moving
+            loose_ball = not any(
+                self.has_ball_possession(p, ball) for p in all_players
+            )
+            if loose_ball and ball.velocity.magnitude() > 2.0:
+                if self.attempt_interception(player, ball, all_players, speed_attr, dt):
+                    return
+
             # Press defenders when out of possession
             if self._should_press_defender(player, ball, all_players):
                 self._log_decision(player, "press_defender")
@@ -133,7 +141,7 @@ class ForwardBaseBehaviour(RoleBehaviour):
 
             # Hold position and wait for opportunity
             self._log_decision(player, "hold_position")
-            self._hold_position(player, ball, positioning_attr, dt)
+            self._hold_position(player, all_players, positioning_attr, speed_attr, dt)
         finally:
             self._current_all_players = None
 
@@ -914,6 +922,25 @@ class ForwardBaseBehaviour(RoleBehaviour):
         else:
             target_x = max(target_x, deepest_defender_x + onside_margin)
 
+        # Clamp to pitch boundaries to prevent running off the pitch
+        pitch_cfg = ENGINE_CONFIG.pitch
+        max_x = pitch_cfg.width / 2 - 2.0  # 2m margin from edge
+        max_y = pitch_cfg.height / 2 - 2.0
+        
+        # Log if clamping is needed
+        unclamped_x = target_x
+        target_x = max(-max_x, min(max_x, target_x))
+        target_y = max(-max_y, min(max_y, target_y))
+        
+        if abs(unclamped_x - target_x) > 0.1:
+            self._log_decision(
+                player,
+                "clamp_run_target",
+                unclamped=f"{unclamped_x:.1f}",
+                clamped=f"{target_x:.1f}",
+                max_x=f"{max_x:.1f}"
+            )
+
         return Vector2D(target_x, target_y)
 
     def _adjust_attacking_run(
@@ -1000,11 +1027,35 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 self.move_to_position(player, opp.state.position, speed_attr, dt, ball, sprint=True, intent="press")
                 break
 
+    def _add_position_variation(
+        self, position: "Vector2D", magnitude: float = 0.5
+    ) -> "Vector2D":
+        """Add small random offset to avoid perfectly symmetrical positioning.
+
+        Parameters
+        ----------
+        position : Vector2D
+            Base target position.
+        magnitude : float, default=0.5
+            Maximum offset in metres.
+
+        Returns
+        -------
+        Vector2D
+            Position with random offset applied.
+        """
+        from touchline.engine.physics import Vector2D
+        
+        offset_x = random.uniform(-magnitude, magnitude)
+        offset_y = random.uniform(-magnitude, magnitude)
+        return Vector2D(position.x + offset_x, position.y + offset_y)
+
     def _hold_position(
         self,
         player: "PlayerMatchState",
-        ball: "BallState",
+        all_players: List["PlayerMatchState"],
         positioning_attr: int,
+        speed_attr: int,
         dt: float,
     ) -> None:
         """Maintain attacking shape when no immediate action is required.
@@ -1013,26 +1064,22 @@ class ForwardBaseBehaviour(RoleBehaviour):
         ----------
         player : PlayerMatchState
             Forward being repositioned.
-        ball : BallState
-            Ball reference for relative positioning.
+        all_players : List[PlayerMatchState]
+            All players for context.
         positioning_attr : int
             Attribute influencing how aggressively to adjust toward ideal lanes.
+        speed_attr : int
+            Speed attribute for movement.
         dt : float
             Frame delta time for smoothing player motion.
         """
-        goal_pos = self.get_goal_position(player)
+        from touchline.engine.physics import BallState
+        
+        # Get ball from match state (use dummy ball for movement)
+        ball = BallState(player.state.position, player.state.velocity)
 
-        # Stay high up the pitch
-        hold_position = player.role_position
-        fwd_cfg = ENGINE_CONFIG.role.forward
-
-        # Adjust based on ball position but don't drop too deep
-        if abs(ball.position.x - goal_pos.x) > abs(hold_position.x - goal_pos.x):
-            # Ball is behind, can drop slightly
-            offset = ball.position - hold_position
-            if offset.magnitude() > 1e-3:
-                adjustment = offset.normalize() * fwd_cfg.hold_position_adjustment
-                hold_position = hold_position + adjustment
+        # Stay high up the pitch with variation to prevent symmetry
+        hold_position = self._add_position_variation(player.role_position, magnitude=0.8)
 
         self.move_to_position(player, hold_position, positioning_attr, dt, ball, sprint=False, intent="shape")
 

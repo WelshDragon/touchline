@@ -431,6 +431,11 @@ class GoalkeeperRoleBehaviour(RoleBehaviour):
         """
         passing_attr = player_model.attributes.passing
         vision_attr = player_model.attributes.vision
+        speed_attr = player_model.attributes.speed
+
+        # Move closer to ball if needed before attempting pass
+        if self._move_closer_to_ball(player, ball, speed_attr):
+            return
 
         # Find best target
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)

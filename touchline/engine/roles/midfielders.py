@@ -98,13 +98,19 @@ class MidfielderBaseBehaviour(RoleBehaviour):
                 )
                 return
 
+            # Attempt interception if ball is loose and moving
+            loose_ball = not any(
+                self.has_ball_possession(p, ball) for p in all_players
+            )
+            if loose_ball and ball.velocity.magnitude() > 2.0:
+                if self.attempt_interception(player, ball, all_players, speed_attr, dt):
+                    return
+
             # Press opponent if they have ball
             if self.should_press(
-                player,
-                ball,
-                all_players,
-                stamina_threshold=mid_cfg.press_stamina_threshold,
+                player, ball, all_players, stamina_threshold=mid_cfg.press_stamina_threshold
             ):
+                self._log_decision(player, "press_opponent")
                 self._press_opponent(player, ball, opponents, speed_attr, tackling_attr, dt)
                 return
 

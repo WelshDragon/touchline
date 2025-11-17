@@ -403,8 +403,6 @@ class RoleBehaviour:
             return False
 
         # Player is too far from the ball, move closer
-        from touchline.engine.physics import Vector2D
-
         direction = (ball.position - player.state.position).normalize()
         
         # Calculate movement speed based on player attributes
@@ -751,6 +749,62 @@ class RoleBehaviour:
                     quality *= perp_distance / pass_cfg.lane_block_distance
 
         return quality
+
+    def attempt_interception(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+        speed_attr: int,
+        dt: float,
+    ) -> bool:
+        """Attempt to intercept a moving ball.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player attempting interception.
+        ball : BallState
+            Current ball state with velocity.
+        all_players : List[PlayerMatchState]
+            All players to check possession.
+        speed_attr : int
+            Player's speed attribute.
+        dt : float
+            Frame timestep.
+
+        Returns
+        -------
+        bool
+            ``True`` if interception was attempted.
+        """
+        # Only intercept if ball is moving and not possessed
+        ball_possessed = any(self.has_ball_possession(p, ball) for p in all_players)
+        if ball.velocity.magnitude() < 2.0 or ball_possessed:
+            return False
+
+        # Project ball position
+        intercept_pos = self._project_ball_intercept(
+            player, ball, speed_attr * 0.7, max_time=2.0
+        )
+
+        if intercept_pos is None:
+            return False
+
+        distance_to_intercept = player.state.position.distance_to(intercept_pos)
+        
+        # Only attempt if within reasonable range
+        if distance_to_intercept < 15.0:
+            self._log_decision(
+                player,
+                "attempt_intercept",
+                intercept_pos=f"({intercept_pos.x:.1f},{intercept_pos.y:.1f})",
+                distance=f"{distance_to_intercept:.1f}m"
+            )
+            self.move_to_position(player, intercept_pos, speed_attr, dt, ball, sprint=True, intent="intercept")
+            return True
+
+        return False
 
     def _project_ball_intercept(
         self,
@@ -1225,6 +1279,15 @@ class RoleBehaviour:
         if ball is not None:
             adjusted_target = self._apply_possession_support(player, adjusted_target, ball)
 
+        # Clamp to pitch boundaries (with 2m safety margin)
+        pitch_cfg = ENGINE_CONFIG.pitch
+        max_x = pitch_cfg.width / 2 - 2.0  # 50.5m
+        max_y = pitch_cfg.height / 2 - 2.0  # 32m
+        adjusted_target = Vector2D(
+            max(-max_x, min(max_x, adjusted_target.x)),
+            max(-max_y, min(max_y, adjusted_target.y))
+        )
+
         player.current_target = adjusted_target
 
         if not player.state.is_with_ball:
@@ -1607,19 +1670,55 @@ class RoleBehaviour:
         stamina_threshold = press_cfg.stamina_threshold if stamina_threshold is None else stamina_threshold
         distance_threshold = press_cfg.distance_threshold if distance_threshold is None else distance_threshold
 
+        distance = self.distance_to_ball(player, ball)
+        
+        # Check stamina
         if player.state.stamina < stamina_threshold:
+            self._log_decision(
+                player, 
+                "press_check",
+                result="no_stamina",
+                stamina=f"{player.state.stamina:.1f}",
+                threshold=f"{stamina_threshold:.1f}"
+            )
             return False
 
-        distance = self.distance_to_ball(player, ball)
+        # Check distance
+        if distance >= distance_threshold:
+            self._log_decision(
+                player,
+                "press_check",
+                result="too_far",
+                distance=f"{distance:.1f}m",
+                threshold=f"{distance_threshold:.1f}m"
+            )
+            return False
 
-        # Press if reasonably close and ball is with opponent
-        if distance < distance_threshold:
-            opponents = self.get_opponents(player, all_players)
-            for opp in opponents:
-                if self.has_ball_possession(opp, ball):
-                    return True
-
-        return False
+        # Check if opponent has ball
+        opponents = self.get_opponents(player, all_players)
+        opponent_with_ball = None
+        for opp in opponents:
+            if self.has_ball_possession(opp, ball):
+                opponent_with_ball = opp
+                break
+        
+        if opponent_with_ball:
+            self._log_decision(
+                player,
+                "press_check",
+                result="yes",
+                target=f"#{opponent_with_ball.player_id}",
+                distance=f"{distance:.1f}m"
+            )
+            return True
+        else:
+            self._log_decision(
+                player,
+                "press_check",
+                result="no_opponent_possession",
+                distance=f"{distance:.1f}m"
+            )
+            return False
 
     def find_space(
         self,

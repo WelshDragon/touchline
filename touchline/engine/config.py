@@ -723,12 +723,12 @@ class PressingConfig:
     ----------
     stamina_threshold : float, default=30.0
         Minimum stamina percentage required to initiate a press.
-    distance_threshold : float, default=15.0
+    distance_threshold : float, default=25.0
         Maximum distance to the ball-carrier for press attempts.
     """
 
     stamina_threshold: float = 30.0
-    distance_threshold: float = 15.0
+    distance_threshold: float = 25.0
 
 
 @dataclass(slots=True)
