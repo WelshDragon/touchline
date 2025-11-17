@@ -202,6 +202,10 @@ class ForwardBaseBehaviour(RoleBehaviour):
         fwd_cfg = ENGINE_CONFIG.role.forward
         under_pressure = self._is_under_pressure(player, opponents)
         hold_remaining = max(0.0, player.tempo_hold_until - player.match_time)
+        forced_release = (
+            fwd_cfg.space_move_patience_loops > 0
+            and player.space_probe_loops >= fwd_cfg.space_move_patience_loops
+        )
         self._log_decision(
             player,
             "attack_with_ball_state",
@@ -239,6 +243,14 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 under_pressure=under_pressure,
             )
 
+        hold_release_window = bool(
+            best_target
+            and player.tempo_hold_until > player.match_time
+            and fwd_cfg.hold_force_release_time > 0
+            and hold_remaining <= fwd_cfg.hold_force_release_time
+            and progress_gain >= fwd_cfg.hold_force_release_progress
+        )
+
         pass_viable = bool(
             best_target
             and (
@@ -247,15 +259,26 @@ class ForwardBaseBehaviour(RoleBehaviour):
                     under_pressure
                     and vision_attr >= fwd_cfg.vision_pressure_release_threshold
                 )
+                or forced_release
+                or hold_release_window
             )
         )
 
         if player.tempo_hold_until > player.match_time:
-            if pass_viable:
+            if forced_release or hold_release_window:
+                cancel_reason = "probe_patience" if forced_release else "hold_patience"
+                log_payload = {"reason": cancel_reason}
+                if forced_release:
+                    log_payload["loops"] = player.space_probe_loops
+                self._log_decision(player, "hold_window_cancel", **log_payload)
+                player.tempo_hold_until = 0.0
+                reset_history = forced_release
+                self._reset_space_move(player, reset_history=reset_history)
+            elif pass_viable:
                 player.tempo_hold_until = 0.0
             else:
                 self._log_decision(player, "shield_wait", reason="tempo_hold_active")
-                self._reset_space_move(player)
+                self._reset_space_move(player, reset_history=False)
                 self._shield_ball(player, ball, reason="tempo_hold_active")
                 return
 
@@ -530,8 +553,9 @@ class ForwardBaseBehaviour(RoleBehaviour):
             return False
 
         if player.space_move_heading and player.space_move_until <= player.match_time:
-            # Probe finished; fall back to hold logic rather than re-triggering immediately.
-            self._reset_space_move(player)
+            # Probe finished; track loops so patience logic can trigger forced releases.
+            player.space_probe_loops += 1
+            self._reset_space_move(player, reset_history=False)
             return False
 
         if not player.space_move_heading:

@@ -184,6 +184,10 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         opponents = self.get_opponents(player, all_players)
         mid_cfg = ENGINE_CONFIG.role.midfielder
         under_pressure = self._is_under_pressure(player, opponents)
+        forced_release = (
+            mid_cfg.space_move_patience_loops > 0
+            and player.space_probe_loops >= mid_cfg.space_move_patience_loops
+        )
 
         goal_pos = self.get_goal_position(player)
         player_distance_to_goal = player.state.position.distance_to(goal_pos)
@@ -198,15 +202,19 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             and (
                 progress_gain >= mid_cfg.pass_progress_break_threshold
                 or under_pressure
+                or forced_release
             )
         )
 
         if player.tempo_hold_until > player.match_time:
-            if pass_viable:
+            if forced_release:
+                self._log_decision(player, "hold_window_cancel", loops=player.space_probe_loops)
+                player.tempo_hold_until = 0.0
+            elif pass_viable:
                 player.tempo_hold_until = 0.0
             else:
                 self._log_decision(player, "shield_wait", reason="tempo_hold_active")
-                self._reset_space_move(player)
+                self._reset_space_move(player, reset_history=False)
                 self._shield_ball(player, ball)
                 return
 
@@ -270,21 +278,19 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             )
             return
 
-        if self._move_to_support_space(player, ball, opponents, mid_cfg):
-            return
-
-        if (
-            mid_cfg.space_move_patience_loops > 0
-            and player.space_probe_loops >= mid_cfg.space_move_patience_loops
-        ):
+        if forced_release:
             self._log_decision(
                 player,
                 "probe_breakout",
                 loops=player.space_probe_loops,
             )
             self._reset_space_move(player)
-        elif self._begin_hold_window(player, ball, mid_cfg):
-            return
+        else:
+            if self._move_to_support_space(player, ball, opponents, mid_cfg):
+                return
+
+            if self._begin_hold_window(player, ball, mid_cfg):
+                return
 
         if self._attempt_backpass(player, ball, all_players, opponents, passing_attr, current_time):
             self._reset_space_move(player)

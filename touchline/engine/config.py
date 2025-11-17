@@ -986,6 +986,7 @@ class MidfielderConfig:
     hold_retry_cooldown: float = 0.8
     space_move_duration: float = 0.9
     space_move_speed: float = 2.4
+    space_move_patience_loops: int = 2
     pass_progress_break_threshold: float = 3.0
     backpass_roles: Tuple[str, ...] = ("CD", "LD", "RD")
     backpass_min_offset: float = 6.0
@@ -1091,6 +1092,10 @@ class ForwardConfig:
         Maximum shielding time before re-evaluating options.
     hold_retry_cooldown : float, default=0.7
         Delay enforced before the same forward is allowed to start another hold.
+    hold_force_release_time : float, default=0.35
+        Remaining hold time threshold that triggers an automatic recycle when a pass is available.
+    hold_force_release_progress : float, default=1.5
+        Minimum forward progress needed to recycle early once the forced release window opens.
     space_move_duration : float, default=0.7
         Duration of lateral probes to manufacture a passing lane before shielding.
     space_move_speed : float, default=3.0
@@ -1161,6 +1166,8 @@ class ForwardConfig:
     hold_min_duration: float = 0.45
     hold_max_duration: float = 1.0
     hold_retry_cooldown: float = 0.7
+    hold_force_release_time: float = 0.2
+    hold_force_release_progress: float = 0.8
     space_move_duration: float = 0.7
     space_move_speed: float = 3.0
     space_move_patience_loops: int = 2
