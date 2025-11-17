@@ -93,11 +93,11 @@ class PossessionConfig:
         Base radius for close control.
     medium_speed_threshold : float, default=1.5
         Cutoff speed signalling medium-paced movement.
-    medium_radius : float, default=0.8
+    medium_radius : float, default=0.6
         Radius used when the ball travels at medium speed.
     slow_speed_threshold : float, default=0.3
         Threshold below which the ball is considered slow.
-    slow_radius : float, default=1.0
+    slow_radius : float, default=0.6
         Radius applied when the ball is slow moving.
     continue_control_offset : float, default=0.45
         Offset applied when continuing existing control.
@@ -122,9 +122,9 @@ class PossessionConfig:
     direction_alignment_min: float = -0.1
     base_radius: float = 0.5
     medium_speed_threshold: float = 1.5
-    medium_radius: float = 0.8
+    medium_radius: float = 0.6
     slow_speed_threshold: float = 0.3
-    slow_radius: float = 1.0
+    slow_radius: float = 0.6
     continue_control_offset: float = 0.45
     continue_velocity_blend: float = 0.8
     max_control_distance: float = 0.6
@@ -436,7 +436,7 @@ class ShootingConfig:
         Distance beyond which long-range heuristics apply.
     angle_threshold : float, default=0.3
         Minimum angle quality required for long-range shots.
-    probability_scale : float, default=0.2
+    probability_scale : float, default=0.8
         Global multiplier shaping shot likelihood.
     goal_offset_range : float, default=3.0
         Maximum lateral offset when aiming for corners.
@@ -460,7 +460,7 @@ class ShootingConfig:
     max_distance_bonus: float = 15.0
     long_range_distance: float = 20.0
     angle_threshold: float = 0.3
-    probability_scale: float = 0.2
+    probability_scale: float = 0.8
     goal_offset_range: float = 3.0  # Maximum vertical inset from the post when aiming for corners
     corner_depth_bias: float = 0.8  # How far inside the goal mouth to aim (meters)
     corner_depth_spread: float = 0.6  # Additional depth variation scaled by inaccuracy

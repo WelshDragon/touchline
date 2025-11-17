@@ -167,6 +167,8 @@ class PlayerMatchState:
         self.space_move_until: float = 0.0
         self.space_move_heading: Optional[Vector2D] = None
         self.space_probe_loops: int = 0
+        self.target_source: Optional[str] = None
+        self.last_intent_change_time: float = -10.0  # Track when intent last changed
 
     def update_ai(self, ball: BallState, dt: float, all_players: List["PlayerMatchState"]) -> None:
         """Advance the per-player AI, updating timers and delegating to the role.

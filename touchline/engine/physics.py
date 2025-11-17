@@ -294,6 +294,7 @@ class BallState:
         self.time_until_ground = 0.0
         self.just_bounced = False
         self._log_match_time = 0.0
+        self.possessing_team_side: Optional[str] = None  # "home", "away", or None
 
     # --- instrumented properties -------------------------------------------------
     @property

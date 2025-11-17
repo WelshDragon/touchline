@@ -125,7 +125,8 @@ class ForwardBaseBehaviour(RoleBehaviour):
                 self._make_attacking_run(player, ball, all_players, speed_attr, positioning_attr, dt)
                 return
 
-            # Attempt interception if ball is loose and moving
+            # Attempt interception only if opponent has ball or it's truly loose
+            # Don't intercept during own team's passes (team_controls already checked above)
             loose_ball = not any(
                 self.has_ball_possession(p, ball) for p in all_players
             )
@@ -162,22 +163,14 @@ class ForwardBaseBehaviour(RoleBehaviour):
         Returns
         -------
         bool
-            ``True`` if any teammate (including ``player``) is flagged as possessing the ball
-            or if the ball was last touched by a teammate (includes passes in flight).
+            ``True`` if player's team has possession (persists during passes).
         """
-        # Check if any teammate currently has the ball
-        teammates = self.get_teammates(player, all_players) + [player]
-
-        for teammate in teammates:
-            if self.has_ball_possession(teammate, ball):
-                return True
+        # Use the match engine's team possession state which persists during passes
+        if ball.possessing_team_side is None:
+            return False
         
-        # Also check if ball was last touched by a teammate (for passes in flight)
-        last_toucher = self._player_by_id(ball.last_touched_by)
-        if last_toucher and last_toucher.team == player.team:
-            return True
-            
-        return False
+        player_side = "home" if player.is_home_team else "away"
+        return ball.possessing_team_side == player_side
 
     def _attack_with_ball(
         self,
@@ -238,11 +231,16 @@ class ForwardBaseBehaviour(RoleBehaviour):
         )
 
         # Prioritize shooting if in good position
-        if distance_to_goal < fwd_cfg.shoot_distance_threshold and self.should_shoot(player, ball, shooting_attr):
-            self._log_decision(player, "shoot_attempt", dist_goal=f"{distance_to_goal:.1f}m")
-            self._reset_space_move(player)
-            self.execute_shot(player, ball, shooting_attr, current_time)
-            return
+        if distance_to_goal < fwd_cfg.shoot_distance_threshold:
+            if self.should_shoot(player, ball, shooting_attr):
+                self._log_decision(player, "shoot_attempt", dist_goal=f"{distance_to_goal:.1f}m")
+                self._reset_space_move(player)
+                self.execute_shot(player, ball, shooting_attr, current_time)
+                return
+        else:
+            self._log_decision(player, "skip_shoot_check", 
+                             dist=f"{distance_to_goal:.1f}m", 
+                             threshold=f"{fwd_cfg.shoot_distance_threshold:.1f}m")
 
         # Look for best pass option
         best_target = self.find_best_pass_target(

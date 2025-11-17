@@ -98,11 +98,13 @@ class MidfielderBaseBehaviour(RoleBehaviour):
                 )
                 return
 
-            # Attempt interception if ball is loose and moving
+            # Attempt interception only if opponent has ball or it's truly loose
+            # Don't intercept during own team's passes (when possessing_team_side shows team control)
+            team_controls = self._team_has_possession(player, ball, all_players)
             loose_ball = not any(
                 self.has_ball_possession(p, ball) for p in all_players
             )
-            if loose_ball and ball.velocity.magnitude() > 2.0:
+            if not team_controls and loose_ball and ball.velocity.magnitude() > 2.0:
                 if self.attempt_interception(player, ball, all_players, speed_attr, dt):
                     return
 
@@ -114,8 +116,8 @@ class MidfielderBaseBehaviour(RoleBehaviour):
                 self._press_opponent(player, ball, opponents, speed_attr, tackling_attr, dt)
                 return
 
-            # Support attack if team has ball
-            if self._team_has_possession(player, ball, all_players):
+            # Support attack if team has ball (team_controls already calculated above)
+            if team_controls:
                 self._support_attack(player, ball, all_players, vision_attr, speed_attr, dt)
                 return
 
@@ -141,22 +143,23 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         Returns
         -------
         bool
-            ``True`` when any teammate (including the player) has possession
-            or if the ball was last touched by a teammate (includes passes in flight).
+            ``True`` if player's team has possession (persists during passes).
         """
-        # Check if any teammate currently has the ball
-        teammates = self.get_teammates(player, all_players) + [player]
-
-        for teammate in teammates:
-            if self.has_ball_possession(teammate, ball):
-                return True
+        # Use the match engine's team possession state which persists during passes
+        if ball.possessing_team_side is None:
+            return False
         
-        # Also check if ball was last touched by a teammate (for passes in flight)
-        last_toucher = self._player_by_id(ball.last_touched_by)
-        if last_toucher and last_toucher.team == player.team:
-            return True
-            
-        return False
+        player_side = "home" if player.is_home_team else "away"
+        result = ball.possessing_team_side == player_side
+        
+        # Debug log when checked to help diagnose possession jumps
+        if hasattr(player, 'player_id') and player.player_id == 9:
+            self._log_decision(player, "possession_check",
+                             ball_side=str(ball.possessing_team_side),
+                             player_side=player_side,
+                             result=str(result))
+        
+        return result
 
     def _play_with_ball(
         self,
@@ -197,8 +200,13 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         if player_model and self._move_closer_to_ball(player, ball, player_model.attributes.speed):
             return
         
+        goal_pos = self.get_goal_position(player)
+        distance_to_goal = player.state.position.distance_to(goal_pos)
+        
         # Check if in shooting position
+        self._log_decision(player, "midfielder_with_ball", dist_to_goal=f"{distance_to_goal:.1f}m")
         if self.should_shoot(player, ball, shooting_attr):
+            self._log_decision(player, "execute_shot_decision")
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
 
@@ -821,10 +829,12 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         # Find space ahead of the ball
         if ball.position.distance_to(goal_pos) < player.state.position.distance_to(goal_pos):
             # Ball is ahead, support from behind
-            support_pos = ball.position - (goal_pos - ball.position).normalize() * mid_cfg.support_trail_distance
+            direction = (goal_pos - ball.position).normalize()
+            support_pos = ball.position - direction * mid_cfg.support_trail_distance
         else:
             # Make forward run
-            support_pos = ball.position + (goal_pos - ball.position).normalize() * mid_cfg.support_forward_distance
+            direction = (goal_pos - ball.position).normalize()
+            support_pos = ball.position + direction * mid_cfg.support_forward_distance
 
         # Adjust to side based on midfielder type
         support_pos = self._adjust_support_position(player, support_pos, ball)

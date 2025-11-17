@@ -435,6 +435,16 @@ class RealTimeMatchEngine:
                     target=target_tuple,
                     player_role=player_state.player_role,
                 )
+                
+                # Log target source if available for debugging position jumps
+                target_src = getattr(player_state, 'target_source', None)
+                if target_src:
+                    self.debugger.log_match_event(
+                        self.state.match_time,
+                        "target_source",
+                        f"Player {player_state.player_id} target set by: {target_src} "
+                        f"at ({target_tuple[0]:.1f}, {target_tuple[1]:.1f})"
+                    )
 
     def _settle_new_possession(self, possessor: PlayerMatchState) -> None:
         """Bring the ball under control when a new possessor is awarded.
@@ -795,6 +805,9 @@ class RealTimeMatchEngine:
         self.state.team_in_possession = side
         self.state.team_possession_since = self.state.match_time
         self.state.last_possession_player_id = player_id if side else None
+        
+        # Sync with ball state so roles can access it
+        self.state.ball.possessing_team_side = side
 
         if previous == side:
             return

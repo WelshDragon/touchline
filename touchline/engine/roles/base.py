@@ -491,6 +491,8 @@ class RoleBehaviour:
         # Don't shoot if too far (based on shooting ability)
         max_distance = shoot_cfg.max_distance_base + (shooting_attr / 100) * shoot_cfg.max_distance_bonus
         if distance_to_goal > max_distance:
+            self._log_decision(player, "shoot_check", result="too_far", 
+                             dist=f"{distance_to_goal:.1f}m", max_dist=f"{max_distance:.1f}m")
             return False
 
         # More likely to shoot when closer
@@ -499,9 +501,21 @@ class RoleBehaviour:
         # Require better angle when further away
         angle_quality = self.calculate_shot_angle_quality(player, goal_pos)
         if angle_quality < shoot_cfg.angle_threshold and distance_to_goal > shoot_cfg.long_range_distance:
+            self._log_decision(player, "shoot_check", result="poor_angle",
+                             angle=f"{angle_quality:.2f}", threshold=f"{shoot_cfg.angle_threshold:.2f}")
             return False
 
-        return random.random() < shoot_probability * shoot_cfg.probability_scale
+        final_probability = shoot_probability * shoot_cfg.probability_scale
+        roll = random.random()
+        will_shoot = roll < final_probability
+        
+        self._log_decision(player, "shoot_check", 
+                         result="yes" if will_shoot else "no_luck",
+                         dist=f"{distance_to_goal:.1f}m",
+                         prob=f"{final_probability:.3f}",
+                         roll=f"{roll:.3f}")
+        
+        return will_shoot
 
     def calculate_shot_angle_quality(self, player: "PlayerMatchState", goal_pos: "Vector2D") -> float:
         """Calculate quality of shooting angle (0-1).
@@ -794,17 +808,39 @@ class RoleBehaviour:
         distance_to_intercept = player.state.position.distance_to(intercept_pos)
         
         # Only attempt if within reasonable range
-        if distance_to_intercept < 15.0:
+        if distance_to_intercept >= 15.0:
+            return False
+        
+        # Check if teammates are already closer to the interception point
+        # Only allow 2 teammates to intercept simultaneously to avoid clustering
+        teammates = [p for p in all_players if p.team == player.team and p.player_id != player.player_id]
+        teammates_intercepting = []
+        
+        for teammate in teammates:
+            # Check if teammate is also going for intercept (intent="intercept" and moving towards ball)
+            if getattr(teammate, 'target_source', None) == 'intercept':
+                teammate_dist = teammate.state.position.distance_to(intercept_pos)
+                if teammate_dist < distance_to_intercept:
+                    teammates_intercepting.append((teammate.player_id, teammate_dist))
+        
+        # If 2+ closer teammates are already intercepting, back off
+        if len(teammates_intercepting) >= 2:
             self._log_decision(
                 player,
-                "attempt_intercept",
-                intercept_pos=f"({intercept_pos.x:.1f},{intercept_pos.y:.1f})",
-                distance=f"{distance_to_intercept:.1f}m"
+                "skip_intercept",
+                reason="teammates_closer",
+                count=f"{len(teammates_intercepting)}"
             )
-            self.move_to_position(player, intercept_pos, speed_attr, dt, ball, sprint=True, intent="intercept")
-            return True
-
-        return False
+            return False
+        
+        self._log_decision(
+            player,
+            "attempt_intercept",
+            intercept_pos=f"({intercept_pos.x:.1f},{intercept_pos.y:.1f})",
+            distance=f"{distance_to_intercept:.1f}m"
+        )
+        self.move_to_position(player, intercept_pos, speed_attr, dt, ball, sprint=True, intent="intercept")
+        return True
 
     def _project_ball_intercept(
         self,
@@ -1288,7 +1324,30 @@ class RoleBehaviour:
             max(-max_y, min(max_y, adjusted_target.y))
         )
 
+        # Smooth target transitions when intent changes to reduce visual jumps
+        prev_target_source = getattr(player, 'target_source', None)
+        new_intent = intent or "move_to_position"
+        
+        # If intent changed and we have a previous target, blend towards new target
+        if prev_target_source and prev_target_source != new_intent and player.current_target:
+            # Check if this is a major transition (attack<->defense or press<->support)
+            attacking_intents = {"support", "press"}
+            defending_intents = {"shape", "mark"}
+            
+            prev_is_attack = prev_target_source in attacking_intents
+            new_is_attack = new_intent in attacking_intents
+            
+            # Only smooth when transitioning between attack/defense modes
+            if prev_is_attack != new_is_attack:
+                # Blend 30% towards new target, keep 70% of current position
+                blend_factor = 0.3
+                adjusted_target = Vector2D(
+                    player.current_target.x + (adjusted_target.x - player.current_target.x) * blend_factor,
+                    player.current_target.y + (adjusted_target.y - player.current_target.y) * blend_factor
+                )
+
         player.current_target = adjusted_target
+        player.target_source = new_intent
 
         if not player.state.is_with_ball:
             player.off_ball_state = resolved_intent
