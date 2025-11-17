@@ -91,6 +91,17 @@ class MatchState:
     team_in_possession: Optional[str] = None
     team_possession_since: float = 0.0
     last_possession_player_id: Optional[int] = None
+    
+    # Possession sequence tracking
+    possession_sequence_passes: int = 0  # Passes in current possession
+    possession_sequence_start_x: float = 0.0  # Starting X position of possession
+    
+    # Match statistics tracking
+    home_passes_completed: int = 0
+    away_passes_completed: int = 0
+    home_possession_time: float = 0.0
+    away_possession_time: float = 0.0
+    last_stats_log_time: float = -30.0  # Log stats every 30s
 
     def __post_init__(self) -> None:
         """Initialise derived state after dataclass construction."""
@@ -226,6 +237,12 @@ class RealTimeMatchEngine:
 
         # Update ball physics
         self.state.ball.update(dt)
+        
+        # Track possession time
+        if self.state.team_in_possession == "home":
+            self.state.home_possession_time += dt
+        elif self.state.team_in_possession == "away":
+            self.state.away_possession_time += dt
 
         possession_cfg = ENGINE_CONFIG.possession
 
@@ -297,16 +314,35 @@ class RealTimeMatchEngine:
             team_side = "home" if new_player.is_home_team else "away"
             self._set_team_possession(team_side, player_id=new_player.player_id, reason="player_control")
 
-            # Log possession change
+            # Log possession change with context (interception, tackle, etc.)
             if not already_possessing:
-                self.debugger.log_match_event(
-                    self.state.match_time,
-                    "possession",
-                    (
-                        f"Player {new_player.player_id} ({new_player.team.name}, "
-                        f"{new_player.player_role}) gains possession"
-                    ),
+                possession_type = "possession"
+                details = (
+                    f"Player {new_player.player_id} ({new_player.team.name}, "
+                    f"{new_player.player_role}) gains possession"
                 )
+                
+                # Check if this was an interception (ball in flight, different team)
+                if previous_possessor and ball_speed > 2.0:
+                    if new_player.team != previous_possessor.team:
+                        possession_type = "interception"
+                        distance = new_player.state.position.distance_to(self.state.ball.position)
+                        details = (
+                            f"Player {new_player.player_id} ({new_player.team.name}, {new_player.player_role}) "
+                            f"INTERCEPTS from {previous_possessor.team.name} at distance {distance:.1f}m"
+                        )
+                # Check if this was a tackle (close proximity, different team)
+                elif previous_possessor and ball_speed < 2.0:
+                    if new_player.team != previous_possessor.team:
+                        distance = new_player.state.position.distance_to(previous_possessor.state.position)
+                        if distance < 3.0:  # Close proximity = tackle
+                            possession_type = "tackle"
+                            details = (
+                                f"Player {new_player.player_id} ({new_player.team.name}, {new_player.player_role}) "
+                                f"TACKLES {previous_possessor.player_id} at distance {distance:.1f}m"
+                            )
+                
+                self.debugger.log_match_event(self.state.match_time, possession_type, details)
                 self._settle_new_possession(new_player)
 
 
@@ -383,6 +419,11 @@ class RealTimeMatchEngine:
                 p.state.is_with_ball = False
 
         self._decay_team_possession(all_players)
+        
+        # Log periodic match statistics
+        if self.state.match_time - self.state.last_stats_log_time >= 30.0:
+            self._log_match_statistics()
+            self.state.last_stats_log_time = self.state.match_time
 
         # Update AI for all players
         for player_state in all_players:
@@ -802,9 +843,28 @@ class RealTimeMatchEngine:
             Short text explaining why possession changed.
         """
         previous = self.state.team_in_possession
+        
+        # Log possession sequence stats if team is losing possession
+        if previous and previous != side:
+            duration = self.state.match_time - self.state.team_possession_since
+            passes = self.state.possession_sequence_passes
+            if passes > 0:
+                self.debugger.log_match_event(
+                    self.state.match_time,
+                    "possession_sequence",
+                    f"{previous} possession ended: {passes} passes, {duration:.1f}s duration"
+                )
+        
         self.state.team_in_possession = side
         self.state.team_possession_since = self.state.match_time
         self.state.last_possession_player_id = player_id if side else None
+        
+        # Reset possession sequence tracking
+        self.state.possession_sequence_passes = 0
+        if side and player_id:
+            player = self.state.player_states.get(player_id)
+            if player:
+                self.state.possession_sequence_start_x = player.state.position.x
         
         # Sync with ball state so roles can access it
         self.state.ball.possessing_team_side = side
@@ -975,6 +1035,26 @@ class RealTimeMatchEngine:
             description = f"Throw-in awarded to {team.name}."
         self.state.events.append(MatchEvent(self.state.match_time, "throw_in", team, description))
         self.debugger.log_match_event(self.state.match_time, "restart", description)
+
+    def _log_match_statistics(self) -> None:
+        """Log aggregate match statistics."""
+        # Calculate possession percentages
+        total_time = max(0.001, self.state.home_possession_time + self.state.away_possession_time)
+        home_poss_pct = (self.state.home_possession_time / total_time) * 100
+        away_poss_pct = (self.state.away_possession_time / total_time) * 100
+        
+        # Get shot counts
+        home_shots = sum(1 for e in self.state.events if e.event_type == "shot" and e.team == self.state.home_team)
+        away_shots = sum(1 for e in self.state.events if e.event_type == "shot" and e.team == self.state.away_team)
+        
+        self.debugger.log_match_event(
+            self.state.match_time,
+            "statistics",
+            f"Time {self.state.match_time:.0f}s | Score: {self.state.home_score}-{self.state.away_score} | "
+            f"Possession: {home_poss_pct:.0f}%-{away_poss_pct:.0f}% | "
+            f"Passes: {self.state.home_passes_completed}-{self.state.away_passes_completed} | "
+            f"Shots: {home_shots}-{away_shots}"
+        )
 
     def stop_match(self) -> None:
         """Stop the match simulation."""

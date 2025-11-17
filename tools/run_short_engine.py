@@ -12,60 +12,41 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from time import sleep
+"""Run a short match simulation using teams from players.json."""
+from pathlib import Path
 
 from touchline.engine.match_engine import RealTimeMatchEngine
-from touchline.models.player import Player, PlayerAttributes
-from touchline.models.team import Formation, Team
+from touchline.utils.roster import load_teams_from_json
 
 
-# Helper to create N players with sequential ids starting at base_id
-def make_players(base_id, team_name):
-    players = []
-    role_order = ["GK", "RD", "CD", "CD", "LD", "RM", "CM", "CM", "LM", "RCF", "LCF"]
-    for i in range(11):
-        pid = base_id + i
-        attrs = PlayerAttributes(
-            passing=50,
-            shooting=50,
-            dribbling=60,
-            tackling=40,
-            heading=40,
-            speed=60,
-            stamina=80,
-            strength=60,
-            vision=50,
-            positioning=50,
-            decisions=50,
-        )
-        role = role_order[i]
-        players.append(
-            Player(
-                player_id=pid,
-                name=f"{team_name} Player {pid}",
-                age=25,
-                role=role,
-                attributes=attrs,
-            )
-        )
-    return players
+def run_short_simulation(duration_seconds: float = 20.0, timestep: float = 0.05) -> None:
+    """Run a short match simulation using direct updates for accuracy.
+    
+    Parameters
+    ----------
+    duration_seconds : float
+        How long to simulate in match time (default 20 seconds).
+    timestep : float
+        Physics timestep in seconds (default 0.05 = 50ms, same as main engine).
+    """
+    # Load teams from players.json
+    data_path = Path(__file__).parent.parent / "data" / "players.json"
+    home, away = load_teams_from_json(str(data_path))
+    
+    # Create engine
+    engine = RealTimeMatchEngine(home, away)
+    
+    # Calculate number of steps needed
+    num_steps = int(duration_seconds / timestep)
+    
+    # Run simulation with fixed timestep for accuracy
+    for _ in range(num_steps):
+        engine._update(timestep)
+    
+    # Stop and close debugger
+    engine.stop_match()
+    print(f"Done running {duration_seconds}s simulation ({num_steps} steps)")
 
 
-home_players = make_players(1, "Home")
-away_players = make_players(100, "Away")
-formation = Formation(
-    name="4-4-2",
-    role_counts={"RD": 1, "CD": 2, "LD": 1, "RM": 1, "CM": 2, "LM": 1, "RCF": 1, "LCF": 1},
-)
-home = Team(1, "Home FC", home_players, formation)
-away = Team(2, "Away FC", away_players, formation)
-
-engine = RealTimeMatchEngine(home, away)
-
-# Run 2400 steps of 0.05s (~120 seconds simulated)
-for _ in range(3600):
-    engine._update(0.05)
-
-# Stop and close debugger
-engine.stop_match()
-print("Done running short engine")
+if __name__ == "__main__":
+    run_short_simulation(180.0)

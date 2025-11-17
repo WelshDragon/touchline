@@ -460,6 +460,19 @@ class BallState:
                 self.just_bounced = False
             else:
                 self.ground()
+            
+            # Log shot attempts (kicks without a recipient are likely shots)
+            if recipient_id is None and self.debugger and kicker_position:
+                # Check if this is likely a shot (ball moving towards goal)
+                # Detect by high power and direction towards goal area
+                if power >= 10.0:  # Threshold for shot vs pass
+                    shot_angle = direction.x  # Positive = towards opponent goal
+                    msg = (
+                        f"Player {player_id} SHOT from ({kicker_position.x:.1f}, {kicker_position.y:.1f}) "
+                        f"power={power:.1f} speed={speed:.1f}m/s "
+                        f"direction=({direction.x:.2f}, {direction.y:.2f})"
+                    )
+                    self.debugger.log_match_event(current_time, "shot_attempt", msg)
 
     def ground(self) -> None:
         """Mark the ball as in contact with the ground."""

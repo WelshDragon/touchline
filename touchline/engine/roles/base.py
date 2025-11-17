@@ -1121,13 +1121,42 @@ class RoleBehaviour:
             target.player_id,
             kicker_position=player.state.position,
         )
+        
+        # Track possession sequence
+        if hasattr(player, '_match_state') and player._match_state:
+            player._match_state.possession_sequence_passes += 1
+            
+            # Track team pass completion stats
+            if player.is_home_team:
+                player._match_state.home_passes_completed += 1
+            else:
+                player._match_state.away_passes_completed += 1
 
+        # Calculate pass context metrics
+        is_home = player.is_home_team
+        goal_direction = 1 if is_home else -1
+        progressive_dist = (target_pos.x - player.state.position.x) * goal_direction
+        
+        # Check if under pressure (opponent within 3m)
+        under_pressure = False
+        if self._current_all_players:
+            opponents = [p for p in self._current_all_players if p.team != player.team]
+            if opponents:
+                closest_opponent_dist = min(
+                    p.state.position.distance_to(player.state.position) for p in opponents
+                )
+                under_pressure = closest_opponent_dist < 3.0
+        
+        pressure_tag = " [UNDER_PRESSURE]" if under_pressure else ""
+        progressive_tag = f" progressive={progressive_dist:+.1f}m" if abs(progressive_dist) > 5.0 else ""
+        
         self._log_player_event(
             player,
             "pass",
             (
                 f"completed target=#{target.player_id} power={power:.1f} "
                 f"distance={distance:.1f}m offset=({offset_x:.2f},{offset_y:.2f})"
+                f"{pressure_tag}{progressive_tag}"
             ),
         )
 
@@ -1223,11 +1252,23 @@ class RoleBehaviour:
             kicker_position=player.state.position,
         )
 
-        # Log shot event if debugger is available
+        # Log detailed shot event
         if hasattr(player, "debugger") and player.debugger:
-            # Store event (need access to match state to add to events list)
-            # For now, just log it
-            player.debugger.log_match_event(current_time, "shot", f"SHOT by player {player.player_id}")
+            angle_quality = self.calculate_shot_angle_quality(player, goal_pos)
+            target_corner = "top" if target_y > 0 else "bottom"
+            target_side = f"{target_corner}-{'left' if target_y < 0 else 'right'}"
+            
+            # Determine if on target (within goal frame)
+            on_target = abs(target_y) <= half_goal_width
+            
+            player.debugger.log_match_event(
+                current_time,
+                "shot",
+                f"Player {player.player_id} ({player.team.name}, {player.player_role}) SHOT "
+                f"from ({shooter_pos.x:.1f}, {shooter_pos.y:.1f}) distance={distance:.1f}m "
+                f"power={power:.1f} angle_quality={angle_quality:.2f} target={target_side} "
+                f"on_target={on_target}"
+            )
 
     def move_to_position(
         self,
