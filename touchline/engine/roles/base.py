@@ -379,6 +379,53 @@ class RoleBehaviour:
         control_limit = ENGINE_CONFIG.possession.max_control_distance
         return player.state.position.distance_to(ball.position) <= control_limit
 
+    def _move_closer_to_ball(self, player: "PlayerMatchState", ball: "BallState", speed_attr: int) -> bool:
+        """Move player toward the ball if they're too far away to kick it.
+
+        When a player has possession but is beyond max_control_distance from the ball,
+        this method makes them move closer before attempting any actions.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player who needs to approach the ball.
+        ball : BallState
+            Ball the player should move toward.
+        speed_attr : int
+            Speed attribute rating (0-100) influencing movement pace.
+
+        Returns
+        -------
+        bool
+            ``True`` if the player needed to move closer, ``False`` if already in range.
+        """
+        if self._can_kick_ball(player, ball):
+            return False
+
+        # Player is too far from the ball, move closer
+        from touchline.engine.physics import Vector2D
+
+        direction = (ball.position - player.state.position).normalize()
+        
+        # Calculate movement speed based on player attributes
+        move_cfg = ENGINE_CONFIG.player_movement
+        base_speed = move_cfg.base_speed * move_cfg.base_multiplier
+        speed_factor = speed_attr / 100.0
+        move_speed = base_speed + base_speed * move_cfg.attribute_multiplier * speed_factor
+        
+        # Set velocity toward the ball
+        player.state.velocity = direction * move_speed
+        player.current_target = ball.position
+        
+        distance_to_ball = player.state.position.distance_to(ball.position)
+        self._log_decision(
+            player,
+            "move_to_ball",
+            distance=f"{distance_to_ball:.2f}m",
+            control_limit=f"{ENGINE_CONFIG.possession.max_control_distance:.2f}m",
+        )
+        return True
+
     def get_goal_position(self, player: "PlayerMatchState", pitch_width: Optional[float] = None) -> "Vector2D":
         """Get the opponent's goal position.
 
@@ -1185,6 +1232,42 @@ class RoleBehaviour:
 
         player.state.move_towards(adjusted_target, dt, max_speed, acceleration, deceleration, arrive_radius)
 
+    def _pass_progress_fraction(
+        self,
+        possessor: Optional["PlayerMatchState"],
+        next_recipient: Optional["PlayerMatchState"],
+        ball: "BallState",
+    ) -> float:
+        """Estimate how far an in-flight pass has progressed toward its target.
+
+        Parameters
+        ----------
+        possessor : Optional[PlayerMatchState]
+            Player who initiated the pass, if known.
+        next_recipient : Optional[PlayerMatchState]
+            Intended recipient of the pass, if known.
+        ball : BallState
+            Current ball state used to measure remaining distance.
+
+        Returns
+        -------
+        float
+            Normalised progress between ``0`` (just released) and ``1`` (arriving).
+        """
+        if not possessor or not next_recipient:
+            return 0.0
+
+        if possessor.team != next_recipient.team:
+            return 0.0
+
+        total_distance = possessor.state.position.distance_to(next_recipient.state.position)
+        if total_distance <= 1e-3:
+            return 1.0
+
+        remaining = ball.position.distance_to(next_recipient.state.position)
+        progress = 1.0 - remaining / total_distance
+        return max(0.0, min(1.0, progress))
+
     def _apply_possession_support(
         self,
         player: "PlayerMatchState",
@@ -1243,14 +1326,18 @@ class RoleBehaviour:
             else relative_ball
         )
 
+        support_cfg = ENGINE_CONFIG.role.possession_support
+        recipient_influence = 0.0
         if next_recipient and next_recipient.team == player.team:
             relative_recipient = next_recipient.state.position.x * goal_dir
+            progress = self._pass_progress_fraction(anchor_player, next_recipient, ball)
+            recipient_influence = support_cfg.release_recipient_window * progress
         else:
             relative_recipient = relative_possessor
 
-        support_cfg = ENGINE_CONFIG.role.possession_support
-        blend = support_cfg.release_recipient_window
-        anchor_relative = relative_possessor * (1.0 - blend) + relative_recipient * blend
+        anchor_relative = (
+            relative_possessor * (1.0 - recipient_influence) + relative_recipient * recipient_influence
+        )
 
         push_distance, trailing_buffer, forward_margin = self._support_profile(player, phase)
         if push_distance <= 0 and forward_margin <= 0:
@@ -1358,7 +1445,9 @@ class RoleBehaviour:
 
         if next_recipient and next_recipient.team == player.team:
             blend = support_cfg.release_recipient_window
-            anchor_x = anchor_x * (1.0 - blend) + next_recipient.state.position.x * blend
+            progress = self._pass_progress_fraction(possessor, next_recipient, ball)
+            scaled_blend = blend * progress
+            anchor_x = anchor_x * (1.0 - scaled_blend) + next_recipient.state.position.x * scaled_blend
 
         relative_anchor = anchor_x * goal_dir
 

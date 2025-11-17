@@ -176,6 +176,13 @@ class MidfielderBaseBehaviour(RoleBehaviour):
         current_time : float
             Simulation timestamp for recorded actions.
         """
+        from touchline.models.player import Player
+
+        # First, ensure player is close enough to the ball to perform actions
+        player_model: Player = next((p for p in player.team.players if p.player_id == player.player_id), None)
+        if player_model and self._move_closer_to_ball(player, ball, player_model.attributes.speed):
+            return
+        
         # Check if in shooting position
         if self.should_shoot(player, ball, shooting_attr):
             self.execute_shot(player, ball, shooting_attr, current_time)
