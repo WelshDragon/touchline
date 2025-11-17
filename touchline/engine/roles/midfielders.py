@@ -209,6 +209,12 @@ class MidfielderBaseBehaviour(RoleBehaviour):
             self._log_decision(player, "execute_shot_decision")
             self.execute_shot(player, ball, shooting_attr, current_time)
             return
+        
+        # Check if should cross from wide position
+        if self.should_attempt_cross(player, ball, all_players):
+            if self.execute_cross(player, ball, passing_attr, current_time):
+                player.state.is_with_ball = False
+                return
 
         opponents = self.get_opponents(player, all_players)
         mid_cfg = ENGINE_CONFIG.role.midfielder

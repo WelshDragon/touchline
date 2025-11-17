@@ -230,6 +230,13 @@ class ForwardBaseBehaviour(RoleBehaviour):
             hold_remaining=f"{hold_remaining:.2f}s",
         )
 
+        # Check if should attempt a cross
+        if self.should_attempt_cross(player, ball, all_players):
+            self._log_decision(player, "attempt_cross", dist_goal=f"{distance_to_goal:.1f}m")
+            self._reset_space_move(player)
+            if self.execute_cross(player, ball, passing_attr, current_time):
+                return
+
         # Prioritize shooting if in good position
         if distance_to_goal < fwd_cfg.shoot_distance_threshold:
             if self.should_shoot(player, ball, shooting_attr):

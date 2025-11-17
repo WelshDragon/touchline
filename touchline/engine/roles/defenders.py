@@ -97,6 +97,17 @@ class DefenderBaseBehaviour(RoleBehaviour):
                 self._attempt_intercept(player, ball, speed_attr, dt)
                 return
 
+            # Check if team has possession (for overlapping runs)
+            team_has_ball = any(self.has_ball_possession(t, ball) for t in teammates)
+            
+            # Fullbacks should overlap when team is attacking (not just maintain shape)
+            if team_has_ball and player.player_role in ["RD", "LD"]:
+                ball_distance_to_goal = abs(ball.position.x - self.get_goal_position(player).x)
+                # Only overlap if ball is in attacking half
+                if ball_distance_to_goal < 60.0:
+                    self._support_overlapping_run(player, ball, speed_attr, positioning_attr, dt)
+                    return
+
             # Mark opponent
             threat = self._find_biggest_threat(player, ball, opponents, teammates)
             if threat:
@@ -380,6 +391,9 @@ class DefenderBaseBehaviour(RoleBehaviour):
             ball_to_opp = (opponent.state.position - ball.position).normalize()
             marking_pos = marking_pos + ball_to_opp * def_cfg.marking_ball_adjustment
 
+        # Adjust marking position to maintain width (important for fullbacks)
+        marking_pos = self._adjust_for_side(player, marking_pos, ball)
+
         # Move to marking position
         self.move_to_position(player, marking_pos, def_cfg.marking_speed_attr, dt, ball, sprint=False, intent="mark")
 
@@ -411,6 +425,49 @@ class DefenderBaseBehaviour(RoleBehaviour):
 
         # Move to position
         self.move_to_position(player, defensive_pos, positioning_attr, dt, ball, sprint=False, intent="shape")
+
+    def _support_overlapping_run(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        speed_attr: int,
+        positioning_attr: int,
+        dt: float,
+    ) -> None:
+        """Make overlapping run down the flank when team is attacking.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Fullback making the overlapping run.
+        ball : BallState
+            Ball state to position relative to.
+        speed_attr : int
+            Speed attribute rating (0-100).
+        positioning_attr : int
+            Positioning attribute rating (0-100).
+        dt : float
+            Simulation timestep in seconds.
+        """
+        from touchline.engine.physics import Vector2D
+        
+        # Run down the flank, staying wide and pushing forward
+        # Position should be level with or slightly ahead of the ball
+        if player.is_home_team:
+            target_x = max(ball.position.x, player.role_position.x)
+        else:
+            target_x = min(ball.position.x, player.role_position.x)
+        
+        # Stay very wide on the flank
+        target_y = player.role_position.y
+        
+        target_pos = Vector2D(target_x, target_y)
+        
+        # Apply side adjustment to enforce minimum width
+        target_pos = self._adjust_for_side(player, target_pos, ball)
+        
+        # Move to overlapping position
+        self.move_to_position(player, target_pos, speed_attr, dt, ball, sprint=False, intent="support")
 
     def _adjust_for_side(
         self, player: "PlayerMatchState", position: "Vector2D", ball: "BallState"
@@ -466,6 +523,12 @@ class DefenderBaseBehaviour(RoleBehaviour):
         if player_model and self._move_closer_to_ball(player, ball, player_model.attributes.speed):
             return
         
+        # Check if in position to cross (wide defenders can cross from advanced positions)
+        if self.should_attempt_cross(player, ball, all_players):
+            if self.execute_cross(player, ball, passing_attr, current_time):
+                player.state.is_with_ball = False
+                return
+        
         # Look for progressive pass
         target = self.find_best_pass_target(player, ball, all_players, vision_attr, passing_attr)
 
@@ -518,7 +581,7 @@ class RightDefenderRoleBehaviour(DefenderBaseBehaviour):
 
         # Maintain width on right side
         min_width = ENGINE_CONFIG.role.defender.fullback_min_width
-        adjusted_y = max(position.y, -min_width)  # Stay at least configured distance right of center
+        adjusted_y = min(position.y, -min_width)  # Stay at least configured distance right of center
         return Vector2D(position.x, adjusted_y)
 
 
@@ -595,5 +658,5 @@ class LeftDefenderRoleBehaviour(DefenderBaseBehaviour):
 
         # Maintain width on left side
         min_width = ENGINE_CONFIG.role.defender.fullback_min_width
-        adjusted_y = min(position.y, min_width)  # Stay at least configured distance left of center
+        adjusted_y = max(position.y, min_width)  # Stay at least configured distance left of center
         return Vector2D(position.x, adjusted_y)

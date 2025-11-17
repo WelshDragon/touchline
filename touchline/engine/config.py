@@ -472,6 +472,43 @@ class ShootingConfig:
 
 
 @dataclass(slots=True)
+class CrossingConfig:
+    """Parameters for crossing from wide positions.
+
+    Parameters
+    ----------
+    wide_threshold : float, default=20.0
+        Minimum distance from center line to be considered in a wide position (meters).
+    crossing_zone_forward_min : float, default=20.0
+        Minimum forward distance from own goal to attempt crosses (meters).
+    power_base : float, default=18.0
+        Base power for crosses.
+    power_distance_scale : float, default=0.4
+        Power scaling based on distance to target area.
+    height_variation : float, default=2.0
+        Vertical variation in cross trajectory (affects targeting).
+    target_box_depth : float, default=12.0
+        Depth of target area in front of goal (meters).
+    target_box_width : float, default=30.0
+        Width of target area for crosses (meters).
+    min_attackers : int, default=1
+        Minimum number of attackers in box to attempt cross.
+    cross_probability : float, default=0.7
+        Probability of attempting cross when in good crossing position.
+    """
+
+    wide_threshold: float = 15.0
+    crossing_zone_forward_min: float = 20.0
+    power_base: float = 18.0
+    power_distance_scale: float = 0.4
+    height_variation: float = 2.0
+    target_box_depth: float = 12.0
+    target_box_width: float = 30.0
+    min_attackers: int = 1
+    cross_probability: float = 0.7
+
+
+@dataclass(slots=True)
 class PassingConfig:
     """Scoring weights and power clamps that influence pass evaluation.
 
@@ -839,7 +876,7 @@ class DefenderConfig:
     marking_ball_adjustment: float = 1.0
     marking_speed_attr: int = 70
     dribble_speed: float = 3.0
-    fullback_min_width: float = 8.0
+    fullback_min_width: float = 18.0
     centreback_shift_factor: float = 0.15
     centreback_max_width: float = 12.0
 
@@ -973,8 +1010,8 @@ class MidfielderConfig:
     support_trail_distance: float = 12.0
     support_forward_distance: float = 10.0
     support_defense_push: float = 5.0
-    right_width: float = 12.0
-    left_width: float = 12.0
+    right_width: float = 20.0
+    left_width: float = 20.0
     central_shift_factor: float = 0.3
     central_max_width: float = 15.0
     hold_lane_block_distance: float = 20.0
@@ -1295,6 +1332,7 @@ class RoleBehaviourConfig:
 
     shooting: ShootingConfig = field(default_factory=ShootingConfig)
     passing: PassingConfig = field(default_factory=PassingConfig)
+    crossing: CrossingConfig = field(default_factory=CrossingConfig)
     intercept: InterceptConfig = field(default_factory=InterceptConfig)
     receive_pass: ReceivePassConfig = field(default_factory=ReceivePassConfig)
     loose_ball: LooseBallConfig = field(default_factory=LooseBallConfig)

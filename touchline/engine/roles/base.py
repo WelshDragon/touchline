@@ -1160,6 +1160,173 @@ class RoleBehaviour:
             ),
         )
 
+    def should_attempt_cross(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        all_players: List["PlayerMatchState"],
+    ) -> bool:
+        """Determine if player should attempt a cross from their current position.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player with possession evaluating crossing opportunity.
+        ball : BallState
+            Current ball state.
+        all_players : List[PlayerMatchState]
+            All players on the pitch.
+
+        Returns
+        -------
+        bool
+            True if crossing conditions are favorable.
+        """
+        cross_cfg = ENGINE_CONFIG.role.crossing
+        pos = player.state.position
+        goal_pos = self.get_goal_position(player)
+        
+        # Must be in attacking third
+        is_home = player.is_home_team
+        attacking_third_x = 35.0 if is_home else -35.0
+        in_attacking_third = (pos.x * (1 if is_home else -1)) > attacking_third_x
+        
+        if not in_attacking_third:
+            return False
+        
+        # Must be in wide position (outside the central channel)
+        in_wide_position = abs(pos.y) > cross_cfg.wide_threshold
+        
+        if not in_wide_position:
+            return False
+        
+        # Check if there are attackers in the box to cross to
+        goal_direction = 1 if is_home else -1
+        target_center_x = goal_pos.x - goal_direction * (cross_cfg.target_box_depth / 2)
+        
+        attackers_in_box = 0
+        teammates = [p for p in all_players 
+                    if p.team == player.team and p.player_id != player.player_id]
+        
+        for teammate in teammates:
+            x_in_range = abs(teammate.state.position.x - target_center_x) < cross_cfg.target_box_depth / 2
+            y_in_range = abs(teammate.state.position.y) < cross_cfg.target_box_width / 2
+            is_attacker = teammate.player_role in ['CF', 'LCF', 'RCF', 'LM', 'RM', 'CM']
+            
+            if x_in_range and y_in_range and is_attacker:
+                attackers_in_box += 1
+        
+        # Need at least one attacker in the box
+        return attackers_in_box >= 1
+
+    def execute_cross(
+        self,
+        player: "PlayerMatchState",
+        ball: "BallState",
+        passing_attr: int,
+        current_time: float,
+    ) -> bool:
+        """Execute a cross into the box from a wide position.
+
+        Parameters
+        ----------
+        player : PlayerMatchState
+            Player attempting the cross.
+        ball : BallState
+            Shared ball state manipulated by the kick.
+        passing_attr : int
+            Passing attribute rating (0-100) influencing power and accuracy.
+        current_time : float
+            Simulation timestamp when the cross occurs.
+
+        Returns
+        -------
+        bool
+            True if cross was executed, False otherwise.
+        """
+        if not self._can_kick_ball(player, ball):
+            return False
+
+        from touchline.engine.physics import Vector2D
+
+        cross_cfg = ENGINE_CONFIG.role.crossing
+        
+        # Determine target area (box in front of opponent's goal)
+        goal_pos = self.get_goal_position(player)
+        is_home = player.is_home_team
+        goal_direction = 1 if is_home else -1
+        
+        # Target area is in front of the goal
+        target_center_x = goal_pos.x - goal_direction * (cross_cfg.target_box_depth / 2)
+        
+        # Find attackers in the box
+        attackers_in_box = []
+        if self._current_all_players:
+            teammates = [p for p in self._current_all_players 
+                        if p.team == player.team and p.player_id != player.player_id]
+            
+            for teammate in teammates:
+                # Check if teammate is in target area
+                x_in_range = abs(teammate.state.position.x - target_center_x) < cross_cfg.target_box_depth / 2
+                y_in_range = abs(teammate.state.position.y) < cross_cfg.target_box_width / 2
+                
+                # Prefer forwards and attacking midfielders
+                is_attacker = teammate.player_role in ['CF', 'LCF', 'RCF', 'LM', 'RM', 'CM']
+                
+                if x_in_range and y_in_range and is_attacker:
+                    attackers_in_box.append(teammate)
+        
+        # Choose target position
+        if attackers_in_box:
+            # Target the best positioned attacker (closest to goal)
+            best_attacker = min(attackers_in_box, 
+                              key=lambda p: goal_pos.distance_to(p.state.position))
+            target_pos = best_attacker.state.position
+            target_id = best_attacker.player_id
+        else:
+            # Target center of penalty area if no attackers detected
+            target_pos = Vector2D(target_center_x, 0.0)
+            target_id = None
+        
+        # Calculate cross parameters
+        distance = player.state.position.distance_to(target_pos)
+        accuracy_factor = passing_attr / 100
+        
+        # Add inaccuracy based on passing attribute
+        inaccuracy = (1 - accuracy_factor) * cross_cfg.height_variation
+        offset_x = random.uniform(-inaccuracy, inaccuracy)
+        offset_y = random.uniform(-inaccuracy * 2, inaccuracy * 2)  # More lateral variation
+        
+        adjusted_target = Vector2D(target_pos.x + offset_x, target_pos.y + offset_y)
+        direction = (adjusted_target - player.state.position).normalize()
+        
+        # Power scales with distance
+        power = cross_cfg.power_base + distance * cross_cfg.power_distance_scale
+        
+        ball.kick(
+            direction,
+            power,
+            player.player_id,
+            current_time,
+            target_id,
+            kicker_position=player.state.position,
+        )
+        
+        # Log the cross
+        target_desc = f"#{target_id}" if target_id else "box"
+        attackers_count = len(attackers_in_box)
+        
+        self._log_player_event(
+            player,
+            "cross",
+            (
+                f"delivered to {target_desc} power={power:.1f} distance={distance:.1f}m "
+                f"attackers_in_box={attackers_count}"
+            ),
+        )
+        
+        return True
+
     def execute_shot(
         self,
         player: "PlayerMatchState",
