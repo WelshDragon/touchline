@@ -1353,60 +1353,34 @@ class RoleBehaviour:
         Vector2D
             Adjusted target factoring in possession-phase support nudges.
         """
+        # Don't adjust the player who has the ball
         if player.state.is_with_ball:
             return target
 
-        possessor = self._player_by_id(ball.last_touched_by)
-        next_recipient = self._player_by_id(ball.last_kick_recipient)
-
-        team_side = "home" if player.is_home_team else "away"
-        match_state = self._match_state
-        team_flag = match_state.team_in_possession if match_state else None
-
-        anchor_player = possessor if possessor and possessor.team == player.team else None
-        team_controls = anchor_player is not None or team_flag == team_side
-
-        if not team_controls:
+        # Check if player's team controls the ball by checking who last touched it
+        # This works for both dribbling and passes in flight
+        last_toucher = self._player_by_id(ball.last_touched_by)
+        if last_toucher is None or last_toucher.team != player.team:
             return target
 
-        if (anchor_player is None or anchor_player.team != player.team) and match_state:
-            fallback = self._player_by_id(match_state.last_possession_player_id)
-            if fallback and fallback.team == player.team:
-                anchor_player = fallback
-
-        if anchor_player and anchor_player.player_id == player.player_id:
-            return target
-
-        phase = self._determine_possession_phase(player, ball, anchor_player, next_recipient)
+        # Determine possession phase based purely on ball position (not possessor or recipient)
+        phase = self._determine_possession_phase(player, ball, None, None)
 
         # Goal direction is positive X for home, negative for away.
         goal_dir = 1.0 if player.is_home_team else -1.0
         relative_target = target.x * goal_dir
         relative_ball = ball.position.x * goal_dir
-        relative_possessor = (
-            anchor_player.state.position.x * goal_dir
-            if anchor_player is not None
-            else relative_ball
-        )
 
-        support_cfg = ENGINE_CONFIG.role.possession_support
-        recipient_influence = 0.0
-        if next_recipient and next_recipient.team == player.team:
-            relative_recipient = next_recipient.state.position.x * goal_dir
-            progress = self._pass_progress_fraction(anchor_player, next_recipient, ball)
-            recipient_influence = support_cfg.release_recipient_window * progress
-        else:
-            relative_recipient = relative_possessor
-
-        anchor_relative = (
-            relative_possessor * (1.0 - recipient_influence) + relative_recipient * recipient_influence
-        )
+        # Use ball position as anchor (not possessor or pass recipient)
+        anchor_relative = relative_ball
 
         push_distance, trailing_buffer, forward_margin = self._support_profile(player, phase)
         if push_distance <= 0 and forward_margin <= 0:
             return target
 
         from touchline.engine.physics import Vector2D
+
+        support_cfg = ENGINE_CONFIG.role.possession_support
 
         # Encourage players to close the space to the ball while respecting role-based buffers.
         gap_to_anchor = max(0.0, anchor_relative - relative_target)
@@ -1490,9 +1464,9 @@ class RoleBehaviour:
         ball : BallState
             Ball state currently in play.
         possessor : Optional[PlayerMatchState]
-            Player currently in control of the ball, if known.
+            Player currently in control of the ball (ignored, uses ball position instead).
         next_recipient : Optional[PlayerMatchState], default=None
-            Predicted recipient that influences the anchor position.
+            Predicted recipient (ignored, uses ball position instead).
 
         Returns
         -------
@@ -1502,16 +1476,8 @@ class RoleBehaviour:
         support_cfg = ENGINE_CONFIG.role.possession_support
         goal_dir = 1.0 if player.is_home_team else -1.0
 
+        # Use ball position only (ignore possessor and recipient)
         anchor_x = ball.position.x
-        if possessor and possessor.team == player.team:
-            anchor_x = possessor.state.position.x
-
-        if next_recipient and next_recipient.team == player.team:
-            blend = support_cfg.release_recipient_window
-            progress = self._pass_progress_fraction(possessor, next_recipient, ball)
-            scaled_blend = blend * progress
-            anchor_x = anchor_x * (1.0 - scaled_blend) + next_recipient.state.position.x * scaled_blend
-
         relative_anchor = anchor_x * goal_dir
 
         if relative_anchor <= support_cfg.build_up_limit:

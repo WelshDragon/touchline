@@ -162,13 +162,21 @@ class ForwardBaseBehaviour(RoleBehaviour):
         Returns
         -------
         bool
-            ``True`` if any teammate (including ``player``) is flagged as possessing the ball.
+            ``True`` if any teammate (including ``player``) is flagged as possessing the ball
+            or if the ball was last touched by a teammate (includes passes in flight).
         """
+        # Check if any teammate currently has the ball
         teammates = self.get_teammates(player, all_players) + [player]
 
         for teammate in teammates:
             if self.has_ball_possession(teammate, ball):
                 return True
+        
+        # Also check if ball was last touched by a teammate (for passes in flight)
+        last_toucher = self._player_by_id(ball.last_touched_by)
+        if last_toucher and last_toucher.team == player.team:
+            return True
+            
         return False
 
     def _attack_with_ball(
