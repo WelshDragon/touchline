@@ -1,0 +1,273 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.main &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.main</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.main</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Entry point for manual match simulations and the optional visualiser.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span> <span class="nn">touchline.engine.match_engine</span> <span class="kn">import</span> <span class="n">RealTimeMatchEngine</span>
+<span class="kn">from</span> <span class="nn">touchline.utils.generator</span> <span class="kn">import</span> <span class="n">generate_team</span>  <span class="c1"># Fallback if no roster file</span>
+<span class="kn">from</span> <span class="nn">touchline.utils.roster</span> <span class="kn">import</span> <span class="n">load_teams_from_json</span>  <span class="c1"># For loading saved rosters</span>
+
+
+<div class="viewcode-block" id="print_match_status">
+<a class="viewcode-back" href="../../api/main.html#touchline.main.print_match_status">[docs]</a>
+<span class="k">def</span> <span class="nf">print_match_status</span><span class="p">(</span><span class="n">engine</span><span class="p">:</span> <span class="n">RealTimeMatchEngine</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print ongoing match status in a separate thread.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    engine : RealTimeMatchEngine</span>
+<span class="sd">        Running match engine instance whose state should be logged.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">last_event_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">last_minute</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">while</span> <span class="n">engine</span><span class="o">.</span><span class="n">is_running</span><span class="p">:</span>
+        <span class="n">current_minute</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+
+        <span class="c1"># Print time and score every minute</span>
+        <span class="k">if</span> <span class="n">current_minute</span> <span class="o">!=</span> <span class="n">last_minute</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Match Time: </span><span class="si">{</span><span class="n">current_minute</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">:00&quot;</span><span class="p">)</span>
+            <span class="n">score_msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Score: </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_score</span><span class="si">}</span><span class="s2"> - &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_score</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">score_msg</span><span class="p">)</span>
+            <span class="n">last_minute</span> <span class="o">=</span> <span class="n">current_minute</span>
+
+        <span class="c1"># Print new events as they happen</span>
+        <span class="n">new_events</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span><span class="p">[</span><span class="n">last_event_count</span><span class="p">:]</span>
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">new_events</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">event_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;goal&quot;</span><span class="p">,</span> <span class="s2">&quot;shot&quot;</span><span class="p">]:</span>
+                <span class="n">event_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">//</span> <span class="mi">60</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">event_time</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">description</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">last_event_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span><span class="p">)</span>
+
+        <span class="c1"># Update every second</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../api/main.html#touchline.main.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spin up a demo match, wiring the engine to optional visual outputs.&quot;&quot;&quot;</span>
+    <span class="c1"># Try to load teams from JSON file, fall back to generated teams if not found</span>
+    <span class="n">roster_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;data/players.json&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">roster_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">home_team</span><span class="p">,</span> <span class="n">away_team</span> <span class="o">=</span> <span class="n">load_teams_from_json</span><span class="p">(</span><span class="n">roster_file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading teams from </span><span class="si">{</span><span class="n">roster_file</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Falling back to generated teams...&quot;</span><span class="p">)</span>
+            <span class="n">home_team</span> <span class="o">=</span> <span class="n">generate_team</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Manchester United&quot;</span><span class="p">,</span> <span class="s2">&quot;4-3-3&quot;</span><span class="p">,</span> <span class="n">starting_player_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;home&quot;</span><span class="p">)</span>
+            <span class="n">away_team</span> <span class="o">=</span> <span class="n">generate_team</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Liverpool FC&quot;</span><span class="p">,</span> <span class="s2">&quot;4-4-2&quot;</span><span class="p">,</span> <span class="n">starting_player_id</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;away&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No roster file found at </span><span class="si">{</span><span class="n">roster_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using generated teams...&quot;</span><span class="p">)</span>
+        <span class="n">home_team</span> <span class="o">=</span> <span class="n">generate_team</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Manchester United&quot;</span><span class="p">,</span> <span class="s2">&quot;4-3-3&quot;</span><span class="p">,</span> <span class="n">starting_player_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;home&quot;</span><span class="p">)</span>
+        <span class="n">away_team</span> <span class="o">=</span> <span class="n">generate_team</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Liverpool FC&quot;</span><span class="p">,</span> <span class="s2">&quot;4-4-2&quot;</span><span class="p">,</span> <span class="n">starting_player_id</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;away&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create real-time match engine</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">RealTimeMatchEngine</span><span class="p">(</span><span class="n">home_team</span><span class="p">,</span> <span class="n">away_team</span><span class="p">)</span>
+
+    <span class="c1"># Set simulation speed (optional)</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">simulation_speed</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># 5x speed for moderate simulation</span>
+
+    <span class="c1"># We&#39;ll start the engine only after the user clicks Start in the visualizer.</span>
+    <span class="n">engine_thread</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">status_thread</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">start_engine</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">nonlocal</span> <span class="n">engine_thread</span><span class="p">,</span> <span class="n">status_thread</span>
+        <span class="k">if</span> <span class="n">engine_thread</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Create non-daemon engine thread so we can join it for a clean shutdown</span>
+            <span class="n">engine_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">engine</span><span class="o">.</span><span class="n">start_match</span><span class="p">)</span>
+            <span class="n">engine_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="c1"># Start status printer in a separate thread</span>
+            <span class="n">status_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">print_match_status</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">engine</span><span class="p">,))</span>
+            <span class="c1"># Keep status thread joinable as well</span>
+            <span class="n">status_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">engine_thread</span>
+
+    <span class="c1"># Try to start visualizer (if pygame is installed). Pass start_engine as callback.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">touchline.visualizer.visualizer</span> <span class="kn">import</span> <span class="n">start_visualizer</span>
+
+        <span class="c1"># Start visualizer as a non-daemon thread so we wait for it to finish</span>
+        <span class="n">vis_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+            <span class="n">target</span><span class="o">=</span><span class="n">start_visualizer</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">engine</span><span class="p">,),</span>
+            <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;start_callback&quot;</span><span class="p">:</span> <span class="n">start_engine</span><span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">vis_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="c1"># pygame or visualizer not available — continue without graphics</span>
+        <span class="k">pass</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Visualizer started. Press Start Match in the window to begin the simulation.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Wait for engine to be started and finish, or for the visualizer to exit</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">engine_thread</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">engine_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="s2">&quot;vis_thread&quot;</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">vis_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                <span class="c1"># Visualizer closed before match started</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Match simulation interrupted.&quot;</span><span class="p">)</span>
+        <span class="n">engine</span><span class="o">.</span><span class="n">stop_match</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">engine_thread</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">engine_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="c1"># Join status and visualizer threads if they exist (allow a little</span>
+        <span class="c1"># longer for a graceful shutdown)</span>
+        <span class="k">if</span> <span class="n">status_thread</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">status_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">status_thread</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;vis_thread&quot;</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span> <span class="ow">and</span> <span class="n">vis_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">vis_thread</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Normal exit path: ensure threads are joined cleanly</span>
+        <span class="k">if</span> <span class="n">status_thread</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">status_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">status_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;vis_thread&quot;</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span> <span class="ow">and</span> <span class="n">vis_thread</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+            <span class="n">vis_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+    <span class="c1"># Print final stats</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Final Score: </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_score</span><span class="si">}</span><span class="s2"> - &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_score</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Count total shots</span>
+    <span class="n">home_shots</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;shot&quot;</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">team</span> <span class="o">==</span> <span class="n">home_team</span><span class="p">)</span>
+    <span class="n">away_shots</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">engine</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;shot&quot;</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">team</span> <span class="o">==</span> <span class="n">away_team</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Match Statistics:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">home_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shots: </span><span class="si">{</span><span class="n">home_shots</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">away_team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Shots: </span><span class="si">{</span><span class="n">away_shots</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1125 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.engine.roles.midfielders &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../roles.html">touchline.engine.roles</a></li>
+      <li class="breadcrumb-item active">touchline.engine.roles.midfielders</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.engine.roles.midfielders</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Role behaviours for central and wide midfielders.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">touchline.engine.config</span> <span class="kn">import</span> <span class="n">ENGINE_CONFIG</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">RoleBehaviour</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">touchline.engine.config</span> <span class="kn">import</span> <span class="n">MidfielderConfig</span>
+    <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">BallState</span><span class="p">,</span> <span class="n">Vector2D</span>
+    <span class="kn">from</span> <span class="nn">touchline.engine.player_state</span> <span class="kn">import</span> <span class="n">PlayerMatchState</span>
+
+
+<span class="k">class</span> <span class="nc">MidfielderBaseBehaviour</span><span class="p">(</span><span class="n">RoleBehaviour</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base midfielder AI with shared behaviors for linking play.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    role : str</span>
+<span class="sd">        Midfield role code assigned to the behaviour instance.</span>
+<span class="sd">    side : str</span>
+<span class="sd">        Pitch side primarily occupied by the midfielder (``&quot;left&quot;``, ``&quot;right&quot;``, or ``&quot;central&quot;``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">decide_action</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Coordinate midfielder decision-making for this frame.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Controlled midfielder whose behaviour is being updated.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Current ball state for the frame.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Snapshot of all players on the pitch.</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Simulation timestep in seconds since the previous update.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.models.player</span> <span class="kn">import</span> <span class="n">Player</span>
+
+        <span class="n">player_model</span><span class="p">:</span> <span class="n">Player</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">player</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">player_id</span> <span class="o">==</span> <span class="n">player</span><span class="o">.</span><span class="n">player_id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">player_model</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_all_players</span> <span class="o">=</span> <span class="n">all_players</span>
+
+        <span class="c1"># Get attributes</span>
+        <span class="n">passing_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">passing</span>
+        <span class="n">vision_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">vision</span>
+        <span class="n">dribbling_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">dribbling</span>
+        <span class="n">tackling_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">tackling</span>
+        <span class="n">speed_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span>
+        <span class="n">shooting_attr</span> <span class="o">=</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">shooting</span>
+        <span class="n">opponents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_opponents</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">all_players</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_move_to_receive_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pursue_loose_ball</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">):</span>
+                <span class="k">return</span>
+
+            <span class="c1"># If midfielder has the ball, decide next action</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_ball_possession</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_play_with_ball</span><span class="p">(</span>
+                    <span class="n">player</span><span class="p">,</span>
+                    <span class="n">ball</span><span class="p">,</span>
+                    <span class="n">all_players</span><span class="p">,</span>
+                    <span class="n">passing_attr</span><span class="p">,</span>
+                    <span class="n">vision_attr</span><span class="p">,</span>
+                    <span class="n">shooting_attr</span><span class="p">,</span>
+                    <span class="n">dribbling_attr</span><span class="p">,</span>
+                    <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Attempt interception only if opponent has ball or it&#39;s truly loose</span>
+            <span class="c1"># Don&#39;t intercept during own team&#39;s passes (when possessing_team_side shows team control)</span>
+            <span class="n">team_controls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_team_has_possession</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">)</span>
+            <span class="n">loose_ball</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">has_ball_possession</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">ball</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">team_controls</span> <span class="ow">and</span> <span class="n">loose_ball</span> <span class="ow">and</span> <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">2.0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attempt_interception</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+                    <span class="k">return</span>
+
+            <span class="c1"># Press opponent if they have ball</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">should_press</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">stamina_threshold</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">press_stamina_threshold</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;press_opponent&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_press_opponent</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">,</span> <span class="n">tackling_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Support attack if team has ball (team_controls already calculated above)</span>
+            <span class="k">if</span> <span class="n">team_controls</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_support_attack</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">vision_attr</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Track back and support defense</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_support_defense</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">tackling_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_current_all_players</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_team_has_possession</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span> <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the midfielder&#39;s team currently controls the ball.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder querying team state.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state shared by the simulation.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            All players on the pitch.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            ``True`` if player&#39;s team has possession (persists during passes).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use the match engine&#39;s team possession state which persists during passes</span>
+        <span class="k">if</span> <span class="n">ball</span><span class="o">.</span><span class="n">possessing_team_side</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        
+        <span class="n">player_side</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span> <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">is_home_team</span> <span class="k">else</span> <span class="s2">&quot;away&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ball</span><span class="o">.</span><span class="n">possessing_team_side</span> <span class="o">==</span> <span class="n">player_side</span>
+        
+        <span class="c1"># Debug log when checked to help diagnose possession jumps</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s1">&#39;player_id&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">player</span><span class="o">.</span><span class="n">player_id</span> <span class="o">==</span> <span class="mi">9</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;possession_check&quot;</span><span class="p">,</span>
+                             <span class="n">ball_side</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">ball</span><span class="o">.</span><span class="n">possessing_team_side</span><span class="p">),</span>
+                             <span class="n">player_side</span><span class="o">=</span><span class="n">player_side</span><span class="p">,</span>
+                             <span class="n">result</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+        
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_play_with_ball</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">passing_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">vision_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">shooting_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dribbling_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">current_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decide the next action when the midfielder controls the ball.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Ball carrier.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Shared ball state.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            All players used for decision making.</span>
+<span class="sd">        passing_attr : int</span>
+<span class="sd">            Passing attribute rating (0-100).</span>
+<span class="sd">        vision_attr : int</span>
+<span class="sd">            Vision attribute rating (0-100).</span>
+<span class="sd">        shooting_attr : int</span>
+<span class="sd">            Shooting attribute rating (0-100).</span>
+<span class="sd">        dribbling_attr : int</span>
+<span class="sd">            Dribbling attribute rating (0-100).</span>
+<span class="sd">        current_time : float</span>
+<span class="sd">            Simulation timestamp for recorded actions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.models.player</span> <span class="kn">import</span> <span class="n">Player</span>
+
+        <span class="c1"># First, ensure player is close enough to the ball to perform actions</span>
+        <span class="n">player_model</span><span class="p">:</span> <span class="n">Player</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">player</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">player_id</span> <span class="o">==</span> <span class="n">player</span><span class="o">.</span><span class="n">player_id</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">player_model</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_move_closer_to_ball</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">player_model</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span><span class="p">):</span>
+            <span class="k">return</span>
+        
+        <span class="n">goal_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">distance_to_goal</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">goal_pos</span><span class="p">)</span>
+        
+        <span class="c1"># Check if in shooting position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;midfielder_with_ball&quot;</span><span class="p">,</span> <span class="n">dist_to_goal</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">distance_to_goal</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">m&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">should_shoot</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">shooting_attr</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;execute_shot_decision&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute_shot</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">shooting_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">)</span>
+            <span class="k">return</span>
+        
+        <span class="c1"># Check if should cross from wide position</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">should_attempt_cross</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_cross</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+                <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">return</span>
+
+        <span class="n">opponents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_opponents</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">all_players</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">under_pressure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_under_pressure</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">opponents</span><span class="p">)</span>
+        <span class="n">forced_release</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">mid_cfg</span><span class="o">.</span><span class="n">space_move_patience_loops</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="ow">and</span> <span class="n">player</span><span class="o">.</span><span class="n">space_probe_loops</span> <span class="o">&gt;=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">space_move_patience_loops</span>
+        <span class="p">)</span>
+
+        <span class="n">goal_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">player_distance_to_goal</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">goal_pos</span><span class="p">)</span>
+
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_best_pass_target</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">vision_attr</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">)</span>
+        <span class="n">progress_gain</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">if</span> <span class="n">target</span><span class="p">:</span>
+            <span class="n">progress_gain</span> <span class="o">=</span> <span class="n">player_distance_to_goal</span> <span class="o">-</span> <span class="n">target</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">goal_pos</span><span class="p">)</span>
+
+        <span class="n">pass_viable</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span>
+            <span class="n">target</span>
+            <span class="ow">and</span> <span class="p">(</span>
+                <span class="n">progress_gain</span> <span class="o">&gt;=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">pass_progress_break_threshold</span>
+                <span class="ow">or</span> <span class="n">under_pressure</span>
+                <span class="ow">or</span> <span class="n">forced_release</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">&gt;</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">forced_release</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;hold_window_cancel&quot;</span><span class="p">,</span> <span class="n">loops</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">space_probe_loops</span><span class="p">)</span>
+                <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">elif</span> <span class="n">pass_viable</span><span class="p">:</span>
+                <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;shield_wait&quot;</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;tempo_hold_active&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">reset_history</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_shield_ball</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">pass_viable</span> <span class="ow">and</span> <span class="n">target</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="s2">&quot;execute_pass&quot;</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span>
+                <span class="n">progress</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">progress_gain</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">m&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">lane_blocked</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forward_lane_blocked</span><span class="p">(</span>
+            <span class="n">player</span><span class="p">,</span>
+            <span class="n">opponents</span><span class="p">,</span>
+            <span class="n">max_distance</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_lane_block_distance</span><span class="p">,</span>
+            <span class="n">half_width</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_lane_block_width</span><span class="p">,</span>
+            <span class="n">min_blockers</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_blocker_count</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lane_blocked</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;dribble_lane_clear&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dribble_forward</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="n">ball</span><span class="p">,</span>
+                <span class="n">dribbling_attr</span><span class="p">,</span>
+                <span class="n">passing_attr</span><span class="p">,</span>
+                <span class="n">vision_attr</span><span class="p">,</span>
+                <span class="n">all_players</span><span class="p">,</span>
+                <span class="n">opponents</span><span class="p">,</span>
+                <span class="n">current_time</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">under_pressure</span><span class="p">:</span>
+            <span class="n">relief_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_relief_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">vision_attr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">relief_target</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;relief_pass&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">relief_target</span><span class="o">.</span><span class="n">player_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">relief_target</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempt_backpass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;dribble_under_pressure&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dribble_forward</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="n">ball</span><span class="p">,</span>
+                <span class="n">dribbling_attr</span><span class="p">,</span>
+                <span class="n">passing_attr</span><span class="p">,</span>
+                <span class="n">vision_attr</span><span class="p">,</span>
+                <span class="n">all_players</span><span class="p">,</span>
+                <span class="n">opponents</span><span class="p">,</span>
+                <span class="n">current_time</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">forced_release</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="s2">&quot;probe_breakout&quot;</span><span class="p">,</span>
+                <span class="n">loops</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">space_probe_loops</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_move_to_support_space</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">mid_cfg</span><span class="p">):</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_begin_hold_window</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">mid_cfg</span><span class="p">):</span>
+                <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempt_backpass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Dribble forward if no good pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;dribble_default&quot;</span><span class="p">,</span> <span class="n">lane_blocked</span><span class="o">=</span><span class="n">lane_blocked</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dribble_forward</span><span class="p">(</span>
+            <span class="n">player</span><span class="p">,</span>
+            <span class="n">ball</span><span class="p">,</span>
+            <span class="n">dribbling_attr</span><span class="p">,</span>
+            <span class="n">passing_attr</span><span class="p">,</span>
+            <span class="n">vision_attr</span><span class="p">,</span>
+            <span class="n">all_players</span><span class="p">,</span>
+            <span class="n">opponents</span><span class="p">,</span>
+            <span class="n">current_time</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_dribble_forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">dribbling_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">passing_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">vision_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">current_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dribble the ball forward when no high-quality pass is available.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Ball carrier.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Shared ball state manipulated by the dribble.</span>
+<span class="sd">        dribbling_attr : int</span>
+<span class="sd">            Dribbling attribute rating (0-100).</span>
+<span class="sd">        passing_attr : int</span>
+<span class="sd">            Passing attribute rating (0-100) for bailout passes.</span>
+<span class="sd">        vision_attr : int</span>
+<span class="sd">            Vision attribute rating (0-100) for relief passes.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            All players for evaluating outlets.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opposing players applying pressure.</span>
+<span class="sd">        current_time : float</span>
+<span class="sd">            Simulation timestamp for any fallback passes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">goal_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+        <span class="c1"># Check for nearby pressure</span>
+        <span class="n">under_pressure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_under_pressure</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">pressure_radius</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">under_pressure</span> <span class="ow">and</span> <span class="n">dribbling_attr</span> <span class="o">&lt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">pressure_dribble_threshold</span><span class="p">:</span>
+            <span class="n">relief_target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_relief_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">vision_attr</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">relief_target</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;relief_pass&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">relief_target</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s2">&quot;dribble_abort&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">relief_target</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Shield the ball but add small backpedal to avoid freezing in place</span>
+                <span class="n">retreat_dir</span> <span class="o">=</span> <span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="n">goal_pos</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+                <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">retreat_dir</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">retreat_speed</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Dribble towards goal or find space</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="p">(</span><span class="n">goal_pos</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+
+            <span class="c1"># Calculate speed based on dribbling ability (slower than running without ball)</span>
+            <span class="n">speed_scale</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">dribble_speed_attr_scale</span>
+            <span class="n">base_speed</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">dribble_speed_base</span>
+
+            <span class="k">if</span> <span class="n">under_pressure</span><span class="p">:</span>
+                <span class="n">base_speed</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">dribble_pressure_base</span>
+                <span class="n">speed_scale</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">dribble_pressure_attr_scale</span>
+
+            <span class="n">dribble_speed</span> <span class="o">=</span> <span class="n">base_speed</span> <span class="o">+</span> <span class="p">(</span><span class="n">dribbling_attr</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="n">speed_scale</span>
+
+            <span class="c1"># Update player velocity to dribble forward</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">direction</span> <span class="o">*</span> <span class="n">dribble_speed</span>
+
+            <span class="c1"># Keep ball at player&#39;s feet (stick to player position)</span>
+            <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span>
+            <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_move_to_support_space</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">mid_cfg</span><span class="p">:</span> <span class="s2">&quot;MidfielderConfig&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Glide laterally to open passing windows before initiating a hold.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder responsible for probing for space.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball instance pinned to the player&#39;s feet while drifting.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opponents whose pressure determines whether probing is allowed.</span>
+<span class="sd">        mid_cfg : MidfielderConfig</span>
+<span class="sd">            Configuration section providing probe duration and speed.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            ``True`` when the midfielder continues a lateral move this frame; ``False`` otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_under_pressure</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">opponents</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_pressure_release_radius</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">space_move_heading</span> <span class="ow">and</span> <span class="n">player</span><span class="o">.</span><span class="n">space_move_until</span> <span class="o">&lt;=</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">:</span>
+            <span class="c1"># One probe cycle finished – allow callers to transition into hold logic.</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">space_probe_loops</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">reset_history</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">player</span><span class="o">.</span><span class="n">space_move_heading</span><span class="p">:</span>
+            <span class="n">goal_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+            <span class="n">forward</span> <span class="o">=</span> <span class="n">goal_pos</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span>
+            <span class="k">if</span> <span class="n">forward</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1e-5</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">lateral</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="o">-</span><span class="n">forward</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">forward</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lateral</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1e-5</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">direction</span> <span class="o">=</span> <span class="n">lateral</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+            <span class="n">side</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.5</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">space_move_heading</span> <span class="o">=</span> <span class="n">direction</span> <span class="o">*</span> <span class="n">side</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">space_move_until</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span> <span class="o">+</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">space_move_duration</span>
+            <span class="n">lane</span> <span class="o">=</span> <span class="s2">&quot;right&quot;</span> <span class="k">if</span> <span class="n">side</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s2">&quot;left&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="s2">&quot;probe_space_move&quot;</span><span class="p">,</span>
+                <span class="n">side</span><span class="o">=</span><span class="n">lane</span><span class="p">,</span>
+                <span class="n">duration</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">space_move_duration</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">player</span><span class="o">.</span><span class="n">space_move_heading</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">space_move_heading</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">space_move_speed</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_is_under_pressure</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">radius</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Detect if any opponent is within pressing distance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Player being evaluated.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opposing players to test.</span>
+<span class="sd">        radius : Optional[float]</span>
+<span class="sd">            Custom pressure radius override in metres.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            ``True`` when at least one opponent is within ``radius``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">pressure_radius</span> <span class="k">if</span> <span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">radius</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">opp</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">radius</span> <span class="k">for</span> <span class="n">opp</span> <span class="ow">in</span> <span class="n">opponents</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_find_relief_pass</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">vision_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PlayerMatchState&quot;</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find a nearby safe teammate to recycle possession under pressure.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Ball carrier.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Shared ball state.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            All players considered for outlets.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Defensive players applying pressure.</span>
+<span class="sd">        vision_attr : int</span>
+<span class="sd">            Vision attribute rating (0-100) scaling awareness.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[PlayerMatchState]</span>
+<span class="sd">            Safe outlet teammate, or ``None`` if no candidate meets the threshold.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">teammates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_teammates</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">all_players</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">teammates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">best_target</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">best_score</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">own_goal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_own_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+        <span class="k">for</span> <span class="n">teammate</span> <span class="ow">in</span> <span class="n">teammates</span><span class="p">:</span>
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_min_distance</span> <span class="ow">or</span> <span class="n">distance</span> <span class="o">&gt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_max_distance</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">lane_quality</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_pass_lane_quality</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">teammate</span><span class="p">,</span> <span class="n">opponents</span><span class="p">)</span>
+
+            <span class="c1"># Prefer teammates with space around them</span>
+            <span class="n">nearest_opponent</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">opp</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span> <span class="k">for</span> <span class="n">opp</span> <span class="ow">in</span> <span class="n">opponents</span><span class="p">),</span>
+                <span class="n">default</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_nearest_default</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">space_score</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nearest_opponent</span> <span class="o">/</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_space_divisor</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="c1"># Allow backwards passes, but give a small bonus if the pass keeps momentum</span>
+            <span class="n">progress</span> <span class="o">=</span> <span class="n">own_goal</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">own_goal</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+            <span class="n">momentum_score</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_progress_bonus</span> <span class="k">if</span> <span class="n">progress</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+            <span class="n">distance_score</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">distance</span> <span class="o">/</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_max_distance</span><span class="p">)</span>
+            <span class="n">vision_factor</span> <span class="o">=</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_vision_base</span> <span class="o">+</span> <span class="p">(</span><span class="n">vision_attr</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_vision_scale</span>
+
+            <span class="n">weighted_score</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">lane_quality</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_lane_weight</span>
+                <span class="o">+</span> <span class="n">space_score</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_space_weight</span>
+                <span class="o">+</span> <span class="n">distance_score</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_distance_weight</span>
+            <span class="p">)</span>
+
+            <span class="n">total_score</span> <span class="o">=</span> <span class="p">(</span><span class="n">weighted_score</span> <span class="o">+</span> <span class="n">momentum_score</span><span class="p">)</span> <span class="o">*</span> <span class="n">vision_factor</span>
+
+            <span class="k">if</span> <span class="n">total_score</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+                <span class="n">best_score</span> <span class="o">=</span> <span class="n">total_score</span>
+                <span class="n">best_target</span> <span class="o">=</span> <span class="n">teammate</span>
+
+        <span class="k">return</span> <span class="n">best_target</span> <span class="k">if</span> <span class="n">best_score</span> <span class="o">&gt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">relief_score_threshold</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_begin_hold_window</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">mid_cfg</span><span class="p">:</span> <span class="s2">&quot;MidfielderConfig&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start or maintain a patient hold to allow teammates to advance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Player initiating the tempo hold.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state that should be shielded.</span>
+<span class="sd">        mid_cfg : MidfielderConfig</span>
+<span class="sd">            Configuration section controlling hold durations.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            Always ``True`` to indicate the hold window is active.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">started_hold</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">&gt;</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">:</span>
+            <span class="n">hold_duration</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span> <span class="o">&lt;</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_cooldown_until</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">hold_duration</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_min_duration</span><span class="p">,</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_max_duration</span><span class="p">)</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span> <span class="o">+</span> <span class="n">hold_duration</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_cooldown_until</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">+</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_retry_cooldown</span>
+            <span class="n">started_hold</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_space_move</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">reset_history</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shield_ball</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;hold_window&quot;</span><span class="p">)</span>
+        <span class="n">remaining</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">player</span><span class="o">.</span><span class="n">tempo_hold_until</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">match_time</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">started_hold</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;hold_window_start&quot;</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">hold_duration</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_decision</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="s2">&quot;hold_window_active&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">remaining</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_attempt_backpass</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">passing_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">current_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Recycle possession through defenders when forward lanes are blocked.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder seeking to reset play.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Shared ball state.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            All players available for selection.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opposing players whose positions affect target selection.</span>
+<span class="sd">        passing_attr : int</span>
+<span class="sd">            Passing attribute rating (0-100).</span>
+<span class="sd">        current_time : float</span>
+<span class="sd">            Simulation timestamp recorded with the pass.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            ``True`` when a backpass target was found and the pass executed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_backpass_target</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">opponents</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">target</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_pass</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">passing_attr</span><span class="p">,</span> <span class="n">current_time</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_select_backpass_target</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;PlayerMatchState&quot;</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pick a suitable teammate for a possession-reset backpass.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder looking backwards.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Available teammates.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opponents whose positioning affects safety.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[PlayerMatchState]</span>
+<span class="sd">            Preferred backpass target, or ``None`` when no safe option exists.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">teammates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_teammates</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">all_players</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">teammates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="n">own_goal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_own_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">back_direction</span> <span class="o">=</span> <span class="p">(</span><span class="n">own_goal</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+        <span class="n">lateral_axis</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="o">-</span><span class="n">back_direction</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">back_direction</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">best_target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">best_score</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="k">for</span> <span class="n">teammate</span> <span class="ow">in</span> <span class="n">teammates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">teammate</span><span class="o">.</span><span class="n">player_role</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_roles</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span>
+            <span class="n">backward_distance</span> <span class="o">=</span> <span class="n">offset</span><span class="o">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">back_direction</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">back_direction</span><span class="o">.</span><span class="n">y</span>
+            <span class="k">if</span> <span class="n">backward_distance</span> <span class="o">&lt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_min_offset</span> <span class="ow">or</span> <span class="n">backward_distance</span> <span class="o">&gt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_max_distance</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">lateral_offset</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">offset</span><span class="o">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">lateral_axis</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">lateral_axis</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lateral_offset</span> <span class="o">&gt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">hold_lane_block_width</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">lane_quality</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_pass_lane_quality</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">teammate</span><span class="p">,</span> <span class="n">opponents</span><span class="p">)</span>
+            <span class="n">nearest_opponent</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">opp</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span> <span class="k">for</span> <span class="n">opp</span> <span class="ow">in</span> <span class="n">opponents</span><span class="p">),</span>
+                <span class="n">default</span><span class="o">=</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_space_divisor</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">space_score</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nearest_opponent</span> <span class="o">/</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_space_divisor</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">teammate</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+            <span class="n">distance_score</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">distance</span> <span class="o">/</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_max_distance</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="n">total_score</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">lane_quality</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_lane_weight</span>
+                <span class="o">+</span> <span class="n">space_score</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_space_weight</span>
+                <span class="o">+</span> <span class="n">distance_score</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_distance_weight</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">total_score</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+                <span class="n">best_score</span> <span class="o">=</span> <span class="n">total_score</span>
+                <span class="n">best_target</span> <span class="o">=</span> <span class="n">teammate</span>
+
+        <span class="k">if</span> <span class="n">best_score</span> <span class="o">&lt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">backpass_score_threshold</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">best_target</span>
+
+    <span class="k">def</span> <span class="nf">_press_opponent</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">speed_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">tackling_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Press the opponent currently in possession.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder applying pressure.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state used to confirm possession.</span>
+<span class="sd">        opponents : List[PlayerMatchState]</span>
+<span class="sd">            Opposing players who might hold the ball.</span>
+<span class="sd">        speed_attr : int</span>
+<span class="sd">            Speed attribute rating (0-100).</span>
+<span class="sd">        tackling_attr : int</span>
+<span class="sd">            Tackling attribute rating (0-100).</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Simulation timestep in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find opponent with ball</span>
+        <span class="n">target_opp</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">opp</span> <span class="ow">in</span> <span class="n">opponents</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_ball_possession</span><span class="p">(</span><span class="n">opp</span><span class="p">,</span> <span class="n">ball</span><span class="p">):</span>
+                <span class="n">target_opp</span> <span class="o">=</span> <span class="n">opp</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">target_opp</span><span class="p">:</span>
+            <span class="c1"># Sprint towards opponent</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">move_to_position</span><span class="p">(</span>
+                <span class="n">player</span><span class="p">,</span>
+                <span class="n">target_opp</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">,</span>
+                <span class="n">speed_attr</span><span class="p">,</span>
+                <span class="n">dt</span><span class="p">,</span>
+                <span class="n">ball</span><span class="p">,</span>
+                <span class="n">sprint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">intent</span><span class="o">=</span><span class="s2">&quot;press&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Attempt tackle if close</span>
+            <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+            <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">target_opp</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">press_success_distance</span><span class="p">:</span>
+                <span class="kn">import</span> <span class="nn">random</span>
+
+                <span class="n">success_threshold</span> <span class="o">=</span> <span class="p">(</span><span class="n">tackling_attr</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">press_success_scale</span>
+
+                <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">success_threshold</span><span class="p">:</span>
+                    <span class="c1"># Won the ball!</span>
+                    <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+                    <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_support_attack</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">vision_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">speed_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move to a supporting attacking lane.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder making the support run.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball location guiding support depth.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Unused but kept for parity; may assist future spacing logic.</span>
+<span class="sd">        vision_attr : int</span>
+<span class="sd">            Vision attribute rating (0-100); placeholder for future expansions.</span>
+<span class="sd">        speed_attr : int</span>
+<span class="sd">            Speed attribute rating (0-100).</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Simulation timestep in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">goal_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+
+        <span class="c1"># Find space ahead of the ball</span>
+        <span class="k">if</span> <span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">goal_pos</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">goal_pos</span><span class="p">):</span>
+            <span class="c1"># Ball is ahead, support from behind</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="p">(</span><span class="n">goal_pos</span> <span class="o">-</span> <span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+            <span class="n">support_pos</span> <span class="o">=</span> <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="n">direction</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">support_trail_distance</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Make forward run</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="p">(</span><span class="n">goal_pos</span> <span class="o">-</span> <span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+            <span class="n">support_pos</span> <span class="o">=</span> <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">direction</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">support_forward_distance</span>
+
+        <span class="c1"># Adjust to side based on midfielder type</span>
+        <span class="n">support_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adjust_support_position</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">support_pos</span><span class="p">,</span> <span class="n">ball</span><span class="p">)</span>
+
+        <span class="c1"># Move to support position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_to_position</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">support_pos</span><span class="p">,</span> <span class="n">speed_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">sprint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">intent</span><span class="o">=</span><span class="s2">&quot;support&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_support_defense</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span>
+        <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span><span class="p">,</span>
+        <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">],</span>
+        <span class="n">tackling_attr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Track back and support the defensive line.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder contributing defensively.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state guiding depth.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Currently unused; kept for parity with other helpers.</span>
+<span class="sd">        tackling_attr : int</span>
+<span class="sd">            Tackling attribute rating (0-100) reused for movement pace.</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Simulation timestep in seconds.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get defensive position</span>
+        <span class="n">defensive_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_defensive_position</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">player</span><span class="o">.</span><span class="n">role_position</span><span class="p">)</span>
+
+        <span class="c1"># Midfielders sit slightly higher than defenders</span>
+        <span class="n">own_goal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_own_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">adjustment_direction</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_goal_position</span><span class="p">(</span><span class="n">player</span><span class="p">)</span> <span class="o">-</span> <span class="n">own_goal</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+        <span class="n">adjustment</span> <span class="o">=</span> <span class="n">adjustment_direction</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">support_defense_push</span>
+
+        <span class="n">defensive_pos</span> <span class="o">=</span> <span class="n">defensive_pos</span> <span class="o">+</span> <span class="n">adjustment</span>
+
+        <span class="c1"># Move to defensive position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_to_position</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">defensive_pos</span><span class="p">,</span> <span class="n">tackling_attr</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">ball</span><span class="p">,</span> <span class="n">sprint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">intent</span><span class="o">=</span><span class="s2">&quot;shape&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_adjust_support_position</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Adjust support position based on side responsibilities.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Midfielder whose positioning is being tuned.</span>
+<span class="sd">        position : Vector2D</span>
+<span class="sd">            Base support location.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball position informing any bias.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Vector2D</span>
+<span class="sd">            Updated support coordinate.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">position</span>
+
+
+<div class="viewcode-block" id="RightMidfielderRoleBehaviour">
+<a class="viewcode-back" href="../../../../api/engine.html#touchline.engine.roles.RightMidfielderRoleBehaviour">[docs]</a>
+<span class="k">class</span> <span class="nc">RightMidfielderRoleBehaviour</span><span class="p">(</span><span class="n">MidfielderBaseBehaviour</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Right midfielder / Right winger AI.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the right-sided midfielder behaviour.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="s2">&quot;RM&quot;</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_adjust_support_position</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stay wide on the right flank while supporting.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Right-sided midfielder.</span>
+<span class="sd">        position : Vector2D</span>
+<span class="sd">            Proposed support coordinate.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state used for slight adjustments.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Vector2D</span>
+<span class="sd">            Adjusted position respecting minimum right-side width.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="c1"># Maintain width on right touchline</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">adjusted_y</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="o">-</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">right_width</span><span class="p">)</span>  <span class="c1"># Stay wide right</span>
+        <span class="k">return</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">adjusted_y</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="CentralMidfielderRoleBehaviour">
+<a class="viewcode-back" href="../../../../api/engine.html#touchline.engine.roles.CentralMidfielderRoleBehaviour">[docs]</a>
+<span class="k">class</span> <span class="nc">CentralMidfielderRoleBehaviour</span><span class="p">(</span><span class="n">MidfielderBaseBehaviour</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Central midfielder AI - box-to-box play.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the central midfielder behaviour.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="s2">&quot;CM&quot;</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;central&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_adjust_support_position</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stay central but shift slightly towards the ball.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Central midfielder.</span>
+<span class="sd">        position : Vector2D</span>
+<span class="sd">            Base support coordinate.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball state influencing the lateral shift.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Vector2D</span>
+<span class="sd">            Adjusted position constrained to the central corridor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="c1"># Central but can drift</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">shift_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">y</span> <span class="o">-</span> <span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="o">*</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">central_shift_factor</span>
+        <span class="n">adjusted_y</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">y</span> <span class="o">+</span> <span class="n">shift_y</span>
+
+        <span class="c1"># Stay within central corridor</span>
+        <span class="n">adjusted_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">central_max_width</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">mid_cfg</span><span class="o">.</span><span class="n">central_max_width</span><span class="p">,</span> <span class="n">adjusted_y</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">adjusted_y</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="LeftMidfielderRoleBehaviour">
+<a class="viewcode-back" href="../../../../api/engine.html#touchline.engine.roles.LeftMidfielderRoleBehaviour">[docs]</a>
+<span class="k">class</span> <span class="nc">LeftMidfielderRoleBehaviour</span><span class="p">(</span><span class="n">MidfielderBaseBehaviour</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Left midfielder / Left winger AI.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the left-sided midfielder behaviour.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">role</span><span class="o">=</span><span class="s2">&quot;LM&quot;</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_adjust_support_position</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="s2">&quot;BallState&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Vector2D&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stay wide on the left flank while supporting.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player : PlayerMatchState</span>
+<span class="sd">            Left-sided midfielder.</span>
+<span class="sd">        position : Vector2D</span>
+<span class="sd">            Initial support coordinate.</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Ball position for fine tuning.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Vector2D</span>
+<span class="sd">            Updated position respecting minimum width on the left flank.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">Vector2D</span>
+
+        <span class="c1"># Maintain width on left touchline</span>
+        <span class="n">mid_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">midfielder</span>
+        <span class="n">adjusted_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">mid_cfg</span><span class="o">.</span><span class="n">left_width</span><span class="p">)</span>  <span class="c1"># Stay wide left</span>
+        <span class="k">return</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">adjusted_y</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

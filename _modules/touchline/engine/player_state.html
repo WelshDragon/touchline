@@ -1,0 +1,300 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.engine.player_state &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.engine.player_state</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.engine.player_state</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Player-specific state management for the match engine.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">BallState</span><span class="p">,</span> <span class="n">PlayerState</span><span class="p">,</span> <span class="n">Vector2D</span>
+<span class="kn">from</span> <span class="nn">touchline.engine.roles</span> <span class="kn">import</span> <span class="n">create_role_behaviour</span>
+<span class="kn">from</span> <span class="nn">touchline.models.team</span> <span class="kn">import</span> <span class="n">Team</span>
+<span class="kn">from</span> <span class="nn">touchline.utils.debug</span> <span class="kn">import</span> <span class="n">MatchDebugger</span>
+
+
+<div class="viewcode-block" id="PlayerContext">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.player_state.PlayerContext">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">PlayerContext</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot of shared state used across helper methods.</span>
+
+<span class="sd">    Instances are short lived; they capture the player under consideration, the</span>
+<span class="sd">    ball, and cached teammate/opponent lists so repeated decisions avoid</span>
+<span class="sd">    recomputing filters over the full player collection.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    player : PlayerMatchState</span>
+<span class="sd">        Player currently being evaluated.</span>
+<span class="sd">    ball : BallState</span>
+<span class="sd">        Shared ball state for the frame.</span>
+<span class="sd">    all_players : List[PlayerMatchState]</span>
+<span class="sd">        Full roster of active player match states.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">player</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span>
+    <span class="n">ball</span><span class="p">:</span> <span class="n">BallState</span>
+    <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">]</span>
+    <span class="n">teammates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">opponents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Populate teammate/opponent lists derived from ``all_players``.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">teammates</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">team</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">player</span><span class="o">.</span><span class="n">team</span> <span class="ow">and</span> <span class="n">p</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">player</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opponents</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">team</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">player</span><span class="o">.</span><span class="n">team</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="PassDecision">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.player_state.PassDecision">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">PassDecision</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete pass choice selected under pressure.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    target : PlayerMatchState</span>
+<span class="sd">        Intended teammate that should receive the pass.</span>
+<span class="sd">    pass_type : str</span>
+<span class="sd">        Descriptor for the pass style (for example ``&quot;ground&quot;`` or ``&quot;lob&quot;``).</span>
+<span class="sd">    power : float</span>
+<span class="sd">        Kick power applied to the pass.</span>
+<span class="sd">    score : float</span>
+<span class="sd">        Heuristic quality score associated with the decision.</span>
+<span class="sd">    lane_quality : float</span>
+<span class="sd">        Clearance rating for the passing lane (0-1).</span>
+<span class="sd">    lead_target : Vector2D</span>
+<span class="sd">        Anticipated intercept position for the receiver.</span>
+<span class="sd">    origin : str</span>
+<span class="sd">        Source identifier for the decision logic, defaults to ``&quot;base&quot;``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">target</span><span class="p">:</span> <span class="s2">&quot;PlayerMatchState&quot;</span>
+    <span class="n">pass_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">power</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">lane_quality</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">lead_target</span><span class="p">:</span> <span class="n">Vector2D</span>
+    <span class="n">origin</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="PlayerMatchState">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.player_state.PlayerMatchState">[docs]</a>
+<span class="k">class</span> <span class="nc">PlayerMatchState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Runtime state and behaviour for a player participating in a match.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    player_id : int</span>
+<span class="sd">        Identifier that maps back to the static roster entry.</span>
+<span class="sd">    team : Team</span>
+<span class="sd">        Team instance the player belongs to.</span>
+<span class="sd">    state : PlayerState</span>
+<span class="sd">        Mutable physics state used by the engine integration loop.</span>
+<span class="sd">    role_position : Vector2D</span>
+<span class="sd">        Home-half reference position that represents the role&#39;s nominal slot.</span>
+<span class="sd">    match_time : float, optional</span>
+<span class="sd">        Initial per-player clock, normally aligned with the global timer.</span>
+<span class="sd">    is_home_team : bool, optional</span>
+<span class="sd">        Flag used for quick side comparisons.</span>
+<span class="sd">    debugger : MatchDebugger | None, optional</span>
+<span class="sd">        Optional debugger for emitting per-player diagnostics.</span>
+<span class="sd">    current_target : Vector2D | None, optional</span>
+<span class="sd">        Active navigation waypoint used by role logic.</span>
+<span class="sd">    player_role : str, optional</span>
+<span class="sd">        Short role code (for example ``&quot;CM&quot;``) that determines behavioural scripts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">player_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">team</span><span class="p">:</span> <span class="n">Team</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">PlayerState</span><span class="p">,</span>
+        <span class="n">role_position</span><span class="p">:</span> <span class="n">Vector2D</span><span class="p">,</span>
+        <span class="n">match_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">is_home_team</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">debugger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MatchDebugger</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">current_target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Vector2D</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">player_role</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a match state wrapper around a player roster entry.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player_id : int</span>
+<span class="sd">            Identifier that maps back to the static roster entry.</span>
+<span class="sd">        team : Team</span>
+<span class="sd">            Team instance the player belongs to.</span>
+<span class="sd">        state : PlayerState</span>
+<span class="sd">            Mutable physics state used by the engine integration loop.</span>
+<span class="sd">        role_position : Vector2D</span>
+<span class="sd">            Home-half reference position that represents the role&#39;s nominal slot.</span>
+<span class="sd">        match_time : float, optional</span>
+<span class="sd">            Initial per-player clock, normally aligned with the global timer.</span>
+<span class="sd">        is_home_team : bool, optional</span>
+<span class="sd">            Flag used for quick side comparisons.</span>
+<span class="sd">        debugger : MatchDebugger | None, optional</span>
+<span class="sd">            Optional debugger for emitting per-player diagnostics.</span>
+<span class="sd">        current_target : Vector2D | None, optional</span>
+<span class="sd">            Active navigation waypoint used by role logic.</span>
+<span class="sd">        player_role : str, optional</span>
+<span class="sd">            Short role code that determines behavioural scripts.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">player_id</span> <span class="o">=</span> <span class="n">player_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">team</span> <span class="o">=</span> <span class="n">team</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">role_position</span> <span class="o">=</span> <span class="n">role_position</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">match_time</span> <span class="o">=</span> <span class="n">match_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_home_team</span> <span class="o">=</span> <span class="n">is_home_team</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="n">debugger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="n">current_target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">player_role</span> <span class="o">=</span> <span class="n">player_role</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">role_behaviour</span> <span class="o">=</span> <span class="n">create_role_behaviour</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">player_role</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">player_role</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">role_behaviour</span><span class="o">.</span><span class="n">role</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_save_log_time</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1000.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_save_target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Vector2D</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pending_save_eta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">off_ball_state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;idle&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempo_hold_until</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempo_hold_cooldown_until</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space_move_until</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space_move_heading</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Vector2D</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space_probe_loops</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_intent_change_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">10.0</span>  <span class="c1"># Track when intent last changed</span>
+
+<div class="viewcode-block" id="PlayerMatchState.update_ai">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.player_state.PlayerMatchState.update_ai">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_ai</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ball</span><span class="p">:</span> <span class="n">BallState</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;PlayerMatchState&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advance the per-player AI, updating timers and delegating to the role.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ball : BallState</span>
+<span class="sd">            Current ball state used to inform role behaviour.</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Simulation timestep in seconds since the previous update.</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Complete set of match player states used for context.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">match_time</span> <span class="o">+=</span> <span class="n">dt</span></div>
+</div>
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

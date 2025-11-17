@@ -1,0 +1,1615 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.engine.config &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.engine.config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.engine.config</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Central configuration for engine tuning parameters.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span>
+
+
+<div class="viewcode-block" id="PitchConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PitchConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PitchConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Physical dimensions and penalty box measurements for the pitch.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    width : float, default=105.0</span>
+<span class="sd">        Total pitch width in metres.</span>
+<span class="sd">    height : float, default=68.0</span>
+<span class="sd">        Total pitch height in metres.</span>
+<span class="sd">    goal_width : float, default=7.32</span>
+<span class="sd">        Width of the goal mouth.</span>
+<span class="sd">    penalty_area_width : float, default=40.32</span>
+<span class="sd">        Width of the penalty box.</span>
+<span class="sd">    penalty_area_depth : float, default=16.5</span>
+<span class="sd">        Depth of the penalty box extending from the goal line.</span>
+<span class="sd">    goal_area_width : float, default=18.32</span>
+<span class="sd">        Width of the six-yard box.</span>
+<span class="sd">    goal_area_depth : float, default=5.5</span>
+<span class="sd">        Depth of the six-yard box from the goal line.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">105.0</span>
+    <span class="n">height</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">68.0</span>
+    <span class="n">goal_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.32</span>
+    <span class="n">penalty_area_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">40.32</span>
+    <span class="n">penalty_area_depth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">16.5</span>
+    <span class="n">goal_area_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.32</span>
+    <span class="n">goal_area_depth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.5</span></div>
+
+
+
+<div class="viewcode-block" id="SimulationConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.SimulationConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">SimulationConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Timing and speed controls for the main simulation loop.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    match_duration : float, default=5400.0</span>
+<span class="sd">        Total simulated match length in seconds.</span>
+<span class="sd">    frame_sleep : float, default=0.016</span>
+<span class="sd">        Delay between frames when running in real time.</span>
+<span class="sd">    default_speed : float, default=1.0</span>
+<span class="sd">        Default playback speed multiplier.</span>
+<span class="sd">    initial_ball_velocity : Tuple[float, float], default=(5.0, 2.0)</span>
+<span class="sd">        Initial velocity vector applied to the ball when play starts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">match_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">90</span> <span class="o">*</span> <span class="mi">60</span>  <span class="c1"># seconds</span>
+    <span class="n">frame_sleep</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.016</span>  <span class="c1"># 60fps target</span>
+    <span class="n">default_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">initial_ball_velocity</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="PossessionConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PossessionConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PossessionConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thresholds that determine possession changes and control smoothing.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    loose_ball_speed_threshold : float, default=5.0</span>
+<span class="sd">        Ball speed above which it is considered loose.</span>
+<span class="sd">    target_radius_min : float, default=1.1</span>
+<span class="sd">        Minimum radius used when targeting possession control.</span>
+<span class="sd">    target_radius_max : float, default=1.3</span>
+<span class="sd">        Maximum radius allowed for possession targeting.</span>
+<span class="sd">    target_radius_speed_factor : float, default=0.08</span>
+<span class="sd">        Scaling applied to radius based on ball speed.</span>
+<span class="sd">    direction_alignment_min : float, default=-0.1</span>
+<span class="sd">        Minimum alignment between velocity vectors needed to maintain control.</span>
+<span class="sd">    base_radius : float, default=0.5</span>
+<span class="sd">        Base radius for close control.</span>
+<span class="sd">    medium_speed_threshold : float, default=1.5</span>
+<span class="sd">        Cutoff speed signalling medium-paced movement.</span>
+<span class="sd">    medium_radius : float, default=0.6</span>
+<span class="sd">        Radius used when the ball travels at medium speed.</span>
+<span class="sd">    slow_speed_threshold : float, default=0.3</span>
+<span class="sd">        Threshold below which the ball is considered slow.</span>
+<span class="sd">    slow_radius : float, default=0.6</span>
+<span class="sd">        Radius applied when the ball is slow moving.</span>
+<span class="sd">    continue_control_offset : float, default=0.45</span>
+<span class="sd">        Offset applied when continuing existing control.</span>
+<span class="sd">    continue_velocity_blend : float, default=0.8</span>
+<span class="sd">        Blend factor between previous and current velocity.</span>
+<span class="sd">    max_control_distance : float, default=0.6</span>
+<span class="sd">        Maximum allowable distance for a player to retain control.</span>
+<span class="sd">    target_receive_leeway : float, default=0.35</span>
+<span class="sd">        Extra leeway applied to the receiver acceptance radius.</span>
+<span class="sd">    release_leeway : float, default=0.15</span>
+<span class="sd">        Buffer applied when releasing the ball.</span>
+<span class="sd">    target_velocity_gate : float, default=2.0</span>
+<span class="sd">        Velocity threshold limiting control target updates.</span>
+<span class="sd">    team_possession_linger : float, default=1.2</span>
+<span class="sd">        Duration in seconds a team retains possession when the ball is in transit.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">loose_ball_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">target_radius_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.1</span>
+    <span class="n">target_radius_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.3</span>
+    <span class="n">target_radius_speed_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.08</span>
+    <span class="n">direction_alignment_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.1</span>
+    <span class="n">base_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">medium_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">medium_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">slow_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">slow_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">continue_control_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.45</span>
+    <span class="n">continue_velocity_blend</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">max_control_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">target_receive_leeway</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span>
+    <span class="n">release_leeway</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span>
+    <span class="n">target_velocity_gate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">team_possession_linger</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span></div>
+
+
+
+<div class="viewcode-block" id="FormationConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.FormationConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">FormationConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference coordinates for placing players when generating formations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    goalkeeper_x : float, default=45.0</span>
+<span class="sd">        X coordinate for the goalkeeper reference position.</span>
+<span class="sd">    fullback_x : float, default=35.0</span>
+<span class="sd">        X coordinate for the fullback line.</span>
+<span class="sd">    fullback_base_offset : float, default=12.0</span>
+<span class="sd">        Base lateral offset applied to fullbacks.</span>
+<span class="sd">    fullback_stagger : float, default=2.0</span>
+<span class="sd">        Additional stagger added between fullbacks.</span>
+<span class="sd">    centreback_x : float, default=35.0</span>
+<span class="sd">        X coordinate for centre-back positioning.</span>
+<span class="sd">    centreback_offsets : Tuple[float, ...], default=(-6.0, 6.0, -12.0, 12.0)</span>
+<span class="sd">        Lateral offsets for multiple centre-backs.</span>
+<span class="sd">    wide_midfielder_x : float, default=20.0</span>
+<span class="sd">        X coordinate for wide midfielders.</span>
+<span class="sd">    wide_midfielder_base_offset : float, default=15.0</span>
+<span class="sd">        Base lateral offset for wide midfielders.</span>
+<span class="sd">    wide_midfielder_stagger : float, default=2.0</span>
+<span class="sd">        Stagger distance applied to wide midfielders.</span>
+<span class="sd">    central_midfielder_x : float, default=18.0</span>
+<span class="sd">        X coordinate for central midfielders.</span>
+<span class="sd">    central_midfielder_offsets : Tuple[float, ...], default=(-8.0, 8.0, 0.0, -14.0, 14.0)</span>
+<span class="sd">        Lateral offsets for central midfielders.</span>
+<span class="sd">    centre_forward_x : float, default=8.0</span>
+<span class="sd">        X coordinate for centre forwards.</span>
+<span class="sd">    centre_forward_offsets : Tuple[float, ...], default=(0.0, -6.0, 6.0)</span>
+<span class="sd">        Lateral offsets for centre forwards.</span>
+<span class="sd">    wide_forward_base_offset : float, default=10.0</span>
+<span class="sd">        Base lateral offset for wide forwards.</span>
+<span class="sd">    wide_forward_stagger : float, default=2.0</span>
+<span class="sd">        Stagger applied to wide forwards.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">goalkeeper_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">45.0</span>
+    <span class="n">fullback_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">35.0</span>
+    <span class="n">fullback_base_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>
+    <span class="n">fullback_stagger</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">centreback_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">35.0</span>
+    <span class="n">centreback_offsets</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">12.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">)</span>
+    <span class="n">wide_midfielder_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">wide_midfielder_base_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">wide_midfielder_stagger</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">central_midfielder_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>
+    <span class="n">central_midfielder_offsets</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">8.0</span><span class="p">,</span> <span class="mf">8.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">14.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">)</span>
+    <span class="n">centre_forward_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
+    <span class="n">centre_forward_offsets</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">)</span>
+    <span class="n">wide_forward_base_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">wide_forward_stagger</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span></div>
+
+
+
+<div class="viewcode-block" id="BallPhysicsConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.BallPhysicsConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">BallPhysicsConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Coefficients that govern ball flight, bounces, and friction.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    friction : float, default=0.95</span>
+<span class="sd">        Per-timestep friction multiplier applied to the ball.</span>
+<span class="sd">    stop_threshold : float, default=0.1</span>
+<span class="sd">        Velocity threshold below which the ball is treated as stationary.</span>
+<span class="sd">    ground_drag : float, default=0.18</span>
+<span class="sd">        Linear drag coefficient applied while rolling.</span>
+<span class="sd">    bounce_damping : float, default=0.55</span>
+<span class="sd">        Multiplier reducing velocity after a bounce.</span>
+<span class="sd">    bounce_stop_speed : float, default=1.1</span>
+<span class="sd">        Minimum speed required for additional bounces to occur.</span>
+<span class="sd">    airborne_speed_threshold : float, default=14.0</span>
+<span class="sd">        Speed above which the ball is considered airborne.</span>
+<span class="sd">    airborne_time_scale : float, default=0.05</span>
+<span class="sd">        Scaling factor controlling hang time while airborne.</span>
+<span class="sd">    airborne_time_max : float, default=1.4</span>
+<span class="sd">        Cap on maximum airborne duration in seconds.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">friction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span>
+    <span class="n">stop_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">ground_drag</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.18</span>
+    <span class="n">bounce_damping</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.55</span>
+    <span class="n">bounce_stop_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.1</span>
+    <span class="n">airborne_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">14.0</span>
+    <span class="n">airborne_time_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">airborne_time_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.4</span></div>
+
+
+
+<div class="viewcode-block" id="RoleSpeedProfile">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.RoleSpeedProfile">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">RoleSpeedProfile</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Per-role movement capabilities expressed as jogging, running, and sprinting.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    jog_speed : float</span>
+<span class="sd">        Baseline jogging speed in metres per second.</span>
+<span class="sd">    run_speed : float</span>
+<span class="sd">        Sustained running speed in metres per second.</span>
+<span class="sd">    sprint_speed : float</span>
+<span class="sd">        Maximum sprint speed in metres per second.</span>
+<span class="sd">    acceleration : float</span>
+<span class="sd">        Acceleration capability per second.</span>
+<span class="sd">    deceleration : float</span>
+<span class="sd">        Deceleration capability per second.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">jog_speed</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">run_speed</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">sprint_speed</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">acceleration</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">deceleration</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<div class="viewcode-block" id="PlayerMovementConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PlayerMovementConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PlayerMovementConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base locomotion settings and per-intent modifiers for player motion.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    base_speed : float, default=6.0</span>
+<span class="sd">        Baseline movement speed in metres per second.</span>
+<span class="sd">    base_multiplier : float, default=0.7</span>
+<span class="sd">        Global multiplier applied to base speed.</span>
+<span class="sd">    attribute_multiplier : float, default=0.6</span>
+<span class="sd">        Contribution of the speed attribute to final speed.</span>
+<span class="sd">    sprint_multiplier : float, default=1.4</span>
+<span class="sd">        Multiplier applied when sprinting.</span>
+<span class="sd">    stamina_drain_factor : float, default=0.8</span>
+<span class="sd">        How quickly stamina drains during exertion.</span>
+<span class="sd">    recovery_threshold : float, default=1.0</span>
+<span class="sd">        Stamina level below which recovery behaviour is triggered.</span>
+<span class="sd">    recovery_rate : float, default=5.0</span>
+<span class="sd">        Stamina recovered per second when resting.</span>
+<span class="sd">    arrive_radius : float, default=3.5</span>
+<span class="sd">        Radius at which arrive steering starts to slow the player.</span>
+<span class="sd">    speed_scale_min : float, default=0.75</span>
+<span class="sd">        Minimum multiplier applied via role intent modifiers.</span>
+<span class="sd">    speed_scale_max : float, default=1.25</span>
+<span class="sd">        Maximum multiplier applied via role intent modifiers.</span>
+<span class="sd">    acceleration_scale_min : float, default=0.75</span>
+<span class="sd">        Minimum acceleration scaling for intent modifiers.</span>
+<span class="sd">    acceleration_scale_max : float, default=1.25</span>
+<span class="sd">        Maximum acceleration scaling for intent modifiers.</span>
+<span class="sd">    deceleration_scale_min : float, default=0.8</span>
+<span class="sd">        Minimum deceleration scaling for intent modifiers.</span>
+<span class="sd">    deceleration_scale_max : float, default=1.2</span>
+<span class="sd">        Maximum deceleration scaling for intent modifiers.</span>
+<span class="sd">    intent_press_arrive_scale : float, default=0.6</span>
+<span class="sd">        Arrival radius multiplier while pressing.</span>
+<span class="sd">    intent_press_accel_scale : float, default=1.0</span>
+<span class="sd">        Acceleration multiplier while pressing.</span>
+<span class="sd">    intent_press_decel_scale : float, default=1.0</span>
+<span class="sd">        Deceleration multiplier while pressing.</span>
+<span class="sd">    intent_mark_arrive_scale : float, default=1.0</span>
+<span class="sd">        Arrival radius multiplier while marking.</span>
+<span class="sd">    intent_mark_accel_scale : float, default=1.0</span>
+<span class="sd">        Acceleration multiplier while marking.</span>
+<span class="sd">    intent_mark_decel_scale : float, default=1.0</span>
+<span class="sd">        Deceleration multiplier while marking.</span>
+<span class="sd">    intent_shape_arrive_scale : float, default=1.2</span>
+<span class="sd">        Arrival radius multiplier for defensive shape.</span>
+<span class="sd">    intent_shape_accel_scale : float, default=0.7</span>
+<span class="sd">        Acceleration multiplier for defensive shape.</span>
+<span class="sd">    intent_shape_decel_scale : float, default=0.85</span>
+<span class="sd">        Deceleration multiplier for defensive shape.</span>
+<span class="sd">    intent_support_arrive_scale : float, default=1.0</span>
+<span class="sd">        Arrival radius multiplier while supporting.</span>
+<span class="sd">    intent_support_accel_scale : float, default=0.85</span>
+<span class="sd">        Acceleration multiplier while supporting.</span>
+<span class="sd">    intent_support_decel_scale : float, default=0.95</span>
+<span class="sd">        Deceleration multiplier while supporting.</span>
+<span class="sd">    intent_support_speed_blend : float, default=0.5</span>
+<span class="sd">        Blend between support and base speed.</span>
+<span class="sd">    role_profiles : Dict[str, RoleSpeedProfile]</span>
+<span class="sd">        Mapping of role codes to their movement profiles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">base_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">base_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">attribute_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">sprint_multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.4</span>
+    <span class="n">stamina_drain_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">recovery_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">recovery_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">arrive_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.5</span>
+    <span class="n">speed_scale_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.75</span>
+    <span class="n">speed_scale_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.25</span>
+    <span class="n">acceleration_scale_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.75</span>
+    <span class="n">acceleration_scale_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.25</span>
+    <span class="n">deceleration_scale_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">deceleration_scale_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span>
+    <span class="n">intent_press_arrive_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">intent_press_accel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_press_decel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_mark_arrive_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_mark_accel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_mark_decel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_shape_arrive_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span>
+    <span class="n">intent_shape_accel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">intent_shape_decel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.85</span>
+    <span class="n">intent_support_arrive_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">intent_support_accel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.85</span>
+    <span class="n">intent_support_decel_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span>
+    <span class="n">intent_support_speed_blend</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">role_profiles</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RoleSpeedProfile</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;GK&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">3.4</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">4.8</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">5.6</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">7.2</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">9.5</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.1</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">5.6</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">6.6</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">8.6</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">11.2</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.4</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.1</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.4</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.4</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.4</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.1</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.4</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.4</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.5</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.3</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.5</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.6</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">12.4</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.6</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.6</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.8</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.9</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">12.8</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.6</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.6</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.8</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.9</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">12.8</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;CF&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.7</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.7</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.9</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">13.0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.7</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.7</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.9</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">13.0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.7</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.7</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.9</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">13.0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="n">RoleSpeedProfile</span><span class="p">(</span>
+                <span class="n">jog_speed</span><span class="o">=</span><span class="mf">4.4</span><span class="p">,</span>
+                <span class="n">run_speed</span><span class="o">=</span><span class="mf">6.0</span><span class="p">,</span>
+                <span class="n">sprint_speed</span><span class="o">=</span><span class="mf">7.2</span><span class="p">,</span>
+                <span class="n">acceleration</span><span class="o">=</span><span class="mf">9.0</span><span class="p">,</span>
+                <span class="n">deceleration</span><span class="o">=</span><span class="mf">11.5</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ShootingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.ShootingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">ShootingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shot selection heuristics and power calculations for attackers.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    max_distance_base : float, default=25.0</span>
+<span class="sd">        Baseline maximum shooting distance.</span>
+<span class="sd">    max_distance_bonus : float, default=15.0</span>
+<span class="sd">        Additional range unlocked by higher shooting ability.</span>
+<span class="sd">    long_range_distance : float, default=20.0</span>
+<span class="sd">        Distance beyond which long-range heuristics apply.</span>
+<span class="sd">    angle_threshold : float, default=0.3</span>
+<span class="sd">        Minimum angle quality required for long-range shots.</span>
+<span class="sd">    probability_scale : float, default=0.8</span>
+<span class="sd">        Global multiplier shaping shot likelihood.</span>
+<span class="sd">    goal_offset_range : float, default=3.0</span>
+<span class="sd">        Maximum lateral offset when aiming for corners.</span>
+<span class="sd">    corner_depth_bias : float, default=0.8</span>
+<span class="sd">        Base depth for targeting goal corners.</span>
+<span class="sd">    corner_depth_spread : float, default=0.6</span>
+<span class="sd">        Additional depth variability tied to accuracy.</span>
+<span class="sd">    power_distance_scale : float, default=1.2</span>
+<span class="sd">        Scaling factor relating distance to shot power.</span>
+<span class="sd">    power_base : float, default=15.0</span>
+<span class="sd">        Minimum shot power in metres per second.</span>
+<span class="sd">    power_clamp : float, default=35.0</span>
+<span class="sd">        Maximum shot power clamp.</span>
+<span class="sd">    power_accuracy_base : float, default=0.8</span>
+<span class="sd">        Base accuracy multiplier applied to power calculations.</span>
+<span class="sd">    power_accuracy_scale : float, default=0.4</span>
+<span class="sd">        Additional accuracy scaling derived from shooting ability.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_distance_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">max_distance_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">long_range_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">angle_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">probability_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">goal_offset_range</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>  <span class="c1"># Maximum vertical inset from the post when aiming for corners</span>
+    <span class="n">corner_depth_bias</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>  <span class="c1"># How far inside the goal mouth to aim (meters)</span>
+    <span class="n">corner_depth_spread</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>  <span class="c1"># Additional depth variation scaled by inaccuracy</span>
+    <span class="n">power_distance_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span>
+    <span class="n">power_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">power_clamp</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">35.0</span>
+    <span class="n">power_accuracy_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">power_accuracy_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span></div>
+
+
+
+<div class="viewcode-block" id="CrossingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.CrossingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CrossingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parameters for crossing from wide positions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wide_threshold : float, default=20.0</span>
+<span class="sd">        Minimum distance from center line to be considered in a wide position (meters).</span>
+<span class="sd">    crossing_zone_forward_min : float, default=20.0</span>
+<span class="sd">        Minimum forward distance from own goal to attempt crosses (meters).</span>
+<span class="sd">    power_base : float, default=18.0</span>
+<span class="sd">        Base power for crosses.</span>
+<span class="sd">    power_distance_scale : float, default=0.4</span>
+<span class="sd">        Power scaling based on distance to target area.</span>
+<span class="sd">    height_variation : float, default=2.0</span>
+<span class="sd">        Vertical variation in cross trajectory (affects targeting).</span>
+<span class="sd">    target_box_depth : float, default=12.0</span>
+<span class="sd">        Depth of target area in front of goal (meters).</span>
+<span class="sd">    target_box_width : float, default=30.0</span>
+<span class="sd">        Width of target area for crosses (meters).</span>
+<span class="sd">    min_attackers : int, default=1</span>
+<span class="sd">        Minimum number of attackers in box to attempt cross.</span>
+<span class="sd">    cross_probability : float, default=0.7</span>
+<span class="sd">        Probability of attempting cross when in good crossing position.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">wide_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">crossing_zone_forward_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">power_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>
+    <span class="n">power_distance_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">height_variation</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">target_box_depth</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>
+    <span class="n">target_box_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">min_attackers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">cross_probability</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span></div>
+
+
+
+<div class="viewcode-block" id="PassingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PassingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PassingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Scoring weights and power clamps that influence pass evaluation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    max_distance_base : float, default=30.0</span>
+<span class="sd">        Baseline passable distance in metres.</span>
+<span class="sd">    max_distance_bonus : float, default=30.0</span>
+<span class="sd">        Extra range unlocked through passing attributes.</span>
+<span class="sd">    min_distance : float, default=5.0</span>
+<span class="sd">        Minimum safe pass distance to avoid short touches.</span>
+<span class="sd">    lane_weight : float, default=0.4</span>
+<span class="sd">        Weight assigned to lane clearance scoring.</span>
+<span class="sd">    distance_weight : float, default=0.3</span>
+<span class="sd">        Weight assigned to distance efficiency scoring.</span>
+<span class="sd">    progress_weight : float, default=0.3</span>
+<span class="sd">        Weight assigned to progressive movement scoring.</span>
+<span class="sd">    score_threshold : float, default=0.3</span>
+<span class="sd">        Minimum score required to attempt a pass.</span>
+<span class="sd">    lane_block_distance : float, default=5.0</span>
+<span class="sd">        Buffer distance used to detect blocked passing lanes.</span>
+<span class="sd">    power_min_base : float, default=2.8</span>
+<span class="sd">        Minimum power applied to very short passes.</span>
+<span class="sd">    power_min_bonus : float, default=2.5</span>
+<span class="sd">        Additional minimum power unlocked via accuracy.</span>
+<span class="sd">    power_max_base : float, default=13.0</span>
+<span class="sd">        Base cap for pass power.</span>
+<span class="sd">    power_max_bonus : float, default=5.5</span>
+<span class="sd">        Additional cap scaling with attributes.</span>
+<span class="sd">    distance_norm : float, default=30.0</span>
+<span class="sd">        Normalising factor for distance-based easing.</span>
+<span class="sd">    easing_exponent : float, default=0.5</span>
+<span class="sd">        Exponent driving the easing curve for pass power.</span>
+<span class="sd">    inaccuracy_max : float, default=2.0</span>
+<span class="sd">        Maximum random inaccuracy offset in metres.</span>
+<span class="sd">    repeat_penalty_base : float, default=0.25</span>
+<span class="sd">        Penalty applied to immediate repeated passes.</span>
+<span class="sd">    repeat_penalty_decay : float, default=0.05</span>
+<span class="sd">        Decay rate for repeated pass penalties.</span>
+<span class="sd">    immediate_return_penalty : float, default=0.3</span>
+<span class="sd">        Penalty applied if the pass is immediately returned.</span>
+<span class="sd">    progressive_gain_min : float, default=6.0</span>
+<span class="sd">        Minimum forward progress (metres) required to allow low-pressure passes.</span>
+<span class="sd">    under_pressure_radius : float, default=6.0</span>
+<span class="sd">        Radius used to determine if the passer is under immediate pressure.</span>
+<span class="sd">    space_release_threshold : float, default=7.0</span>
+<span class="sd">        Minimum nearest-opponent distance at the receiver to allow recycling passes.</span>
+<span class="sd">    progress_bonus_weight : float, default=0.2</span>
+<span class="sd">        Multiplier applied to additional progressive gain when scoring passes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_distance_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">max_distance_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">min_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">distance_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">progress_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">score_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">lane_block_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">power_min_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.8</span>
+    <span class="n">power_min_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.5</span>
+    <span class="n">power_max_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">13.0</span>
+    <span class="n">power_max_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.5</span>
+    <span class="n">distance_norm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">easing_exponent</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">inaccuracy_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">repeat_penalty_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">repeat_penalty_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">immediate_return_penalty</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">progressive_gain_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">under_pressure_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">space_release_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.0</span>
+    <span class="n">progress_bonus_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span></div>
+
+
+
+<div class="viewcode-block" id="InterceptConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.InterceptConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">InterceptConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Search parameters for predicting interception opportunities.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    min_ball_speed : float, default=0.2</span>
+<span class="sd">        Minimum ball speed considered for interception calculations.</span>
+<span class="sd">    max_time : float, default=3.0</span>
+<span class="sd">        Maximum prediction horizon in seconds.</span>
+<span class="sd">    time_step : float, default=0.2</span>
+<span class="sd">        Step size in seconds for sampling intercept points.</span>
+<span class="sd">    reaction_buffer : float, default=0.15</span>
+<span class="sd">        Extra time allowance added for player reaction.</span>
+<span class="sd">    fallback_fraction : float, default=0.25</span>
+<span class="sd">        Fraction of prediction path used when falling back to heuristics.</span>
+<span class="sd">    fallback_cap : float, default=4.5</span>
+<span class="sd">        Maximum fallback distance in metres.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">min_ball_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">max_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">time_step</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">reaction_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span>
+    <span class="n">fallback_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">fallback_cap</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.5</span></div>
+
+
+
+<div class="viewcode-block" id="ReceivePassConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.ReceivePassConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">ReceivePassConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Movement assumptions used while a teammate receives an incoming pass.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    player_speed_base : float, default=4.3</span>
+<span class="sd">        Base speed assumed for the receiving player.</span>
+<span class="sd">    player_speed_attr_scale : float, default=3.2</span>
+<span class="sd">        Scaling factor applied from player speed attributes.</span>
+<span class="sd">    stop_distance : float, default=0.4</span>
+<span class="sd">        Distance at which the receiver aims to stop relative to the ball.</span>
+<span class="sd">    move_base_speed : float, default=4.5</span>
+<span class="sd">        Baseline movement speed while adjusting positioning.</span>
+<span class="sd">    move_attr_scale : float, default=3.0</span>
+<span class="sd">        Attribute scaling for movement speed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">player_speed_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.3</span>
+    <span class="n">player_speed_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.2</span>
+    <span class="n">stop_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">move_base_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.5</span>
+    <span class="n">move_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span></div>
+
+
+
+<div class="viewcode-block" id="LooseBallConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.LooseBallConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">LooseBallConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fallback heuristics when both teams chase an uncontrolled ball.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    player_speed_base : float, default=4.6</span>
+<span class="sd">        Base chasing speed for loose ball situations.</span>
+<span class="sd">    player_speed_attr_scale : float, default=3.4</span>
+<span class="sd">        Attribute scaling applied to chasing speed.</span>
+<span class="sd">    intercept_max_time : float, default=3.2</span>
+<span class="sd">        Maximum prediction time used for interceptions.</span>
+<span class="sd">    intercept_reaction_buffer : float, default=0.18</span>
+<span class="sd">        Additional time allowance for reaction delays.</span>
+<span class="sd">    intercept_fallback_fraction : float, default=0.18</span>
+<span class="sd">        Fraction of trajectory used when heuristic fallback triggers.</span>
+<span class="sd">    intercept_fallback_cap : float, default=4.5</span>
+<span class="sd">        Maximum fallback distance applied.</span>
+<span class="sd">    stop_distance : float, default=0.35</span>
+<span class="sd">        Distance at which a player stops when winning the ball.</span>
+<span class="sd">    move_base_speed : float, default=5.0</span>
+<span class="sd">        Baseline movement speed toward the intercept point.</span>
+<span class="sd">    move_attr_scale : float, default=3.2</span>
+<span class="sd">        Attribute scaling for pursuit speed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">player_speed_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.6</span>
+    <span class="n">player_speed_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.4</span>
+    <span class="n">intercept_max_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.2</span>
+    <span class="n">intercept_reaction_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.18</span>
+    <span class="n">intercept_fallback_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.18</span>
+    <span class="n">intercept_fallback_cap</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.5</span>
+    <span class="n">stop_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span>
+    <span class="n">move_base_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">move_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.2</span></div>
+
+
+
+<div class="viewcode-block" id="PossessionSupportConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PossessionSupportConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PossessionSupportConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Weighting for how supporting players position themselves around the ball.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    gap_weight : float, default=0.8</span>
+<span class="sd">        Weight applied to spatial gaps between defenders.</span>
+<span class="sd">    push_bias : float, default=0.3</span>
+<span class="sd">        Bias encouraging players to push forward.</span>
+<span class="sd">    ahead_threshold : float, default=15.0</span>
+<span class="sd">        Distance threshold determining if a teammate is ahead of the ball.</span>
+<span class="sd">    ahead_factor_low : float, default=0.4</span>
+<span class="sd">        Support weighting when only slightly ahead of the ball.</span>
+<span class="sd">    ahead_factor_high : float, default=0.7</span>
+<span class="sd">        Support weighting when well ahead of the ball.</span>
+<span class="sd">    build_up_limit : float, default=18.0</span>
+<span class="sd">        Threshold in metres (relative to goal) marking the end of the build-up phase.</span>
+<span class="sd">    midfield_limit : float, default=38.0</span>
+<span class="sd">        Threshold in metres marking when possession moves from midfield into the final third.</span>
+<span class="sd">    release_recipient_window : float, default=0.9</span>
+<span class="sd">        Blend factor weighting the intended recipient when anchoring support spacing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">gap_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">push_bias</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">ahead_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">ahead_factor_low</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">ahead_factor_high</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">build_up_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>
+    <span class="n">midfield_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">38.0</span>
+    <span class="n">release_recipient_window</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span></div>
+
+
+
+<div class="viewcode-block" id="LaneSpacingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.LaneSpacingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">LaneSpacingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Spacing parameters that keep teammates from crowding passing lanes.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lane_weight : float, default=0.25</span>
+<span class="sd">        Weight applied to lane spacing penalties.</span>
+<span class="sd">    min_spacing : float, default=6.0</span>
+<span class="sd">        Minimum desired distance between players sharing a lane.</span>
+<span class="sd">    separation_scale : float, default=0.5</span>
+<span class="sd">        Scale factor controlling additional separation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">min_spacing</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">separation_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span></div>
+
+
+
+<div class="viewcode-block" id="DefensiveLineConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.DefensiveLineConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">DefensiveLineConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Preferred distances that control the team&#39;s defensive line height.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    far_threshold : float, default=40.0</span>
+<span class="sd">        Distance indicating the opposition is far from goal.</span>
+<span class="sd">    close_threshold : float, default=20.0</span>
+<span class="sd">        Distance indicating the opposition is close to goal.</span>
+<span class="sd">    close_offset : float, default=15.0</span>
+<span class="sd">        Offset applied when the ball is nearby.</span>
+<span class="sd">    advanced_offset : float, default=25.0</span>
+<span class="sd">        Offset applied for advanced defensive positioning.</span>
+<span class="sd">    y_pull_factor : float, default=0.2</span>
+<span class="sd">        Weight pulling defenders toward the ball vertically.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">far_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">40.0</span>
+    <span class="n">close_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">close_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">advanced_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">y_pull_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span></div>
+
+
+
+<div class="viewcode-block" id="PressingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.PressingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">PressingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stamina and proximity thresholds for initiating a press.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    stamina_threshold : float, default=30.0</span>
+<span class="sd">        Minimum stamina percentage required to initiate a press.</span>
+<span class="sd">    distance_threshold : float, default=25.0</span>
+<span class="sd">        Maximum distance to the ball-carrier for press attempts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">stamina_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span></div>
+
+
+
+<div class="viewcode-block" id="SpaceFindingConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.SpaceFindingConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">SpaceFindingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Search grid resolution for locating unoccupied space.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    search_radius : float, default=15.0</span>
+<span class="sd">        Radius in metres around the player to scan for space.</span>
+<span class="sd">    angle_step : int, default=30</span>
+<span class="sd">        Angular step in degrees between search rays.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">search_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">angle_step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span></div>
+
+
+
+<div class="viewcode-block" id="DefenderConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.DefenderConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">DefenderConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Behaviour tuning for defensive roles when marking and tackling.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    tackle_ball_distance : float, default=3.0</span>
+<span class="sd">        Distance at which defenders consider tackling the ball.</span>
+<span class="sd">    tackle_range_base : float, default=1.5</span>
+<span class="sd">        Base tackling range in metres.</span>
+<span class="sd">    tackle_range_attr_scale : float, default=1.0</span>
+<span class="sd">        Additional tackling range derived from attributes.</span>
+<span class="sd">    tackle_success_distance : float, default=1.2</span>
+<span class="sd">        Distance threshold for successful tackle resolution.</span>
+<span class="sd">    tackle_success_scale : float, default=0.7</span>
+<span class="sd">        Attribute scaling for tackle success probability.</span>
+<span class="sd">    clear_power : float, default=20.0</span>
+<span class="sd">        Power applied when clearing the ball.</span>
+<span class="sd">    intercept_ball_speed_min : float, default=3.0</span>
+<span class="sd">        Minimum ball speed to trigger interception logic.</span>
+<span class="sd">    intercept_distance_limit : float, default=15.0</span>
+<span class="sd">        Maximum interception distance.</span>
+<span class="sd">    intercept_speed_scale : float, default=7.0</span>
+<span class="sd">        Scaling factor for interception speed estimation.</span>
+<span class="sd">    intercept_improvement_factor : float, default=0.8</span>
+<span class="sd">        Bonus applied when defensive positioning improves interception odds.</span>
+<span class="sd">    threat_marking_range : float, default=25.0</span>
+<span class="sd">        Range in metres for marking threat evaluation.</span>
+<span class="sd">    threat_marked_distance : float, default=3.0</span>
+<span class="sd">        Distance within which an opponent is considered marked.</span>
+<span class="sd">    threat_ball_distance : float, default=30.0</span>
+<span class="sd">        Distance weighting threat relative to ball proximity.</span>
+<span class="sd">    threat_goal_distance : float, default=50.0</span>
+<span class="sd">        Distance weighting threat relative to goal proximity.</span>
+<span class="sd">    threat_unmarked_bonus : float, default=0.3</span>
+<span class="sd">        Threat bonus applied to unmarked opponents.</span>
+<span class="sd">    threat_ball_weight : float, default=0.2</span>
+<span class="sd">        Weight assigned to ball distance in threat scoring.</span>
+<span class="sd">    threat_goal_weight : float, default=0.2</span>
+<span class="sd">        Weight assigned to goal distance in threat scoring.</span>
+<span class="sd">    threat_marking_weight : float, default=0.2</span>
+<span class="sd">        Weight assigned to marking status in threat scoring.</span>
+<span class="sd">    threat_proximity_weight : float, default=0.4</span>
+<span class="sd">        Weight assigned to opponent proximity.</span>
+<span class="sd">    threat_proximity_distance : float, default=25.0</span>
+<span class="sd">        Maximum distance considered for proximity weighting.</span>
+<span class="sd">    marking_distance_base : float, default=2.0</span>
+<span class="sd">        Base distance defenders maintain when marking.</span>
+<span class="sd">    marking_distance_attr_scale : float, default=1.0</span>
+<span class="sd">        Attribute scaling for marking distance.</span>
+<span class="sd">    marking_ball_distance : float, default=10.0</span>
+<span class="sd">        Ball distance used to adjust marking.</span>
+<span class="sd">    marking_ball_adjustment : float, default=1.0</span>
+<span class="sd">        Adjustment applied according to ball distance.</span>
+<span class="sd">    marking_speed_attr : int, default=70</span>
+<span class="sd">        Speed attribute reference for marking decisions.</span>
+<span class="sd">    dribble_speed : float, default=3.0</span>
+<span class="sd">        Dribbling speed when defenders carry the ball.</span>
+<span class="sd">    fullback_min_width : float, default=8.0</span>
+<span class="sd">        Minimum lateral width maintained by fullbacks.</span>
+<span class="sd">    centreback_shift_factor : float, default=0.15</span>
+<span class="sd">        Rate at which centre-backs shift laterally toward the ball.</span>
+<span class="sd">    centreback_max_width : float, default=12.0</span>
+<span class="sd">        Maximum lateral spread for centre-backs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">tackle_ball_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">tackle_range_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">tackle_range_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">tackle_success_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.2</span>
+    <span class="n">tackle_success_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">clear_power</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">intercept_ball_speed_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">intercept_distance_limit</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">intercept_speed_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.0</span>
+    <span class="n">intercept_improvement_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">threat_marking_range</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">threat_marked_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">threat_ball_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">threat_goal_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">50.0</span>
+    <span class="n">threat_unmarked_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">threat_ball_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">threat_goal_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">threat_marking_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">threat_proximity_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">threat_proximity_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">marking_distance_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">marking_distance_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">marking_ball_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">marking_ball_adjustment</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">marking_speed_attr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">70</span>
+    <span class="n">dribble_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">fullback_min_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>
+    <span class="n">centreback_shift_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span>
+    <span class="n">centreback_max_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span></div>
+
+
+
+<div class="viewcode-block" id="MidfielderConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.MidfielderConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">MidfielderConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Midfielder-specific heuristics for pressing, support, and relief runs.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    press_stamina_threshold : float, default=25.0</span>
+<span class="sd">        Minimum stamina required to initiate a press.</span>
+<span class="sd">    pressure_radius : float, default=4.0</span>
+<span class="sd">        Radius used to determine whether a midfielder is under pressure.</span>
+<span class="sd">    pressure_dribble_threshold : int, default=60</span>
+<span class="sd">        Minimum dribbling attribute for confident pressured dribbles.</span>
+<span class="sd">    retreat_speed : float, default=2.0</span>
+<span class="sd">        Backpedal speed when shielding the ball.</span>
+<span class="sd">    dribble_speed_base : float, default=3.0</span>
+<span class="sd">        Baseline dribble speed.</span>
+<span class="sd">    dribble_speed_attr_scale : float, default=2.0</span>
+<span class="sd">        Attribute-derived speed scaling.</span>
+<span class="sd">    dribble_pressure_base : float, default=2.0</span>
+<span class="sd">        Dribble speed when under pressure.</span>
+<span class="sd">    dribble_pressure_attr_scale : float, default=2.0</span>
+<span class="sd">        Attribute scaling for pressured dribbling.</span>
+<span class="sd">    relief_min_distance : float, default=3.0</span>
+<span class="sd">        Minimum pass distance considered for relief options.</span>
+<span class="sd">    relief_max_distance : float, default=28.0</span>
+<span class="sd">        Maximum relief pass distance.</span>
+<span class="sd">    relief_lane_weight : float, default=0.4</span>
+<span class="sd">        Weight applied to passing lane quality in relief scoring.</span>
+<span class="sd">    relief_space_weight : float, default=0.3</span>
+<span class="sd">        Weight applied to available space around the target.</span>
+<span class="sd">    relief_distance_weight : float, default=0.1</span>
+<span class="sd">        Weight applied to pass distance for relief passes.</span>
+<span class="sd">    relief_progress_bonus : float, default=0.2</span>
+<span class="sd">        Bonus applied when the relief pass advances play.</span>
+<span class="sd">    relief_score_threshold : float, default=0.25</span>
+<span class="sd">        Minimum score required to attempt a relief pass.</span>
+<span class="sd">    relief_space_divisor : float, default=6.0</span>
+<span class="sd">        Divisor controlling how space maps to a 0-1 score.</span>
+<span class="sd">    relief_nearest_default : float, default=10.0</span>
+<span class="sd">        Default nearest-opponent distance when none is found.</span>
+<span class="sd">    relief_vision_base : float, default=0.7</span>
+<span class="sd">        Base scaling factor derived from vision.</span>
+<span class="sd">    relief_vision_scale : float, default=0.3</span>
+<span class="sd">        Additional scaling applied from vision attributes.</span>
+<span class="sd">    progressive_pass_vision_threshold : int, default=70</span>
+<span class="sd">        Vision value required to force progressive passes.</span>
+<span class="sd">    press_success_distance : float, default=1.5</span>
+<span class="sd">        Distance threshold for successful pressing tackles.</span>
+<span class="sd">    press_success_scale : float, default=0.5</span>
+<span class="sd">        Scaling factor for press success probability.</span>
+<span class="sd">    support_trail_distance : float, default=12.0</span>
+<span class="sd">        Distance the midfielder maintains behind the ball while supporting.</span>
+<span class="sd">    support_forward_distance : float, default=10.0</span>
+<span class="sd">        Distance the midfielder advances ahead to support.</span>
+<span class="sd">    support_defense_push : float, default=5.0</span>
+<span class="sd">        Offset applied when supporting the defensive line.</span>
+<span class="sd">    right_width : float, default=12.0</span>
+<span class="sd">        Width target for right-sided midfielders.</span>
+<span class="sd">    left_width : float, default=12.0</span>
+<span class="sd">        Width target for left-sided midfielders.</span>
+<span class="sd">    central_shift_factor : float, default=0.3</span>
+<span class="sd">        Factor controlling how central midfielders adjust laterally.</span>
+<span class="sd">    central_max_width : float, default=15.0</span>
+<span class="sd">        Maximum lateral range for central midfielders.</span>
+<span class="sd">    hold_lane_block_distance : float, default=20.0</span>
+<span class="sd">        Forward scan distance used to detect defenders blocking dribble lanes.</span>
+<span class="sd">    hold_lane_block_width : float, default=8.0</span>
+<span class="sd">        Half-width of the lane considered when checking for blockers.</span>
+<span class="sd">    hold_blocker_count : int, default=2</span>
+<span class="sd">        Minimum number of opponents needed to consider the lane clogged.</span>
+<span class="sd">    hold_pressure_release_radius : float, default=2.5</span>
+<span class="sd">        Pressure radius that cancels a patient hold and forces earlier action.</span>
+<span class="sd">    hold_min_duration : float, default=0.6</span>
+<span class="sd">        Minimum time spent shielding while waiting for support.</span>
+<span class="sd">    hold_max_duration : float, default=1.4</span>
+<span class="sd">        Maximum time spent shielding before re-evaluating options.</span>
+<span class="sd">    hold_retry_cooldown : float, default=0.8</span>
+<span class="sd">        Cooldown applied after a hold window finishes before another can begin.</span>
+<span class="sd">    space_move_duration : float, default=0.9</span>
+<span class="sd">        Duration of lateral probing runs attempted before committing to a hold.</span>
+<span class="sd">    space_move_speed : float, default=2.4</span>
+<span class="sd">        Movement speed used while drifting laterally to create passing lanes.</span>
+<span class="sd">    space_move_patience_loops : int, default=2</span>
+<span class="sd">        Number of completed probe cycles allowed before forcing an alternate action.</span>
+<span class="sd">    pass_progress_break_threshold : float, default=3.0</span>
+<span class="sd">        Forward progress (metres) required to justify an immediate pass when not pressed.</span>
+<span class="sd">    backpass_roles : Tuple[str, ...], default=(&quot;CD&quot;, &quot;LD&quot;, &quot;RD&quot;)</span>
+<span class="sd">        Roles prioritized for recycling possession.</span>
+<span class="sd">    backpass_min_offset : float, default=6.0</span>
+<span class="sd">        Minimum backward separation required for a recycling option.</span>
+<span class="sd">    backpass_max_distance : float, default=32.0</span>
+<span class="sd">        Maximum allowed distance to a recycling teammate.</span>
+<span class="sd">    backpass_lane_weight : float, default=0.45</span>
+<span class="sd">        Weight applied to passing lane quality when scoring back-passes.</span>
+<span class="sd">    backpass_space_weight : float, default=0.35</span>
+<span class="sd">        Weight assigned to the free space around the recycling target.</span>
+<span class="sd">    backpass_distance_weight : float, default=0.2</span>
+<span class="sd">        Weight penalising excessively long backward passes.</span>
+<span class="sd">    backpass_space_divisor : float, default=7.0</span>
+<span class="sd">        Divisor mapping opponent spacing to a 0-1 score for back-passes.</span>
+<span class="sd">    backpass_score_threshold : float, default=0.3</span>
+<span class="sd">        Minimum score required before attempting a recycling pass.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">press_stamina_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">pressure_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.0</span>
+    <span class="n">pressure_dribble_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="n">retreat_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">dribble_speed_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">dribble_speed_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">dribble_pressure_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">dribble_pressure_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">relief_min_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">relief_max_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">28.0</span>
+    <span class="n">relief_lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">relief_space_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">relief_distance_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">relief_progress_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">relief_score_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">relief_space_divisor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">relief_nearest_default</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">relief_vision_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">relief_vision_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">progressive_pass_vision_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">70</span>
+    <span class="n">press_success_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">press_success_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+    <span class="n">support_trail_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">12.0</span>
+    <span class="n">support_forward_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">support_defense_push</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">right_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">left_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">central_shift_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">central_max_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">hold_lane_block_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">hold_lane_block_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
+    <span class="n">hold_blocker_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">hold_pressure_release_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.5</span>
+    <span class="n">hold_min_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">hold_max_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.4</span>
+    <span class="n">hold_retry_cooldown</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">space_move_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>
+    <span class="n">space_move_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.4</span>
+    <span class="n">space_move_patience_loops</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">pass_progress_break_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">backpass_roles</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;CD&quot;</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">,</span> <span class="s2">&quot;RD&quot;</span><span class="p">)</span>
+    <span class="n">backpass_min_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">backpass_max_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">32.0</span>
+    <span class="n">backpass_lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.45</span>
+    <span class="n">backpass_space_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span>
+    <span class="n">backpass_distance_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">backpass_space_divisor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.0</span>
+    <span class="n">backpass_score_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span></div>
+
+
+
+<div class="viewcode-block" id="ForwardConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.ForwardConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">ForwardConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Forward logic for attacking runs, pressing, and dribbling choices.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    shoot_distance_threshold : float, default=25.0</span>
+<span class="sd">        Distance within which forwards consider shooting.</span>
+<span class="sd">    pressure_radius : float, default=3.0</span>
+<span class="sd">        Radius used to decide if a forward is under pressure.</span>
+<span class="sd">    pressure_dribble_threshold : int, default=70</span>
+<span class="sd">        Minimum dribbling ability for pressured dribbles.</span>
+<span class="sd">    vision_progressive_threshold : int, default=70</span>
+<span class="sd">        Vision value required to force progressive passes.</span>
+<span class="sd">    vision_pressure_release_threshold : int, default=50</span>
+<span class="sd">        Vision level required to find pressure-release passes.</span>
+<span class="sd">    dribble_speed_base : float, default=3.5</span>
+<span class="sd">        Baseline dribbling speed for forwards.</span>
+<span class="sd">    dribble_speed_attr_scale : float, default=2.5</span>
+<span class="sd">        Attribute scaling for dribbling speed.</span>
+<span class="sd">    dribble_pressure_base : float, default=2.0</span>
+<span class="sd">        Dribble speed under pressure.</span>
+<span class="sd">    dribble_pressure_attr_scale : float, default=2.0</span>
+<span class="sd">        Attribute scaling for pressured dribbling.</span>
+<span class="sd">    dribble_control_offset : float, default=0.65</span>
+<span class="sd">        Offset keeping the ball close while dribbling.</span>
+<span class="sd">    dribble_velocity_blend : float, default=0.85</span>
+<span class="sd">        Blend factor between player velocity and dribble direction.</span>
+<span class="sd">    escape_angle_step : int, default=45</span>
+<span class="sd">        Increment in degrees when sampling escape routes.</span>
+<span class="sd">    escape_base_space : float, default=10.0</span>
+<span class="sd">        Base spacing considered safe for escape runs.</span>
+<span class="sd">    escape_opponent_scale : float, default=10.0</span>
+<span class="sd">        Scaling applied per nearby opponent.</span>
+<span class="sd">    relief_min_distance : float, default=3.0</span>
+<span class="sd">        Minimum distance for relief passes.</span>
+<span class="sd">    relief_max_distance : float, default=25.0</span>
+<span class="sd">        Maximum distance for relief passes.</span>
+<span class="sd">    relief_lane_weight : float, default=0.45</span>
+<span class="sd">        Weight assigned to lane quality for relief passes.</span>
+<span class="sd">    relief_space_weight : float, default=0.25</span>
+<span class="sd">        Weight assigned to space around the target.</span>
+<span class="sd">    relief_distance_weight : float, default=0.1</span>
+<span class="sd">        Weight assigned to pass distance.</span>
+<span class="sd">    relief_progress_bonus : float, default=0.2</span>
+<span class="sd">        Bonus for passes that advance play.</span>
+<span class="sd">    relief_support_bonus : float, default=0.05</span>
+<span class="sd">        Bonus for passes that support teammates.</span>
+<span class="sd">    relief_score_threshold : float, default=0.25</span>
+<span class="sd">        Minimum relief score required to pass.</span>
+<span class="sd">    relief_space_divisor : float, default=5.0</span>
+<span class="sd">        Divisor mapping opponent spacing to a score.</span>
+<span class="sd">    relief_nearest_default : float, default=10.0</span>
+<span class="sd">        Default nearest opponent distance when unspecified.</span>
+<span class="sd">    relief_vision_base : float, default=0.6</span>
+<span class="sd">        Base scaling factor derived from vision.</span>
+<span class="sd">    relief_vision_scale : float, default=0.4</span>
+<span class="sd">        Additional scaling applied from vision attributes.</span>
+<span class="sd">    pressing_distance : float, default=20.0</span>
+<span class="sd">        Distance at which forwards start pressing defenders.</span>
+<span class="sd">    run_ballcarrier_distance : float, default=30.0</span>
+<span class="sd">        Distance that triggers support runs for the ball carrier.</span>
+<span class="sd">    run_goal_weight : float, default=0.7</span>
+<span class="sd">        Weight applied to goal-oriented run scoring.</span>
+<span class="sd">    run_ball_weight : float, default=0.3</span>
+<span class="sd">        Weight applied to ball-oriented run scoring.</span>
+<span class="sd">    onside_margin : float, default=2.0</span>
+<span class="sd">        Margin kept to remain onside.</span>
+<span class="sd">    hold_position_adjustment : float, default=5.0</span>
+<span class="sd">        Adjustment encouraging forwards to hold their lane.</span>
+<span class="sd">    centre_adjust_factor : float, default=0.3</span>
+<span class="sd">        Factor pulling central forwards toward the middle.</span>
+<span class="sd">    centre_max_width : float, default=8.0</span>
+<span class="sd">        Maximum lateral width for central forwards.</span>
+<span class="sd">    wide_min_offset : float, default=5.0</span>
+<span class="sd">        Minimum lateral offset for wide forwards.</span>
+<span class="sd">    wide_max_width : float, default=15.0</span>
+<span class="sd">        Maximum lateral range for wide forwards.</span>
+<span class="sd">    cut_inside_factor : float, default=0.7</span>
+<span class="sd">        Weight encouraging wide forwards to cut inside.</span>
+<span class="sd">    hold_lane_block_distance : float, default=18.0</span>
+<span class="sd">        Forward scan distance that triggers a patient hold when clogged.</span>
+<span class="sd">    hold_lane_block_width : float, default=7.0</span>
+<span class="sd">        Half-width of the lane considered when evaluating blockers.</span>
+<span class="sd">    hold_blocker_count : int, default=1</span>
+<span class="sd">        Opponent count needed to declare the lane congested for forwards.</span>
+<span class="sd">    hold_pressure_release_radius : float, default=2.0</span>
+<span class="sd">        Pressure radius that cancels the hold and forces an action.</span>
+<span class="sd">    hold_min_duration : float, default=0.45</span>
+<span class="sd">        Minimum shielding time while waiting for support runs.</span>
+<span class="sd">    hold_max_duration : float, default=1.0</span>
+<span class="sd">        Maximum shielding time before re-evaluating options.</span>
+<span class="sd">    hold_retry_cooldown : float, default=0.7</span>
+<span class="sd">        Delay enforced before the same forward is allowed to start another hold.</span>
+<span class="sd">    hold_force_release_time : float, default=0.35</span>
+<span class="sd">        Remaining hold time threshold that triggers an automatic recycle when a pass is available.</span>
+<span class="sd">    hold_force_release_progress : float, default=1.5</span>
+<span class="sd">        Minimum forward progress needed to recycle early once the forced release window opens.</span>
+<span class="sd">    space_move_duration : float, default=0.7</span>
+<span class="sd">        Duration of lateral probes to manufacture a passing lane before shielding.</span>
+<span class="sd">    space_move_speed : float, default=3.0</span>
+<span class="sd">        Drift speed applied while the forward carries the ball into space.</span>
+<span class="sd">    space_move_patience_loops : int, default=2</span>
+<span class="sd">        Number of probe cycles tolerated before forcing a different action.</span>
+<span class="sd">    pass_progress_break_threshold : float, default=6.0</span>
+<span class="sd">        Minimum progress gain needed to override the dribble-first preference.</span>
+<span class="sd">    backpass_roles : Tuple[str, ...], default=(&quot;CD&quot;, &quot;LD&quot;, &quot;RD&quot;)</span>
+<span class="sd">        Roles favoured for recycling possession when pressed.</span>
+<span class="sd">    backpass_min_offset : float, default=5.0</span>
+<span class="sd">        Minimum backward offset required for a recycling target.</span>
+<span class="sd">    backpass_max_distance : float, default=28.0</span>
+<span class="sd">        Maximum distance allowed for a recycling pass.</span>
+<span class="sd">    backpass_lane_weight : float, default=0.4</span>
+<span class="sd">        Weight applied to lane quality when picking recycling targets.</span>
+<span class="sd">    backpass_space_weight : float, default=0.4</span>
+<span class="sd">        Weight applied to available space around the recycling teammate.</span>
+<span class="sd">    backpass_distance_weight : float, default=0.2</span>
+<span class="sd">        Weight penalising long backward passes.</span>
+<span class="sd">    backpass_space_divisor : float, default=6.0</span>
+<span class="sd">        Divisor mapping spacing to a 0-1 score for recycling passes.</span>
+<span class="sd">    backpass_score_threshold : float, default=0.28</span>
+<span class="sd">        Minimum score required before playing a recycling pass.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">shoot_distance_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">pressure_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">pressure_dribble_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">70</span>
+    <span class="n">vision_progressive_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">70</span>
+    <span class="n">vision_pressure_release_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">dribble_speed_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.5</span>
+    <span class="n">dribble_speed_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.5</span>
+    <span class="n">dribble_pressure_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">dribble_pressure_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">dribble_control_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.65</span>
+    <span class="n">dribble_velocity_blend</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.85</span>
+    <span class="n">escape_angle_step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">45</span>
+    <span class="n">escape_base_space</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">escape_opponent_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">relief_min_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">relief_max_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">25.0</span>
+    <span class="n">relief_lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.45</span>
+    <span class="n">relief_space_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">relief_distance_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">relief_progress_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">relief_support_bonus</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">relief_score_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">relief_space_divisor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">relief_nearest_default</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span>
+    <span class="n">relief_vision_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span>
+    <span class="n">relief_vision_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">pressing_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">20.0</span>
+    <span class="n">run_ballcarrier_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span>
+    <span class="n">run_goal_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">run_ball_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">onside_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">hold_position_adjustment</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">centre_adjust_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">centre_max_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
+    <span class="n">wide_min_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">wide_max_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">15.0</span>
+    <span class="n">cut_inside_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">hold_lane_block_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">18.0</span>
+    <span class="n">hold_lane_block_width</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">7.0</span>
+    <span class="n">hold_blocker_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">hold_pressure_release_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">hold_min_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.45</span>
+    <span class="n">hold_max_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="n">hold_retry_cooldown</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">hold_force_release_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">hold_force_release_progress</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">space_move_duration</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span>
+    <span class="n">space_move_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">space_move_patience_loops</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">pass_progress_break_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">backpass_roles</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;CD&quot;</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">,</span> <span class="s2">&quot;RD&quot;</span><span class="p">)</span>
+    <span class="n">backpass_min_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">backpass_max_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">28.0</span>
+    <span class="n">backpass_lane_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">backpass_space_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">backpass_distance_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">backpass_space_divisor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.0</span>
+    <span class="n">backpass_score_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.28</span></div>
+
+
+
+<div class="viewcode-block" id="GoalkeeperConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.GoalkeeperConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">GoalkeeperConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shot-stopping, collection, and positioning settings for goalkeepers.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    save_min_ball_speed : float, default=3.0</span>
+<span class="sd">        Minimum shot speed considered for a save attempt.</span>
+<span class="sd">    save_forward_speed_threshold : float, default=0.3</span>
+<span class="sd">        Forward speed threshold distinguishing rolling and driven shots.</span>
+<span class="sd">    save_plane_buffer : float, default=0.3</span>
+<span class="sd">        Buffer applied to the save plane around the goal line.</span>
+<span class="sd">    save_time_horizon : float, default=1.05</span>
+<span class="sd">        Prediction horizon for anticipated saves.</span>
+<span class="sd">    save_post_buffer : float, default=1.4</span>
+<span class="sd">        Buffer around the posts to avoid clipping animations.</span>
+<span class="sd">    save_box_buffer : float, default=1.5</span>
+<span class="sd">        Buffer for the six-yard box boundaries.</span>
+<span class="sd">    reach_reaction_buffer : float, default=0.05</span>
+<span class="sd">        Time buffer representing reaction delay before diving.</span>
+<span class="sd">    reach_distance_buffer : float, default=0.35</span>
+<span class="sd">        Extra reach distance representing goalkeeper stretch.</span>
+<span class="sd">    success_distance : float, default=1.5</span>
+<span class="sd">        Distance threshold for successful interventions.</span>
+<span class="sd">    success_eta_threshold : float, default=0.25</span>
+<span class="sd">        Time-to-arrival threshold for claiming the ball.</span>
+<span class="sd">    log_eta_threshold : float, default=0.2</span>
+<span class="sd">        Threshold for logging close-call saves.</span>
+<span class="sd">    collect_speed_threshold : float, default=5.0</span>
+<span class="sd">        Ball speed threshold to attempt catches instead of parries.</span>
+<span class="sd">    collect_safe_distance_base : float, default=8.0</span>
+<span class="sd">        Base distance required for safe collection.</span>
+<span class="sd">    collect_safe_distance_attr_scale : float, default=5.0</span>
+<span class="sd">        Attribute scaling applied to safe collection distance.</span>
+<span class="sd">    collect_success_distance : float, default=1.5</span>
+<span class="sd">        Distance within which a collection succeeds.</span>
+<span class="sd">    positioning_distance_base : float, default=2.0</span>
+<span class="sd">        Base positioning offset from the goal line.</span>
+<span class="sd">    positioning_distance_attr_scale : float, default=2.0</span>
+<span class="sd">        Attribute scaling for positional adjustment.</span>
+<span class="sd">    positioning_min_offset : float, default=0.8</span>
+<span class="sd">        Minimum lateral offset kept when centring.</span>
+<span class="sd">    positioning_angle_factor : float, default=0.3</span>
+<span class="sd">        Factor weighting shot angle in positioning decisions.</span>
+<span class="sd">    positioning_max_lateral : float, default=3.0</span>
+<span class="sd">        Maximum allowed lateral shift from goal centre.</span>
+<span class="sd">    positioning_speed_attr : int, default=50</span>
+<span class="sd">        Attribute baseline for movement speed adjustments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">save_min_ball_speed</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">save_forward_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">save_plane_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">save_time_horizon</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.05</span>
+    <span class="n">save_post_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.4</span>
+    <span class="n">save_box_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">reach_reaction_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span>
+    <span class="n">reach_distance_buffer</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span>
+    <span class="n">success_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">success_eta_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="n">log_eta_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">collect_speed_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">collect_safe_distance_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
+    <span class="n">collect_safe_distance_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span>
+    <span class="n">collect_success_distance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.5</span>
+    <span class="n">positioning_distance_base</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">positioning_distance_attr_scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">positioning_min_offset</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+    <span class="n">positioning_angle_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+    <span class="n">positioning_max_lateral</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span>
+    <span class="n">positioning_speed_attr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span></div>
+
+
+
+<div class="viewcode-block" id="RoleBehaviourConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.RoleBehaviourConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">RoleBehaviourConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Aggregates per-role configuration blocks for quick lookup by behaviour.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    shooting : ShootingConfig, default=ShootingConfig()</span>
+<span class="sd">        Configuration used for shot selection heuristics.</span>
+<span class="sd">    passing : PassingConfig, default=PassingConfig()</span>
+<span class="sd">        Configuration controlling pass evaluation and power.</span>
+<span class="sd">    intercept : InterceptConfig, default=InterceptConfig()</span>
+<span class="sd">        Interception prediction parameters.</span>
+<span class="sd">    receive_pass : ReceivePassConfig, default=ReceivePassConfig()</span>
+<span class="sd">        Settings applied when receiving passes.</span>
+<span class="sd">    loose_ball : LooseBallConfig, default=LooseBallConfig()</span>
+<span class="sd">        Heuristics for loose ball chases.</span>
+<span class="sd">    possession_support : PossessionSupportConfig, default=PossessionSupportConfig()</span>
+<span class="sd">        Support positioning weights while in possession.</span>
+<span class="sd">    lane_spacing : LaneSpacingConfig, default=LaneSpacingConfig()</span>
+<span class="sd">        Parameters preventing lane crowding.</span>
+<span class="sd">    defensive : DefensiveLineConfig, default=DefensiveLineConfig()</span>
+<span class="sd">        Defensive line positioning settings.</span>
+<span class="sd">    pressing : PressingConfig, default=PressingConfig()</span>
+<span class="sd">        Pressing thresholds used across roles.</span>
+<span class="sd">    space_finding : SpaceFindingConfig, default=SpaceFindingConfig()</span>
+<span class="sd">        Parameters guiding space-finding behaviour.</span>
+<span class="sd">    defender : DefenderConfig, default=DefenderConfig()</span>
+<span class="sd">        Specialised configuration for defenders.</span>
+<span class="sd">    midfielder : MidfielderConfig, default=MidfielderConfig()</span>
+<span class="sd">        Specialised configuration for midfielders.</span>
+<span class="sd">    forward : ForwardConfig, default=ForwardConfig()</span>
+<span class="sd">        Specialised configuration for forwards.</span>
+<span class="sd">    goalkeeper : GoalkeeperConfig, default=GoalkeeperConfig()</span>
+<span class="sd">        Specialised configuration for goalkeepers.</span>
+<span class="sd">    support_phase_profiles : Dict[str, Dict[str, Tuple[float, float, float]]]</span>
+<span class="sd">        Phase-specific support spacing keyed by role and possession phase.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">shooting</span><span class="p">:</span> <span class="n">ShootingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">ShootingConfig</span><span class="p">)</span>
+    <span class="n">passing</span><span class="p">:</span> <span class="n">PassingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PassingConfig</span><span class="p">)</span>
+    <span class="n">crossing</span><span class="p">:</span> <span class="n">CrossingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">CrossingConfig</span><span class="p">)</span>
+    <span class="n">intercept</span><span class="p">:</span> <span class="n">InterceptConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">InterceptConfig</span><span class="p">)</span>
+    <span class="n">receive_pass</span><span class="p">:</span> <span class="n">ReceivePassConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">ReceivePassConfig</span><span class="p">)</span>
+    <span class="n">loose_ball</span><span class="p">:</span> <span class="n">LooseBallConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">LooseBallConfig</span><span class="p">)</span>
+    <span class="n">possession_support</span><span class="p">:</span> <span class="n">PossessionSupportConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PossessionSupportConfig</span><span class="p">)</span>
+    <span class="n">lane_spacing</span><span class="p">:</span> <span class="n">LaneSpacingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">LaneSpacingConfig</span><span class="p">)</span>
+    <span class="n">defensive</span><span class="p">:</span> <span class="n">DefensiveLineConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">DefensiveLineConfig</span><span class="p">)</span>
+    <span class="n">pressing</span><span class="p">:</span> <span class="n">PressingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PressingConfig</span><span class="p">)</span>
+    <span class="n">space_finding</span><span class="p">:</span> <span class="n">SpaceFindingConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">SpaceFindingConfig</span><span class="p">)</span>
+    <span class="n">defender</span><span class="p">:</span> <span class="n">DefenderConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">DefenderConfig</span><span class="p">)</span>
+    <span class="n">midfielder</span><span class="p">:</span> <span class="n">MidfielderConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">MidfielderConfig</span><span class="p">)</span>
+    <span class="n">forward</span><span class="p">:</span> <span class="n">ForwardConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">ForwardConfig</span><span class="p">)</span>
+    <span class="n">goalkeeper</span><span class="p">:</span> <span class="n">GoalkeeperConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">GoalkeeperConfig</span><span class="p">)</span>
+    <span class="n">support_phase_profiles</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;GK&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">16.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">15.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">13.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">12.0</span><span class="p">,</span> <span class="mf">11.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">11.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">13.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">11.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">13.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">9.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">14.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">,</span> <span class="mf">18.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">15.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">18.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">22.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">16.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">16.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">24.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">16.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">16.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">24.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;CF&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">14.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">18.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">26.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">14.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">18.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">26.0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;build&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">6.0</span><span class="p">,</span> <span class="mf">14.0</span><span class="p">),</span>
+                <span class="s2">&quot;mid&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">14.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">),</span>
+                <span class="s2">&quot;final&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">18.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">26.0</span><span class="p">),</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EngineConfig">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.config.EngineConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">EngineConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Top-level container for all engine tuning structures.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pitch : PitchConfig, default=PitchConfig()</span>
+<span class="sd">        Pitch dimension configuration.</span>
+<span class="sd">    simulation : SimulationConfig, default=SimulationConfig()</span>
+<span class="sd">        Simulation timing parameters.</span>
+<span class="sd">    possession : PossessionConfig, default=PossessionConfig()</span>
+<span class="sd">        Ball possession heuristics.</span>
+<span class="sd">    formation : FormationConfig, default=FormationConfig()</span>
+<span class="sd">        Formation placement references.</span>
+<span class="sd">    ball_physics : BallPhysicsConfig, default=BallPhysicsConfig()</span>
+<span class="sd">        Ball physics tuning.</span>
+<span class="sd">    player_movement : PlayerMovementConfig, default=PlayerMovementConfig()</span>
+<span class="sd">        Movement and locomotion settings.</span>
+<span class="sd">    role : RoleBehaviourConfig, default=RoleBehaviourConfig()</span>
+<span class="sd">        Aggregated role behaviour configurations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pitch</span><span class="p">:</span> <span class="n">PitchConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PitchConfig</span><span class="p">)</span>
+    <span class="n">simulation</span><span class="p">:</span> <span class="n">SimulationConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">SimulationConfig</span><span class="p">)</span>
+    <span class="n">possession</span><span class="p">:</span> <span class="n">PossessionConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PossessionConfig</span><span class="p">)</span>
+    <span class="n">formation</span><span class="p">:</span> <span class="n">FormationConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">FormationConfig</span><span class="p">)</span>
+    <span class="n">ball_physics</span><span class="p">:</span> <span class="n">BallPhysicsConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">BallPhysicsConfig</span><span class="p">)</span>
+    <span class="n">player_movement</span><span class="p">:</span> <span class="n">PlayerMovementConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">PlayerMovementConfig</span><span class="p">)</span>
+    <span class="n">role</span><span class="p">:</span> <span class="n">RoleBehaviourConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">RoleBehaviourConfig</span><span class="p">)</span></div>
+
+
+
+<span class="n">ENGINE_CONFIG</span> <span class="o">=</span> <span class="n">EngineConfig</span><span class="p">()</span>
+<span class="sd">&quot;&quot;&quot;Singleton-style access to the engine configuration.&quot;&quot;&quot;</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

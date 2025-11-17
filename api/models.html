@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Models Package &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Utilities Package" href="utils.html" />
+    <link rel="prev" title="Engine Package" href="engine.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="engine.html">Engine Package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Models Package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#touchline.models.player.Player"><code class="docutils literal notranslate"><span class="pre">Player</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.age"><code class="docutils literal notranslate"><span class="pre">Player.age</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.attributes"><code class="docutils literal notranslate"><span class="pre">Player.attributes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.get_role_rating"><code class="docutils literal notranslate"><span class="pre">Player.get_role_rating()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.name"><code class="docutils literal notranslate"><span class="pre">Player.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.player_id"><code class="docutils literal notranslate"><span class="pre">Player.player_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.role"><code class="docutils literal notranslate"><span class="pre">Player.role</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.Player.start_position"><code class="docutils literal notranslate"><span class="pre">Player.start_position</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#touchline.models.player.PlayerAttributes"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.decisions"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.decisions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.dribbling"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.dribbling</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.heading"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.heading</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.passing"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.passing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.positioning"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.positioning</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.shooting"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.shooting</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.speed"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.speed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.stamina"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.stamina</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.strength"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.strength</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.tackling"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.tackling</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.player.PlayerAttributes.vision"><code class="docutils literal notranslate"><span class="pre">PlayerAttributes.vision</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#touchline.models.team.Formation"><code class="docutils literal notranslate"><span class="pre">Formation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Formation.name"><code class="docutils literal notranslate"><span class="pre">Formation.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Formation.role_counts"><code class="docutils literal notranslate"><span class="pre">Formation.role_counts</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#touchline.models.team.Team"><code class="docutils literal notranslate"><span class="pre">Team</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.formation"><code class="docutils literal notranslate"><span class="pre">Team.formation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.get_players_by_role"><code class="docutils literal notranslate"><span class="pre">Team.get_players_by_role()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.get_team_rating"><code class="docutils literal notranslate"><span class="pre">Team.get_team_rating()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.name"><code class="docutils literal notranslate"><span class="pre">Team.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.players"><code class="docutils literal notranslate"><span class="pre">Team.players</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#touchline.models.team.Team.team_id"><code class="docutils literal notranslate"><span class="pre">Team.team_id</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utilities Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="visualizer.html">Visualizer Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">Command Line Entry</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Models Package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/models.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-touchline.models">
+<span id="models-package"></span><h1>Models Package<a class="headerlink" href="#module-touchline.models" title="Link to this heading"></a></h1>
+<p>Domain models describing players, teams, and related data structures.</p>
+<p id="module-touchline.models.player">Domain models representing football players and their attributes.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="touchline.models.player.Player">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">touchline.models.player.</span></span><span class="sig-name descname"><span class="pre">Player</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">player_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">age</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">role</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attributes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/player.html#Player"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.player.Player" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Rich player model combining roster metadata and attribute ratings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>player_id</strong> (<em>int</em>) – Unique identifier for the player.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – Human-readable player name.</p></li>
+<li><p><strong>age</strong> (<em>int</em>) – Player age in years.</p></li>
+<li><p><strong>role</strong> (<em>str</em>) – Preferred tactical role, for example <code class="docutils literal notranslate"><span class="pre">&quot;CM&quot;</span></code>.</p></li>
+<li><p><strong>attributes</strong> (<a class="reference internal" href="#touchline.models.player.PlayerAttributes" title="touchline.models.player.PlayerAttributes"><em>PlayerAttributes</em></a>) – Structured attribute ratings attached to the player.</p></li>
+<li><p><strong>start_position</strong> (<em>tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>] </em><em>| </em><em>None</em><em>, </em><em>optional</em>) – Default starting coordinates for kick-off expressed as <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y)</span></code> metres
+relative to the pitch centre. Home sides should use negative <code class="docutils literal notranslate"><span class="pre">x</span></code>
+values so they line up in their defensive half. When omitted the engine
+will fall back to configuration defaults.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.age">
+<span class="sig-name descname"><span class="pre">age</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.Player.age" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.attributes">
+<span class="sig-name descname"><span class="pre">attributes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#touchline.models.player.PlayerAttributes" title="touchline.models.player.PlayerAttributes"><span class="pre">PlayerAttributes</span></a></em><a class="headerlink" href="#touchline.models.player.Player.attributes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="touchline.models.player.Player.get_role_rating">
+<span class="sig-name descname"><span class="pre">get_role_rating</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/player.html#Player.get_role_rating"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.player.Player.get_role_rating" title="Link to this definition"></a></dt>
+<dd><p>Compute role-specific effectiveness scores derived from attributes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Mapping from role code to a normalised suitability rating.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict[str, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#touchline.models.player.Player.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.player_id">
+<span class="sig-name descname"><span class="pre">player_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.Player.player_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.role">
+<span class="sig-name descname"><span class="pre">role</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#touchline.models.player.Player.role" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.Player.start_position">
+<span class="sig-name descname"><span class="pre">start_position</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#touchline.models.player.Player.start_position" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">touchline.models.player.</span></span><span class="sig-name descname"><span class="pre">PlayerAttributes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">passing</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shooting</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dribbling</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tackling</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">heading</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">speed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stamina</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strength</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vision</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">positioning</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decisions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/player.html#PlayerAttributes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.player.PlayerAttributes" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Collection of technical, physical, and mental attribute ratings.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>passing</strong> (<em>int</em>) – Accuracy and vision of ground passes.</p></li>
+<li><p><strong>shooting</strong> (<em>int</em>) – Finishing ability and shot power.</p></li>
+<li><p><strong>dribbling</strong> (<em>int</em>) – Close control and ability to beat opponents off the dribble.</p></li>
+<li><p><strong>tackling</strong> (<em>int</em>) – Success rate of standing and sliding tackles.</p></li>
+<li><p><strong>heading</strong> (<em>int</em>) – Strength in aerial duels.</p></li>
+<li><p><strong>speed</strong> (<em>int</em>) – Top sprint velocity.</p></li>
+<li><p><strong>stamina</strong> (<em>int</em>) – Resistance to fatigue over the match.</p></li>
+<li><p><strong>strength</strong> (<em>int</em>) – Physical power during challenges.</p></li>
+<li><p><strong>vision</strong> (<em>int</em>) – Awareness of teammates and space.</p></li>
+<li><p><strong>positioning</strong> (<em>int</em>) – Off-ball movement intelligence.</p></li>
+<li><p><strong>decisions</strong> (<em>int</em>) – Speed and quality of in-match decision making.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.decisions">
+<span class="sig-name descname"><span class="pre">decisions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.decisions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.dribbling">
+<span class="sig-name descname"><span class="pre">dribbling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.dribbling" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.heading">
+<span class="sig-name descname"><span class="pre">heading</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.heading" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.passing">
+<span class="sig-name descname"><span class="pre">passing</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.passing" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.positioning">
+<span class="sig-name descname"><span class="pre">positioning</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.positioning" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.shooting">
+<span class="sig-name descname"><span class="pre">shooting</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.shooting" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.speed">
+<span class="sig-name descname"><span class="pre">speed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.speed" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.stamina">
+<span class="sig-name descname"><span class="pre">stamina</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.stamina" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.strength">
+<span class="sig-name descname"><span class="pre">strength</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.strength" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.tackling">
+<span class="sig-name descname"><span class="pre">tackling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.tackling" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.player.PlayerAttributes.vision">
+<span class="sig-name descname"><span class="pre">vision</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.player.PlayerAttributes.vision" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p id="module-touchline.models.team">Team and formation domain models.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="touchline.models.team.Formation">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">touchline.models.team.</span></span><span class="sig-name descname"><span class="pre">Formation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">role_counts</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/team.html#Formation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.team.Formation" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Description of an outfield tactical shape excluding the goalkeeper.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – Human-readable name of the formation (for example <code class="docutils literal notranslate"><span class="pre">&quot;4-4-2&quot;</span></code>).</p></li>
+<li><p><strong>role_counts</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>int</em><em>]</em>) – Mapping of role codes to the number of players required in that role.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Formation.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#touchline.models.team.Formation.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Formation.role_counts">
+<span class="sig-name descname"><span class="pre">role_counts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#touchline.models.team.Formation.role_counts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="touchline.models.team.Team">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">touchline.models.team.</span></span><span class="sig-name descname"><span class="pre">Team</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">team_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">players</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/team.html#Team"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.team.Team" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Container representing a club or squad and its tactical setup.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>team_id</strong> (<em>int</em>) – Unique identifier for the team.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – Display name for the squad.</p></li>
+<li><p><strong>players</strong> (<em>List</em><em>[</em><a class="reference internal" href="#touchline.models.player.Player" title="touchline.models.player.Player"><em>Player</em></a><em>]</em>) – Complete roster available to the team.</p></li>
+<li><p><strong>formation</strong> (<a class="reference internal" href="#touchline.models.team.Formation" title="touchline.models.team.Formation"><em>Formation</em></a>) – Tactical formation currently assigned to the team.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Team.formation">
+<span class="sig-name descname"><span class="pre">formation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#touchline.models.team.Formation" title="touchline.models.team.Formation"><span class="pre">Formation</span></a></em><a class="headerlink" href="#touchline.models.team.Team.formation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="touchline.models.team.Team.get_players_by_role">
+<span class="sig-name descname"><span class="pre">get_players_by_role</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">role</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/team.html#Team.get_players_by_role"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.team.Team.get_players_by_role" title="Link to this definition"></a></dt>
+<dd><p>Get all players who can play in a given role.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>role</strong> (<em>str</em>) – Role code to filter by (for example <code class="docutils literal notranslate"><span class="pre">&quot;CM&quot;</span></code>).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Players on the roster whose primary role matches <code class="docutils literal notranslate"><span class="pre">role</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference internal" href="#touchline.models.player.Player" title="touchline.models.player.Player">Player</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="touchline.models.team.Team.get_team_rating">
+<span class="sig-name descname"><span class="pre">get_team_rating</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/touchline/models/team.html#Team.get_team_rating"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#touchline.models.team.Team.get_team_rating" title="Link to this definition"></a></dt>
+<dd><p>Calculate overall team rating based on starting 11 and formation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Average rating across the starting eleven with the chosen formation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Team.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#touchline.models.team.Team.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Team.players">
+<span class="sig-name descname"><span class="pre">players</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#touchline.models.player.Player" title="touchline.models.player.Player"><span class="pre">Player</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#touchline.models.team.Team.players" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="touchline.models.team.Team.team_id">
+<span class="sig-name descname"><span class="pre">team_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#touchline.models.team.Team.team_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="engine.html" class="btn btn-neutral float-left" title="Engine Package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="utils.html" class="btn btn-neutral float-right" title="Utilities Package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

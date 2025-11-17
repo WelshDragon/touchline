@@ -1,0 +1,345 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.models.player &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.models.player</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.models.player</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Domain models representing football players and their attributes.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+
+<div class="viewcode-block" id="PlayerAttributes">
+<a class="viewcode-back" href="../../../api/models.html#touchline.models.player.PlayerAttributes">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">PlayerAttributes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Collection of technical, physical, and mental attribute ratings.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    passing : int</span>
+<span class="sd">        Accuracy and vision of ground passes.</span>
+<span class="sd">    shooting : int</span>
+<span class="sd">        Finishing ability and shot power.</span>
+<span class="sd">    dribbling : int</span>
+<span class="sd">        Close control and ability to beat opponents off the dribble.</span>
+<span class="sd">    tackling : int</span>
+<span class="sd">        Success rate of standing and sliding tackles.</span>
+<span class="sd">    heading : int</span>
+<span class="sd">        Strength in aerial duels.</span>
+<span class="sd">    speed : int</span>
+<span class="sd">        Top sprint velocity.</span>
+<span class="sd">    stamina : int</span>
+<span class="sd">        Resistance to fatigue over the match.</span>
+<span class="sd">    strength : int</span>
+<span class="sd">        Physical power during challenges.</span>
+<span class="sd">    vision : int</span>
+<span class="sd">        Awareness of teammates and space.</span>
+<span class="sd">    positioning : int</span>
+<span class="sd">        Off-ball movement intelligence.</span>
+<span class="sd">    decisions : int</span>
+<span class="sd">        Speed and quality of in-match decision making.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Technical</span>
+    <span class="n">passing</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">shooting</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">dribbling</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">tackling</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">heading</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1"># Physical</span>
+    <span class="n">speed</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">stamina</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">strength</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1"># Mental</span>
+    <span class="n">vision</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">positioning</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">decisions</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that all attributes fall within the 1-100 rating scale.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s2"> must be between 1 and 100&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Player">
+<a class="viewcode-back" href="../../../api/models.html#touchline.models.player.Player">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Player</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rich player model combining roster metadata and attribute ratings.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    player_id : int</span>
+<span class="sd">        Unique identifier for the player.</span>
+<span class="sd">    name : str</span>
+<span class="sd">        Human-readable player name.</span>
+<span class="sd">    age : int</span>
+<span class="sd">        Player age in years.</span>
+<span class="sd">    role : str</span>
+<span class="sd">        Preferred tactical role, for example ``&quot;CM&quot;``.</span>
+<span class="sd">    attributes : PlayerAttributes</span>
+<span class="sd">        Structured attribute ratings attached to the player.</span>
+<span class="sd">    start_position : tuple[float, float] | None, optional</span>
+<span class="sd">        Default starting coordinates for kick-off expressed as ``(x, y)`` metres</span>
+<span class="sd">        relative to the pitch centre. Home sides should use negative ``x``</span>
+<span class="sd">        values so they line up in their defensive half. When omitted the engine</span>
+<span class="sd">        will fall back to configuration defaults.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">player_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">role</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># GK, RD, CD, LD, RM, CM, LM, CF, LCF, RCF</span>
+    <span class="n">attributes</span><span class="p">:</span> <span class="n">PlayerAttributes</span>
+    <span class="n">start_position</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Player.get_role_rating">
+<a class="viewcode-back" href="../../../api/models.html#touchline.models.player.Player.get_role_rating">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_role_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute role-specific effectiveness scores derived from attributes.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Dict[str, float]</span>
+<span class="sd">            Mapping from role code to a normalised suitability rating.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ratings</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;GK&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_goalkeeper_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wide_defender_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_central_defender_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wide_defender_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wide_midfielder_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_central_midfielder_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wide_midfielder_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;CF&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_central_forward_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support_forward_rating</span><span class="p">(),</span>
+            <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_support_forward_rating</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">ratings</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_goalkeeper_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a normalised suitability score for goalkeeper duties.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Rating between 0 and 1 composed of positioning, decisions, speed, and strength.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">positioning</span> <span class="o">*</span> <span class="mf">0.3</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">decisions</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">strength</span> <span class="o">*</span> <span class="mf">0.3</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_central_defender_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a central-defender suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted mixture of tackling, heading, strength, and positioning attributes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">tackling</span> <span class="o">*</span> <span class="mf">0.3</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">heading</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">strength</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">positioning</span> <span class="o">*</span> <span class="mf">0.3</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_wide_defender_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a wide-defender suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted blend of tackling, pace, stamina, passing, and positioning.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">tackling</span> <span class="o">*</span> <span class="mf">0.25</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span> <span class="o">*</span> <span class="mf">0.25</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">stamina</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">passing</span> <span class="o">*</span> <span class="mf">0.15</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">positioning</span> <span class="o">*</span> <span class="mf">0.15</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_central_midfielder_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a central-midfielder suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted blend of passing, vision, stamina, decisions, and tackling.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">passing</span> <span class="o">*</span> <span class="mf">0.3</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">vision</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">stamina</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">decisions</span> <span class="o">*</span> <span class="mf">0.15</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">tackling</span> <span class="o">*</span> <span class="mf">0.15</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_wide_midfielder_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a wide-midfielder suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted blend of dribbling, speed, passing, stamina, and vision.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">dribbling</span> <span class="o">*</span> <span class="mf">0.3</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span> <span class="o">*</span> <span class="mf">0.25</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">passing</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">stamina</span> <span class="o">*</span> <span class="mf">0.15</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">vision</span> <span class="o">*</span> <span class="mf">0.1</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_central_forward_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a central-forward suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted blend of shooting, dribbling, speed, and positioning.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">shooting</span> <span class="o">*</span> <span class="mf">0.3</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">dribbling</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">positioning</span> <span class="o">*</span> <span class="mf">0.3</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span>
+
+    <span class="k">def</span> <span class="nf">_support_forward_rating</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a support-forward suitability score scaled to ``0-1``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Weighted blend of shooting, dribbling, speed, passing, and vision.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">shooting</span> <span class="o">*</span> <span class="mf">0.25</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">dribbling</span> <span class="o">*</span> <span class="mf">0.25</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">speed</span> <span class="o">*</span> <span class="mf">0.2</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">passing</span> <span class="o">*</span> <span class="mf">0.15</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">vision</span> <span class="o">*</span> <span class="mf">0.15</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="mi">100</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

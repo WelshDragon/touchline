@@ -1,0 +1,1182 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.engine.match_engine &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.engine.match_engine</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.engine.match_engine</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;High-level orchestration for real-time football match simulations.</span>
+
+<span class="sd">The match engine glues together physics, role behaviour, and officiating to</span>
+<span class="sd">advance the simulation tick by tick. The `RealTimeMatchEngine` class exposes a</span>
+<span class="sd">control surface for running full matches, while :class:`MatchState` captures</span>
+<span class="sd">mutable runtime context shared between subsystems.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">touchline.engine.config</span> <span class="kn">import</span> <span class="n">ENGINE_CONFIG</span>
+<span class="kn">from</span> <span class="nn">touchline.engine.events</span> <span class="kn">import</span> <span class="n">MatchEvent</span>
+<span class="kn">from</span> <span class="nn">touchline.engine.physics</span> <span class="kn">import</span> <span class="n">BallState</span><span class="p">,</span> <span class="n">Pitch</span><span class="p">,</span> <span class="n">PlayerState</span><span class="p">,</span> <span class="n">Vector2D</span>
+<span class="kn">from</span> <span class="nn">touchline.engine.player_state</span> <span class="kn">import</span> <span class="n">PlayerMatchState</span>
+<span class="kn">from</span> <span class="nn">touchline.engine.referee</span> <span class="kn">import</span> <span class="n">Referee</span><span class="p">,</span> <span class="n">RefereeDecision</span>
+<span class="kn">from</span> <span class="nn">touchline.models.team</span> <span class="kn">import</span> <span class="n">Team</span>
+<span class="kn">from</span> <span class="nn">touchline.utils.debug</span> <span class="kn">import</span> <span class="n">MatchDebugger</span>
+<span class="kn">from</span> <span class="nn">touchline.utils.roster</span> <span class="kn">import</span> <span class="n">load_teams_from_json</span>
+
+
+<div class="viewcode-block" id="MatchState">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.MatchState">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">MatchState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Aggregate mutable state required to simulate a single match.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    home_team : Team</span>
+<span class="sd">        Team assigned as the home side.</span>
+<span class="sd">    away_team : Team</span>
+<span class="sd">        Team assigned as the away side.</span>
+<span class="sd">    pitch : Pitch, optional</span>
+<span class="sd">        Pitch dimensions and helper utilities for the match.</span>
+<span class="sd">    ball : BallState, optional</span>
+<span class="sd">        Ball state shared across the simulation tick.</span>
+<span class="sd">    player_states : Dict[int, PlayerMatchState], optional</span>
+<span class="sd">        Mapping from player identifier to their runtime state wrapper.</span>
+<span class="sd">    events : List[MatchEvent], optional</span>
+<span class="sd">        Chronological event log captured during the match.</span>
+<span class="sd">    match_time : float, optional</span>
+<span class="sd">        Current simulation time in seconds.</span>
+<span class="sd">    home_score : int, optional</span>
+<span class="sd">        Goals scored by the home team.</span>
+<span class="sd">    away_score : int, optional</span>
+<span class="sd">        Goals scored by the away team.</span>
+<span class="sd">    current_half : int, optional</span>
+<span class="sd">        Active half number (1 or 2).</span>
+<span class="sd">    halftime_triggered : bool, optional</span>
+<span class="sd">        Whether the half-time sequence has occurred.</span>
+<span class="sd">    starting_kickoff_side : str, optional</span>
+<span class="sd">        Side that took the opening kickoff (``&quot;home&quot;`` or ``&quot;away&quot;``).</span>
+<span class="sd">    current_kickoff_side : str, optional</span>
+<span class="sd">        Side that will take the next kickoff.</span>
+<span class="sd">    team_in_possession : str | None, optional</span>
+<span class="sd">        Side currently credited with possession even if the ball is in transit.</span>
+<span class="sd">    team_possession_since : float, optional</span>
+<span class="sd">        Simulation time when the latest team possession window started.</span>
+<span class="sd">    last_possession_player_id : int | None, optional</span>
+<span class="sd">        Player identifier most recently trusted with the ball.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">home_team</span><span class="p">:</span> <span class="n">Team</span>
+    <span class="n">away_team</span><span class="p">:</span> <span class="n">Team</span>
+    <span class="n">pitch</span><span class="p">:</span> <span class="n">Pitch</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Pitch</span><span class="p">())</span>
+    <span class="n">ball</span><span class="p">:</span> <span class="n">BallState</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">BallState</span><span class="p">(</span><span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
+    <span class="n">player_states</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">PlayerMatchState</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">events</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">MatchEvent</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">match_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># Time in seconds</span>
+    <span class="n">home_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">away_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">current_half</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">halftime_triggered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">starting_kickoff_side</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span>
+    <span class="n">current_kickoff_side</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span>
+    <span class="n">team_in_possession</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">team_possession_since</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">last_possession_player_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    
+    <span class="c1"># Possession sequence tracking</span>
+    <span class="n">possession_sequence_passes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Passes in current possession</span>
+    <span class="n">possession_sequence_start_x</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># Starting X position of possession</span>
+    
+    <span class="c1"># Match statistics tracking</span>
+    <span class="n">home_passes_completed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">away_passes_completed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">home_possession_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">away_possession_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">last_stats_log_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="o">-</span><span class="mf">30.0</span>  <span class="c1"># Log stats every 30s</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise derived state after dataclass construction.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_player_positions</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_kickoff_side</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">starting_kickoff_side</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_player_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set up initial player positions using roster-defined coordinates.&quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">setup_team_positions</span><span class="p">(</span><span class="n">team</span><span class="p">:</span> <span class="n">Team</span><span class="p">,</span> <span class="n">is_home</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">players</span> <span class="o">=</span> <span class="n">team</span><span class="o">.</span><span class="n">players</span><span class="p">[:</span><span class="mi">11</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="n">players</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (role </span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">role</span><span class="si">}</span><span class="s2">) is missing a start_position in the roster.&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">start_position</span>
+                <span class="n">position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+
+                <span class="c1"># Mirror home-orientated coordinates if a roster is reused for the away side.</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_home</span> <span class="ow">and</span> <span class="n">position</span><span class="o">.</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="o">-</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">player_states</span><span class="p">[</span><span class="n">player</span><span class="o">.</span><span class="n">player_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">PlayerMatchState</span><span class="p">(</span>
+                    <span class="n">player_id</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span>
+                    <span class="n">team</span><span class="o">=</span><span class="n">team</span><span class="p">,</span>
+                    <span class="n">state</span><span class="o">=</span><span class="n">PlayerState</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="mf">100.0</span><span class="p">),</span>
+                    <span class="n">role_position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                    <span class="n">is_home_team</span><span class="o">=</span><span class="p">(</span><span class="n">team</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">home_team</span><span class="p">),</span>
+                    <span class="n">player_role</span><span class="o">=</span><span class="n">player</span><span class="o">.</span><span class="n">role</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="n">setup_team_positions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">home_team</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">setup_team_positions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">away_team</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="RealTimeMatchEngine">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.RealTimeMatchEngine">[docs]</a>
+<span class="k">class</span> <span class="nc">RealTimeMatchEngine</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run the simulation loop and expose helper utilities for tests.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    home_team : Team</span>
+<span class="sd">        Team instance representing the nominal home side when no JSON override is supplied.</span>
+<span class="sd">    away_team : Team</span>
+<span class="sd">        Team instance representing the nominal away side when no JSON override is supplied.</span>
+<span class="sd">    players_json : str | None, optional</span>
+<span class="sd">        Optional path to a ``data/players.json`` style roster for deterministic replacements.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">home_team</span><span class="p">:</span> <span class="n">Team</span><span class="p">,</span> <span class="n">away_team</span><span class="p">:</span> <span class="n">Team</span><span class="p">,</span> <span class="n">players_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare a match engine using provided teams or a roster file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        home_team : Team</span>
+<span class="sd">            Team instance representing the nominal home side when no JSON override is supplied.</span>
+<span class="sd">        away_team : Team</span>
+<span class="sd">            Team instance representing the nominal away side when no JSON override is supplied.</span>
+<span class="sd">        players_json : str | None, optional</span>
+<span class="sd">            Optional path to ``data/players.json`` style data for deterministic replacements.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If a players JSON file is provided (or a default data/players.json</span>
+        <span class="c1"># exists in the repo), load teams from that file to ensure deterministic</span>
+        <span class="c1"># player attributes across runs. Otherwise fall back to the provided</span>
+        <span class="c1"># Team objects.</span>
+        <span class="n">state_home</span> <span class="o">=</span> <span class="n">home_team</span>
+        <span class="n">state_away</span> <span class="o">=</span> <span class="n">away_team</span>
+
+        <span class="n">json_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">players_json</span><span class="p">:</span>
+            <span class="n">json_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">players_json</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;data&quot;</span> <span class="o">/</span> <span class="s2">&quot;players.json&quot;</span>
+            <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">json_path</span> <span class="o">=</span> <span class="n">candidate</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Also try relative to repository root (two levels up from this file)</span>
+                <span class="n">candidate2</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parents</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="s2">&quot;data&quot;</span> <span class="o">/</span> <span class="s2">&quot;players.json&quot;</span>
+                <span class="k">if</span> <span class="n">candidate2</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="n">json_path</span> <span class="o">=</span> <span class="n">candidate2</span>
+
+        <span class="k">if</span> <span class="n">json_path</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">h</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">load_teams_from_json</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">json_path</span><span class="p">))</span>
+                <span class="n">state_home</span><span class="p">,</span> <span class="n">state_away</span> <span class="o">=</span> <span class="n">h</span><span class="p">,</span> <span class="n">a</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># Don&#39;t crash if loading fails; fall back to supplied teams.</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: failed to load players JSON </span><span class="si">{</span><span class="n">json_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">MatchState</span><span class="p">(</span><span class="n">state_home</span><span class="p">,</span> <span class="n">state_away</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">simulation_speed</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">default_speed</span>  <span class="c1"># 1.0 = real-time, 2.0 = 2x speed, etc.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_running</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="n">MatchDebugger</span><span class="p">()</span>
+        <span class="c1"># Attach the engine debugger to the shared ball so BallState.kick can log kicks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span>
+        <span class="c1"># Inject debugger reference into each PlayerMatchState so player code</span>
+        <span class="c1"># can optionally write debug events when they modify the ball.</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">referee</span> <span class="o">=</span> <span class="n">Referee</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_kickoff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">current_kickoff_side</span><span class="p">,</span> <span class="n">reset_players</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">log_reason</span><span class="o">=</span><span class="s2">&quot;First half kickoff&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RealTimeMatchEngine.start_match">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.RealTimeMatchEngine.start_match">[docs]</a>
+    <span class="k">def</span> <span class="nf">start_match</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start the match simulation.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_running</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">last_update</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_running</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">&lt;</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">match_duration</span><span class="p">:</span>
+            <span class="n">current_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">current_time</span> <span class="o">-</span> <span class="n">last_update</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulation_speed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+            <span class="n">last_update</span> <span class="o">=</span> <span class="n">current_time</span>
+
+            <span class="c1"># Small sleep to prevent excessive CPU usage</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">frame_sleep</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dt</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update match state for a single simulation step.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dt : float</span>
+<span class="sd">            Delta time in seconds that should elapse this tick (already scaled by ``simulation_speed``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">half_time_mark</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">simulation</span><span class="o">.</span><span class="n">match_duration</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">set_log_match_time</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">halftime_triggered</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">&gt;=</span> <span class="n">half_time_mark</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_start_second_half</span><span class="p">(</span><span class="n">half_time_mark</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Update ball physics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+        
+        <span class="c1"># Track possession time</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_in_possession</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_possession_time</span> <span class="o">+=</span> <span class="n">dt</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_in_possession</span> <span class="o">==</span> <span class="s2">&quot;away&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_possession_time</span> <span class="o">+=</span> <span class="n">dt</span>
+
+        <span class="n">possession_cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">possession</span>
+
+        <span class="c1"># Validate that any current possessor still has the ball within playable range.</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">distance_to_ball</span> <span class="o">=</span> <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+            <span class="n">release_limit</span> <span class="o">=</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">max_control_distance</span> <span class="o">+</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">release_leeway</span>
+            <span class="k">if</span> <span class="n">distance_to_ball</span> <span class="o">&lt;=</span> <span class="n">release_limit</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">==</span> <span class="n">ps</span><span class="o">.</span><span class="n">player_id</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                <span class="s2">&quot;possession&quot;</span><span class="p">,</span>
+                <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">ps</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">ps</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">ps</span><span class="o">.</span><span class="n">player_role</span><span class="si">}</span><span class="s2">) releases possession &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;distance=</span><span class="si">{</span><span class="n">distance_to_ball</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">m&quot;</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Let the referee adjudicate key match events (goal, out of play, etc.)</span>
+        <span class="n">last_touch_side</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_side_for_player</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span><span class="p">)</span>
+        <span class="n">possession_side</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span><span class="p">:</span>
+                <span class="n">possession_side</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span> <span class="k">if</span> <span class="n">ps</span><span class="o">.</span><span class="n">is_home_team</span> <span class="k">else</span> <span class="s2">&quot;away&quot;</span>
+                <span class="k">break</span>
+
+        <span class="n">decision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">referee</span><span class="o">.</span><span class="n">observe_ball</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+            <span class="n">last_touch_side</span><span class="o">=</span><span class="n">last_touch_side</span><span class="p">,</span>
+            <span class="n">possession_side</span><span class="o">=</span><span class="n">possession_side</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">decision</span><span class="o">.</span><span class="n">is_goal</span> <span class="ow">and</span> <span class="n">decision</span><span class="o">.</span><span class="n">team</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_handle_goal</span><span class="p">(</span><span class="n">decision</span><span class="o">.</span><span class="n">team</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">decision</span><span class="o">.</span><span class="n">has_restart</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_apply_restart</span><span class="p">(</span><span class="n">decision</span><span class="p">)</span>
+
+        <span class="c1"># Update all players and track ball possession</span>
+        <span class="n">all_players</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">+=</span> <span class="n">dt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">set_log_match_time</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">)</span>
+        <span class="c1"># Keep per-player match clock aligned with global clock so role logic</span>
+        <span class="c1"># that depends on time (e.g. kick cooldowns) sees real match seconds.</span>
+        <span class="k">for</span> <span class="n">player_state</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+            <span class="n">player_state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+
+        <span class="c1"># Update ball possession - player closest to slow ball gets possession</span>
+        <span class="n">ball_speed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">assign_possession</span><span class="p">(</span><span class="n">new_player</span><span class="p">:</span> <span class="n">PlayerMatchState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">previous_possessor</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">already_possessing</span> <span class="o">=</span> <span class="n">previous_possessor</span> <span class="o">==</span> <span class="n">new_player</span>
+
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="n">new_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="n">new_player</span><span class="o">.</span><span class="n">player_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">team_side</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span> <span class="k">if</span> <span class="n">new_player</span><span class="o">.</span><span class="n">is_home_team</span> <span class="k">else</span> <span class="s2">&quot;away&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="n">team_side</span><span class="p">,</span> <span class="n">player_id</span><span class="o">=</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;player_control&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Log possession change with context (interception, tackle, etc.)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">already_possessing</span><span class="p">:</span>
+                <span class="n">possession_type</span> <span class="o">=</span> <span class="s2">&quot;possession&quot;</span>
+                <span class="n">details</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_role</span><span class="si">}</span><span class="s2">) gains possession&quot;</span>
+                <span class="p">)</span>
+                
+                <span class="c1"># Check if this was an interception (ball in flight, different team)</span>
+                <span class="k">if</span> <span class="n">previous_possessor</span> <span class="ow">and</span> <span class="n">ball_speed</span> <span class="o">&gt;</span> <span class="mf">2.0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">new_player</span><span class="o">.</span><span class="n">team</span> <span class="o">!=</span> <span class="n">previous_possessor</span><span class="o">.</span><span class="n">team</span><span class="p">:</span>
+                        <span class="n">possession_type</span> <span class="o">=</span> <span class="s2">&quot;interception&quot;</span>
+                        <span class="n">distance</span> <span class="o">=</span> <span class="n">new_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+                        <span class="n">details</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_role</span><span class="si">}</span><span class="s2">) &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;INTERCEPTS from </span><span class="si">{</span><span class="n">previous_possessor</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> at distance </span><span class="si">{</span><span class="n">distance</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">m&quot;</span>
+                        <span class="p">)</span>
+                <span class="c1"># Check if this was a tackle (close proximity, different team)</span>
+                <span class="k">elif</span> <span class="n">previous_possessor</span> <span class="ow">and</span> <span class="n">ball_speed</span> <span class="o">&lt;</span> <span class="mf">2.0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">new_player</span><span class="o">.</span><span class="n">team</span> <span class="o">!=</span> <span class="n">previous_possessor</span><span class="o">.</span><span class="n">team</span><span class="p">:</span>
+                        <span class="n">distance</span> <span class="o">=</span> <span class="n">new_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">previous_possessor</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="mf">3.0</span><span class="p">:</span>  <span class="c1"># Close proximity = tackle</span>
+                            <span class="n">possession_type</span> <span class="o">=</span> <span class="s2">&quot;tackle&quot;</span>
+                            <span class="n">details</span> <span class="o">=</span> <span class="p">(</span>
+                                <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">new_player</span><span class="o">.</span><span class="n">player_role</span><span class="si">}</span><span class="s2">) &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;TACKLES </span><span class="si">{</span><span class="n">previous_possessor</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> at distance </span><span class="si">{</span><span class="n">distance</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">m&quot;</span>
+                            <span class="p">)</span>
+                
+                <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="n">possession_type</span><span class="p">,</span> <span class="n">details</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_settle_new_possession</span><span class="p">(</span><span class="n">new_player</span><span class="p">)</span>
+
+
+        <span class="n">possession_acquired</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">target_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span>
+        <span class="k">if</span> <span class="n">target_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">target_player</span><span class="p">:</span>
+                <span class="n">to_target</span> <span class="o">=</span> <span class="n">target_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span>
+                <span class="n">distance_to_target</span> <span class="o">=</span> <span class="n">to_target</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">distance_to_target</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">base_radius</span> <span class="o">=</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">target_radius_min</span>
+                    <span class="n">catch_radius</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                        <span class="n">base_radius</span><span class="p">,</span>
+                        <span class="nb">min</span><span class="p">(</span>
+                            <span class="n">possession_cfg</span><span class="o">.</span><span class="n">target_radius_max</span><span class="p">,</span>
+                            <span class="n">base_radius</span> <span class="o">+</span> <span class="n">ball_speed</span> <span class="o">*</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">target_radius_speed_factor</span><span class="p">,</span>
+                        <span class="p">),</span>
+                    <span class="p">)</span>
+
+                    <span class="n">direction_alignment</span> <span class="o">=</span> <span class="mf">1.0</span>
+                    <span class="k">if</span> <span class="n">ball_speed</span> <span class="o">&gt;</span> <span class="mf">0.1</span><span class="p">:</span>
+                        <span class="n">to_target_norm</span> <span class="o">=</span> <span class="n">to_target</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+                        <span class="n">velocity_norm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+                        <span class="n">direction_alignment</span> <span class="o">=</span> <span class="n">velocity_norm</span><span class="o">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">to_target_norm</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">velocity_norm</span><span class="o">.</span><span class="n">y</span> <span class="o">*</span> <span class="n">to_target_norm</span><span class="o">.</span><span class="n">y</span>
+
+                    <span class="c1"># Let intended recipients gather the ball slightly early to avoid awkward backpedals.</span>
+                    <span class="n">max_receive_distance</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">possession_cfg</span><span class="o">.</span><span class="n">max_control_distance</span> <span class="o">+</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">target_receive_leeway</span>
+                    <span class="p">)</span>
+                    <span class="c1"># Only award possession once the ball is within playable control range.</span>
+                    <span class="n">aligned_velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">direction_alignment</span><span class="p">)</span>
+                    <span class="n">velocity_gate</span> <span class="o">=</span> <span class="n">aligned_velocity</span> <span class="o">&gt;</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">target_velocity_gate</span>
+
+                    <span class="n">within_control</span> <span class="o">=</span> <span class="n">distance_to_target</span> <span class="o">&lt;=</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">max_control_distance</span>
+
+                    <span class="k">if</span> <span class="n">within_control</span><span class="p">:</span>
+                        <span class="n">assign_possession</span><span class="p">(</span><span class="n">target_player</span><span class="p">)</span>
+                        <span class="n">possession_acquired</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">elif</span> <span class="p">(</span>
+                        <span class="n">velocity_gate</span>
+                        <span class="ow">and</span> <span class="n">distance_to_target</span> <span class="o">&lt;=</span> <span class="n">max_receive_distance</span>
+                        <span class="ow">and</span> <span class="n">distance_to_target</span> <span class="o">&lt;</span> <span class="n">catch_radius</span>
+                        <span class="ow">and</span> <span class="n">direction_alignment</span> <span class="o">&gt;</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">direction_alignment_min</span>
+                    <span class="p">):</span>
+                        <span class="n">assign_possession</span><span class="p">(</span><span class="n">target_player</span><span class="p">)</span>
+                        <span class="n">possession_acquired</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">possession_acquired</span><span class="p">:</span>
+            <span class="c1"># Intended recipient already caught the ball; keep possession state untouched.</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="n">ball_speed</span> <span class="o">&lt;</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">loose_ball_speed_threshold</span><span class="p">:</span>
+            <span class="n">closest_player</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">all_players</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">))</span>
+            <span class="n">closest_distance</span> <span class="o">=</span> <span class="n">closest_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="p">)</span>
+
+            <span class="n">possession_radius</span> <span class="o">=</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">base_radius</span>
+            <span class="k">if</span> <span class="n">ball_speed</span> <span class="o">&lt;</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">medium_speed_threshold</span><span class="p">:</span>
+                <span class="n">possession_radius</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">possession_radius</span><span class="p">,</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">medium_radius</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ball_speed</span> <span class="o">&lt;</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">slow_speed_threshold</span><span class="p">:</span>
+                <span class="n">possession_radius</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">possession_radius</span><span class="p">,</span> <span class="n">possession_cfg</span><span class="o">.</span><span class="n">slow_radius</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">closest_distance</span> <span class="o">&lt;</span> <span class="n">possession_radius</span><span class="p">:</span>
+                <span class="n">assign_possession</span><span class="p">(</span><span class="n">closest_player</span><span class="p">)</span>
+                <span class="n">possession_acquired</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># No one close enough to possess</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Ball is moving fast, no one has possession</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decay_team_possession</span><span class="p">(</span><span class="n">all_players</span><span class="p">)</span>
+        
+        <span class="c1"># Log periodic match statistics</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">last_stats_log_time</span> <span class="o">&gt;=</span> <span class="mf">30.0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_match_statistics</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">last_stats_log_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+
+        <span class="c1"># Update AI for all players</span>
+        <span class="k">for</span> <span class="n">player_state</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+            <span class="c1"># Call role-specific AI</span>
+            <span class="n">behaviour</span> <span class="o">=</span> <span class="n">player_state</span><span class="o">.</span><span class="n">role_behaviour</span>
+            <span class="n">behaviour</span><span class="o">.</span><span class="n">_match_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span>  <span class="c1"># type: ignore[attr-defined]</span>
+            <span class="n">behaviour</span><span class="o">.</span><span class="n">decide_action</span><span class="p">(</span><span class="n">player_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="p">,</span> <span class="n">all_players</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+
+            <span class="c1"># Update player position based on velocity (for dribbling, movement, etc.)</span>
+            <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">+</span> <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">*</span> <span class="n">dt</span>
+
+            <span class="c1"># Recover stamina when not sprinting</span>
+            <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">recover_stamina</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+
+        <span class="c1"># Determine ball possession for logging</span>
+        <span class="n">ball_possession_team</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">player_state</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span><span class="p">:</span>
+                <span class="n">ball_possession_team</span> <span class="o">=</span> <span class="n">player_state</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">break</span>
+
+        <span class="c1"># Log ball state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_ball_state</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">),</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span><span class="o">.</span><span class="n">y</span><span class="p">),</span>
+            <span class="n">ball_possession_team</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Log player states every time we log the ball state so logs are</span>
+        <span class="c1"># synchronized and it&#39;s easy to correlate ball &lt;-&gt; player changes.</span>
+        <span class="k">for</span> <span class="n">player_state</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">:</span>
+            <span class="n">target_tuple</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">player_state</span><span class="o">.</span><span class="n">current_target</span><span class="p">:</span>
+                <span class="n">target_tuple</span> <span class="o">=</span> <span class="p">(</span><span class="n">player_state</span><span class="o">.</span><span class="n">current_target</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">player_state</span><span class="o">.</span><span class="n">current_target</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+
+                <span class="n">velocity_vec</span> <span class="o">=</span> <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span>
+                <span class="n">velocity_tuple</span> <span class="o">=</span> <span class="p">(</span><span class="n">velocity_vec</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">velocity_vec</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+                <span class="n">speed</span> <span class="o">=</span> <span class="n">velocity_vec</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_player_state</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                    <span class="n">player_state</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span>
+                    <span class="n">player_state</span><span class="o">.</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">),</span>
+                    <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span><span class="p">,</span>
+                    <span class="n">player_state</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">stamina</span><span class="p">,</span>
+                    <span class="n">velocity</span><span class="o">=</span><span class="n">velocity_tuple</span><span class="p">,</span>
+                    <span class="n">speed</span><span class="o">=</span><span class="n">speed</span><span class="p">,</span>
+                    <span class="n">target</span><span class="o">=</span><span class="n">target_tuple</span><span class="p">,</span>
+                    <span class="n">player_role</span><span class="o">=</span><span class="n">player_state</span><span class="o">.</span><span class="n">player_role</span><span class="p">,</span>
+                <span class="p">)</span>
+                
+                <span class="c1"># Log target source if available for debugging position jumps</span>
+                <span class="n">target_src</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">player_state</span><span class="p">,</span> <span class="s1">&#39;target_source&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">target_src</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                        <span class="s2">&quot;target_source&quot;</span><span class="p">,</span>
+                        <span class="sa">f</span><span class="s2">&quot;Player </span><span class="si">{</span><span class="n">player_state</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> target set by: </span><span class="si">{</span><span class="n">target_src</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;at (</span><span class="si">{</span><span class="n">target_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">target_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_settle_new_possession</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">possessor</span><span class="p">:</span> <span class="n">PlayerMatchState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Bring the ball under control when a new possessor is awarded.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        possessor : PlayerMatchState</span>
+<span class="sd">            Player who just established possession.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ball</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span>
+
+        <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Remove any airborne state now that the ball is under control.</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">is_airborne</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">just_bounced</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">time_until_ground</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="k">def</span> <span class="nf">_handle_goal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scoring_team</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process bookkeeping and restart flow when a goal is scored.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scoring_team : str</span>
+<span class="sd">            Side that scored (``&quot;home&quot;`` or ``&quot;away&quot;``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">scoring_team</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_score</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">team</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_team</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_score</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">team</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_team</span>
+
+        <span class="n">event</span> <span class="o">=</span> <span class="n">MatchEvent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;goal&quot;</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;GOAL! Scored by </span><span class="si">{</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;goal&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;GOAL! Score: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_score</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_score</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Restart with the conceding team taking the kickoff.</span>
+        <span class="n">next_kickoff_side</span> <span class="o">=</span> <span class="s2">&quot;away&quot;</span> <span class="k">if</span> <span class="n">scoring_team</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="s2">&quot;home&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_kickoff</span><span class="p">(</span><span class="n">next_kickoff_side</span><span class="p">,</span> <span class="n">reset_players</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log_reason</span><span class="o">=</span><span class="s2">&quot;Kickoff after goal&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_apply_restart</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decision</span><span class="p">:</span> <span class="n">RefereeDecision</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Carry out the restart selected by the referee.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        decision : RefereeDecision</span>
+<span class="sd">            Decision emitted by the referee containing restart context.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">restart_type</span> <span class="o">=</span> <span class="n">decision</span><span class="o">.</span><span class="n">restart_type</span>
+        <span class="n">awarded_side</span> <span class="o">=</span> <span class="n">decision</span><span class="o">.</span><span class="n">awarded_side</span>
+        <span class="n">restart_spot</span> <span class="o">=</span> <span class="n">decision</span><span class="o">.</span><span class="n">restart_spot</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span>
+
+        <span class="k">if</span> <span class="n">restart_type</span> <span class="o">==</span> <span class="s2">&quot;goal_kick&quot;</span> <span class="ow">and</span> <span class="n">awarded_side</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restart_goal_kick</span><span class="p">(</span><span class="n">awarded_side</span><span class="p">,</span> <span class="n">restart_spot</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">restart_type</span> <span class="o">==</span> <span class="s2">&quot;throw_in&quot;</span> <span class="ow">and</span> <span class="n">awarded_side</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restart_throw_in</span><span class="p">(</span><span class="n">awarded_side</span><span class="p">,</span> <span class="n">restart_spot</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">restart_type</span> <span class="o">==</span> <span class="s2">&quot;corner&quot;</span><span class="p">:</span>
+            <span class="c1"># Corner routines not yet implemented; keep behaviour predictable.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span><span class="o">.</span><span class="n">constrain_to_bounds</span><span class="p">(</span><span class="n">restart_spot</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                <span class="s2">&quot;restart&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Corner kick handling not implemented; resetting ball in play&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Unknown restart; fall back to clamping the ball.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span><span class="o">.</span><span class="n">constrain_to_bounds</span><span class="p">(</span><span class="n">restart_spot</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_start_second_half</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">half_time_mark</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Trigger the second-half kickoff sequence.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        half_time_mark : float</span>
+<span class="sd">            Simulation timestamp representing half-time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">halftime_triggered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">current_half</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">=</span> <span class="n">half_time_mark</span>
+        <span class="n">second_half_side</span> <span class="o">=</span> <span class="s2">&quot;away&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">starting_kickoff_side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="s2">&quot;home&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_kickoff</span><span class="p">(</span><span class="n">second_half_side</span><span class="p">,</span> <span class="n">reset_players</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">log_reason</span><span class="o">=</span><span class="s2">&quot;Second half kickoff&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_prepare_kickoff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kicking_side</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reset_players</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">log_reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Center the ball and assign possession for the next kickoff.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        kicking_side : str</span>
+<span class="sd">            Side taking the kickoff (``&quot;home&quot;`` or ``&quot;away&quot;``).</span>
+<span class="sd">        reset_players : bool</span>
+<span class="sd">            When ``True``, reinitialise player states before placing them.</span>
+<span class="sd">        log_reason : str</span>
+<span class="sd">            Text description included in debugger logs for traceability.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">reset_players</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_player_states</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">current_kickoff_side</span> <span class="o">=</span> <span class="n">kicking_side</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_ball_state</span><span class="p">()</span>
+
+        <span class="n">team_players</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_team_players</span><span class="p">(</span><span class="n">kicking_side</span><span class="p">)</span>
+        <span class="n">kicker</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_kickoff_player</span><span class="p">(</span><span class="n">team_players</span><span class="p">)</span>
+
+        <span class="n">support_player</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">kicker</span><span class="p">:</span>
+            <span class="n">kickoff_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">kickoff_position</span>
+            <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">kicker</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">kickoff_position</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="n">kicker</span><span class="o">.</span><span class="n">player_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+
+            <span class="n">support_player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_support_player</span><span class="p">(</span><span class="n">team_players</span><span class="p">,</span> <span class="n">kicker</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">support_player</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">support_player</span><span class="o">.</span><span class="n">is_home_team</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="n">support_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">direction</span> <span class="o">*</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">support_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">support_position</span>
+                <span class="n">support_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">support_player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">support_player</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="n">support_player</span><span class="o">.</span><span class="n">player_id</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="n">kicking_side</span><span class="p">,</span> <span class="n">player_id</span><span class="o">=</span><span class="n">kicker</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;kickoff&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+            <span class="s2">&quot;kickoff&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">log_reason</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">kicking_side</span><span class="si">}</span><span class="s2"> team to start&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_reset_player_states</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Recreate player state objects for a fresh restart.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_initialize_player_positions</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">match_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_reset_ball_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the ball to the center spot without residual motion.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">debugger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="p">,</span> <span class="s2">&quot;recent_pass_pairs&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">recent_pass_pairs</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="p">,</span> <span class="s2">&quot;ground&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">ground</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="p">,</span> <span class="s2">&quot;set_log_match_time&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">set_log_match_time</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;reset_ball_state&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RealTimeMatchEngine.force_goal_kick">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.RealTimeMatchEngine.force_goal_kick">[docs]</a>
+    <span class="k">def</span> <span class="nf">force_goal_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defending_side</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Force the referee to restart play with a goal kick.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        defending_side : str</span>
+<span class="sd">            Side that should be awarded the goal kick (``&quot;home&quot;`` or ``&quot;away&quot;``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">goal_line_x</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">defending_side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">mock_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">goal_line_x</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restart_goal_kick</span><span class="p">(</span><span class="n">defending_side</span><span class="p">,</span> <span class="n">mock_position</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RealTimeMatchEngine.force_throw_in">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.RealTimeMatchEngine.force_throw_in">[docs]</a>
+    <span class="k">def</span> <span class="nf">force_throw_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">awarding_side</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">y_hint</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Force the referee to restart play with a throw-in.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        awarding_side : str</span>
+<span class="sd">            Side that should take the throw-in (``&quot;home&quot;`` or ``&quot;away&quot;``).</span>
+<span class="sd">        y_hint : float, optional</span>
+<span class="sd">            Vertical pitch coordinate suggesting where the ball exited.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mock_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">y_hint</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restart_throw_in</span><span class="p">(</span><span class="n">awarding_side</span><span class="p">,</span> <span class="n">mock_position</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_get_team_players</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return players belonging to the requested side.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        side : str</span>
+<span class="sd">            ``&quot;home&quot;`` or ``&quot;away&quot;``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        List[PlayerMatchState]</span>
+<span class="sd">            Player states matching the requested team.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">ps</span>
+            <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">ps</span><span class="o">.</span><span class="n">is_home_team</span> <span class="ow">and</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">ps</span><span class="o">.</span><span class="n">is_home_team</span> <span class="ow">and</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">&quot;away&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_select_kickoff_player</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pick the player who will take the kickoff for the given side.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        candidates : List[PlayerMatchState]</span>
+<span class="sd">            Player states eligible to take the kickoff.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[PlayerMatchState]</span>
+<span class="sd">            Preferred kicker, or ``None`` when no players are available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">role_priority</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;CF&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ST&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;RCF&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;LCF&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CAM&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AM&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;CM&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;RM&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;LM&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="n">role_priority</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">player</span><span class="o">.</span><span class="n">player_role</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="n">role</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">player</span>
+
+        <span class="c1"># Fall back to the player closest to the centre spot.</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_select_support_player</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">],</span> <span class="n">kicker</span><span class="p">:</span> <span class="n">PlayerMatchState</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Choose a second player to receive the kickoff tap.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        candidates : List[PlayerMatchState]</span>
+<span class="sd">            Player states from the kicking side.</span>
+<span class="sd">        kicker : PlayerMatchState</span>
+<span class="sd">            Player already designated to take the kickoff.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[PlayerMatchState]</span>
+<span class="sd">            Support player positioned near the centre circle, or ``None`` if unavailable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">others</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">player_id</span> <span class="o">!=</span> <span class="n">kicker</span><span class="o">.</span><span class="n">player_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">others</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">others</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="nb">abs</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_select_throw_in_recipient</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">],</span> <span class="n">thrower</span><span class="p">:</span> <span class="n">PlayerMatchState</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pick a teammate to receive the throw-in.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        candidates : List[PlayerMatchState]</span>
+<span class="sd">            Player states belonging to the throwing team.</span>
+<span class="sd">        thrower : PlayerMatchState</span>
+<span class="sd">            Player tasked with delivering the throw-in.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[PlayerMatchState]</span>
+<span class="sd">            Intended recipient closest to the touchline, or ``None`` if no teammates qualify.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">others</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">player_id</span> <span class="o">!=</span> <span class="n">thrower</span><span class="o">.</span><span class="n">player_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">others</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">others</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">thrower</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_side_for_player</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">player_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return which side (&quot;home&quot; or &quot;away&quot;) a player belongs to.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        player_id : Optional[int]</span>
+<span class="sd">            Player identifier, or ``None`` if unknown.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Optional[str]</span>
+<span class="sd">            ``&quot;home&quot;`` or ``&quot;away&quot;`` if the player exists, else ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">player_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">player_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">player_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">player_state</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="s2">&quot;home&quot;</span> <span class="k">if</span> <span class="n">player_state</span><span class="o">.</span><span class="n">is_home_team</span> <span class="k">else</span> <span class="s2">&quot;away&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_team_for_side</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Team</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the :class:`Team` object for the requested side.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        side : str</span>
+<span class="sd">            ``&quot;home&quot;`` or ``&quot;away&quot;``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Team</span>
+<span class="sd">            Team instance representing the requested side.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_team</span> <span class="k">if</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_team</span>
+
+    <span class="k">def</span> <span class="nf">_set_team_possession</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">side</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">player_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Record which side currently controls play, even between touches.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        side : Optional[str]</span>
+<span class="sd">            ``&quot;home&quot;``, ``&quot;away&quot;``, or ``None`` when clearing possession.</span>
+<span class="sd">        player_id : Optional[int], keyword-only</span>
+<span class="sd">            Player responsible for the possession change.</span>
+<span class="sd">        reason : str, keyword-only</span>
+<span class="sd">            Short text explaining why possession changed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_in_possession</span>
+        
+        <span class="c1"># Log possession sequence stats if team is losing possession</span>
+        <span class="k">if</span> <span class="n">previous</span> <span class="ow">and</span> <span class="n">previous</span> <span class="o">!=</span> <span class="n">side</span><span class="p">:</span>
+            <span class="n">duration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_possession_since</span>
+            <span class="n">passes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">possession_sequence_passes</span>
+            <span class="k">if</span> <span class="n">passes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+                    <span class="s2">&quot;possession_sequence&quot;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">previous</span><span class="si">}</span><span class="s2"> possession ended: </span><span class="si">{</span><span class="n">passes</span><span class="si">}</span><span class="s2"> passes, </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s duration&quot;</span>
+                <span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_in_possession</span> <span class="o">=</span> <span class="n">side</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_possession_since</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">last_possession_player_id</span> <span class="o">=</span> <span class="n">player_id</span> <span class="k">if</span> <span class="n">side</span> <span class="k">else</span> <span class="kc">None</span>
+        
+        <span class="c1"># Reset possession sequence tracking</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">possession_sequence_passes</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">side</span> <span class="ow">and</span> <span class="n">player_id</span><span class="p">:</span>
+            <span class="n">player</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">player_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">player</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">possession_sequence_start_x</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">x</span>
+        
+        <span class="c1"># Sync with ball state so roles can access it</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">possessing_team_side</span> <span class="o">=</span> <span class="n">side</span>
+
+        <span class="k">if</span> <span class="n">previous</span> <span class="o">==</span> <span class="n">side</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">detail</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;team possession -&gt; </span><span class="si">{</span><span class="n">side</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;none&#39;</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">player_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">side</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">detail</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; (player #</span><span class="si">{</span><span class="n">player_id</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">if</span> <span class="n">reason</span><span class="p">:</span>
+            <span class="n">detail</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; [</span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">]&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;team_possession&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_decay_team_possession</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">all_players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">PlayerMatchState</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Release team control if no one settles the ball within the linger window.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        all_players : List[PlayerMatchState]</span>
+<span class="sd">            Player states to inspect for live possession.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_in_possession</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_players</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">linger</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">possession</span><span class="o">.</span><span class="n">team_possession_linger</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">team_possession_since</span> <span class="o">&lt;=</span> <span class="n">linger</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;linger_expired&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_clear_possession</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove possession flags so a restart can be set up cleanly.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">player_states</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">ps</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;clear_possession&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_restart_goal_kick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defending_side</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out_position</span><span class="p">:</span> <span class="n">Vector2D</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Place the ball for a goal kick and give it to the defending goalkeeper.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        defending_side : str</span>
+<span class="sd">            ``&quot;home&quot;`` or ``&quot;away&quot;`` depending on who takes the kick.</span>
+<span class="sd">        out_position : Vector2D</span>
+<span class="sd">            Location where the ball exited, used to position the restart laterally.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clear_possession</span><span class="p">()</span>
+
+        <span class="n">team_players</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_team_players</span><span class="p">(</span><span class="n">defending_side</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">team_players</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">kicker</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">team_players</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">player_role</span> <span class="o">==</span> <span class="s2">&quot;GK&quot;</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kicker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kicker</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">team_players</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">out_position</span><span class="p">))</span>
+
+        <span class="n">pitch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span>
+        <span class="n">half_width</span> <span class="o">=</span> <span class="n">pitch</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">goal_line_x</span> <span class="o">=</span> <span class="o">-</span><span class="n">half_width</span> <span class="k">if</span> <span class="n">defending_side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="n">half_width</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="n">pitch</span><span class="o">.</span><span class="n">goal_area_depth</span>
+        <span class="n">inside_offset</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">depth</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">depth</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">defending_side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span><span class="p">:</span>
+            <span class="n">restart_x</span> <span class="o">=</span> <span class="n">goal_line_x</span> <span class="o">+</span> <span class="n">inside_offset</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">restart_x</span> <span class="o">=</span> <span class="n">goal_line_x</span> <span class="o">-</span> <span class="n">inside_offset</span>
+
+        <span class="n">lateral_limit</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">pitch</span><span class="o">.</span><span class="n">goal_area_width</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">pitch</span><span class="o">.</span><span class="n">goal_area_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">restart_y</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="n">lateral_limit</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">lateral_limit</span><span class="p">,</span> <span class="n">out_position</span><span class="o">.</span><span class="n">y</span><span class="p">))</span>
+
+        <span class="n">ball_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">restart_x</span><span class="p">,</span> <span class="n">restart_y</span><span class="p">)</span>
+
+        <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">ball_position</span>
+        <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">kicker</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">kicker</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">ball</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">ball_position</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="n">kicker</span><span class="o">.</span><span class="n">player_id</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">recent_pass_pairs</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ball</span><span class="p">,</span> <span class="s2">&quot;ground&quot;</span><span class="p">):</span>
+            <span class="n">ball</span><span class="o">.</span><span class="n">ground</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="n">defending_side</span><span class="p">,</span> <span class="n">player_id</span><span class="o">=</span><span class="n">kicker</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;goal_kick&quot;</span><span class="p">)</span>
+
+        <span class="n">team</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_team_for_side</span><span class="p">(</span><span class="n">defending_side</span><span class="p">)</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Goal kick awarded to </span><span class="si">{</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MatchEvent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;goal_kick&quot;</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">description</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;restart&quot;</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_restart_throw_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">awarding_side</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out_position</span><span class="p">:</span> <span class="n">Vector2D</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Award a throw-in and place the ball just inside the touchline.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        awarding_side : str</span>
+<span class="sd">            Side receiving the throw-in.</span>
+<span class="sd">        out_position : Vector2D</span>
+<span class="sd">            Ball exit position used to approximate restart coordinates.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clear_possession</span><span class="p">()</span>
+
+        <span class="n">team_players</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_team_players</span><span class="p">(</span><span class="n">awarding_side</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">team_players</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">pitch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">pitch</span>
+        <span class="n">half_width</span> <span class="o">=</span> <span class="n">pitch</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">half_height</span> <span class="o">=</span> <span class="n">pitch</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="n">line_y</span> <span class="o">=</span> <span class="n">half_height</span> <span class="k">if</span> <span class="n">out_position</span><span class="o">.</span><span class="n">y</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="o">-</span><span class="n">half_height</span>
+        <span class="n">inset</span> <span class="o">=</span> <span class="mf">0.2</span>
+        <span class="n">restart_y</span> <span class="o">=</span> <span class="n">line_y</span> <span class="o">-</span> <span class="n">inset</span> <span class="k">if</span> <span class="n">line_y</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">line_y</span> <span class="o">+</span> <span class="n">inset</span>
+        <span class="n">restart_x</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="o">-</span><span class="n">half_width</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">half_width</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">out_position</span><span class="o">.</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">ball_position</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="n">restart_x</span><span class="p">,</span> <span class="n">restart_y</span><span class="p">)</span>
+
+        <span class="n">thrower</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">team_players</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">distance_to</span><span class="p">(</span><span class="n">ball_position</span><span class="p">))</span>
+        <span class="n">recipient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_throw_in_recipient</span><span class="p">(</span><span class="n">team_players</span><span class="p">,</span> <span class="n">thrower</span><span class="p">)</span>
+
+        <span class="n">thrower</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">ball_position</span>
+        <span class="n">thrower</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">thrower</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">is_with_ball</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">thrower</span><span class="o">.</span><span class="n">current_target</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">ball</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">ball</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">ball_position</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_touched_by</span> <span class="o">=</span> <span class="n">thrower</span><span class="o">.</span><span class="n">player_id</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_touched_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">ball</span><span class="o">.</span><span class="n">recent_pass_pairs</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">recipient</span><span class="p">:</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="n">recipient</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="n">ball_position</span>
+            <span class="k">if</span> <span class="n">direction</span><span class="o">.</span><span class="n">magnitude</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">direction</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span> <span class="o">*</span> <span class="mf">8.0</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">last_kick_recipient</span> <span class="o">=</span> <span class="n">recipient</span><span class="o">.</span><span class="n">player_id</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">recent_pass_pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">thrower</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">recipient</span><span class="o">.</span><span class="n">player_id</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ball</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">Vector2D</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ball</span><span class="p">,</span> <span class="s2">&quot;ground&quot;</span><span class="p">):</span>
+            <span class="n">ball</span><span class="o">.</span><span class="n">ground</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_team_possession</span><span class="p">(</span><span class="n">awarding_side</span><span class="p">,</span> <span class="n">player_id</span><span class="o">=</span><span class="n">thrower</span><span class="o">.</span><span class="n">player_id</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;throw_in&quot;</span><span class="p">)</span>
+
+        <span class="n">team</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_team_for_side</span><span class="p">(</span><span class="n">awarding_side</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">recipient</span><span class="p">:</span>
+            <span class="n">description</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Throw-in awarded to </span><span class="si">{</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">. Thrower #</span><span class="si">{</span><span class="n">thrower</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2"> targeting #</span><span class="si">{</span><span class="n">recipient</span><span class="o">.</span><span class="n">player_id</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">description</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Throw-in awarded to </span><span class="si">{</span><span class="n">team</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MatchEvent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;throw_in&quot;</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">description</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span> <span class="s2">&quot;restart&quot;</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_log_match_statistics</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log aggregate match statistics.&quot;&quot;&quot;</span>
+        <span class="c1"># Calculate possession percentages</span>
+        <span class="n">total_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_possession_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_possession_time</span><span class="p">)</span>
+        <span class="n">home_poss_pct</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_possession_time</span> <span class="o">/</span> <span class="n">total_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="n">away_poss_pct</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_possession_time</span> <span class="o">/</span> <span class="n">total_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        
+        <span class="c1"># Get shot counts</span>
+        <span class="n">home_shots</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;shot&quot;</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">team</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_team</span><span class="p">)</span>
+        <span class="n">away_shots</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">events</span> <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">event_type</span> <span class="o">==</span> <span class="s2">&quot;shot&quot;</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">team</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_team</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">log_match_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="p">,</span>
+            <span class="s2">&quot;statistics&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;Time </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">match_time</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">s | Score: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_score</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_score</span><span class="si">}</span><span class="s2"> | &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Possession: </span><span class="si">{</span><span class="n">home_poss_pct</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">%-</span><span class="si">{</span><span class="n">away_poss_pct</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">% | &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Passes: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">home_passes_completed</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">away_passes_completed</span><span class="si">}</span><span class="s2"> | &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Shots: </span><span class="si">{</span><span class="n">home_shots</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">away_shots</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="RealTimeMatchEngine.stop_match">
+<a class="viewcode-back" href="../../../api/engine.html#touchline.engine.match_engine.RealTimeMatchEngine.stop_match">[docs]</a>
+    <span class="k">def</span> <span class="nf">stop_match</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stop the match simulation.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_running</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugger</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

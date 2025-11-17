@@ -1,0 +1,354 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>touchline.utils.generator &mdash; Touchline Football Simulator 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Touchline Football Simulator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Touchline Football Simulator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">touchline.utils.generator</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for touchline.utils.generator</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2025 Richard Owen</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;Utilities that synthesise test players and teams for quick simulations.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span> <span class="nn">touchline.engine.config</span> <span class="kn">import</span> <span class="n">ENGINE_CONFIG</span>
+<span class="kn">from</span> <span class="nn">touchline.models.player</span> <span class="kn">import</span> <span class="n">Player</span><span class="p">,</span> <span class="n">PlayerAttributes</span>
+<span class="kn">from</span> <span class="nn">touchline.models.team</span> <span class="kn">import</span> <span class="n">Formation</span><span class="p">,</span> <span class="n">Team</span>
+
+<span class="n">ROLE_IMPORTANT_ATTRIBUTES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;GK&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;positioning&quot;</span><span class="p">,</span> <span class="s2">&quot;decisions&quot;</span><span class="p">,</span> <span class="s2">&quot;strength&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tackling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;stamina&quot;</span><span class="p">,</span> <span class="s2">&quot;passing&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tackling&quot;</span><span class="p">,</span> <span class="s2">&quot;heading&quot;</span><span class="p">,</span> <span class="s2">&quot;strength&quot;</span><span class="p">,</span> <span class="s2">&quot;positioning&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;tackling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;stamina&quot;</span><span class="p">,</span> <span class="s2">&quot;passing&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;dribbling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;passing&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;passing&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">,</span> <span class="s2">&quot;decisions&quot;</span><span class="p">,</span> <span class="s2">&quot;stamina&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;dribbling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;passing&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;CF&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;shooting&quot;</span><span class="p">,</span> <span class="s2">&quot;positioning&quot;</span><span class="p">,</span> <span class="s2">&quot;strength&quot;</span><span class="p">,</span> <span class="s2">&quot;dribbling&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;shooting&quot;</span><span class="p">,</span> <span class="s2">&quot;dribbling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;shooting&quot;</span><span class="p">,</span> <span class="s2">&quot;dribbling&quot;</span><span class="p">,</span> <span class="s2">&quot;speed&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">],</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="generate_random_player">
+<a class="viewcode-back" href="../../../api/utils.html#touchline.utils.generator.generate_random_player">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_random_player</span><span class="p">(</span><span class="nb">id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">role</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Player</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a player with random attributes.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    id : int</span>
+<span class="sd">        Unique identifier assigned to the created player.</span>
+<span class="sd">    name : Optional[str]</span>
+<span class="sd">        Human-readable name to apply; a pseudo-random name is chosen when omitted.</span>
+<span class="sd">    role : Optional[str]</span>
+<span class="sd">        Preferred positional role influencing attribute weighting; random when ``None``.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Player</span>
+<span class="sd">        A newly constructed player instance with stochastic attribute scores.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Simple random name generation</span>
+        <span class="n">first_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;John&quot;</span><span class="p">,</span> <span class="s2">&quot;James&quot;</span><span class="p">,</span> <span class="s2">&quot;David&quot;</span><span class="p">,</span> <span class="s2">&quot;Michael&quot;</span><span class="p">,</span> <span class="s2">&quot;Robert&quot;</span><span class="p">,</span> <span class="s2">&quot;Carlos&quot;</span><span class="p">,</span> <span class="s2">&quot;Juan&quot;</span><span class="p">,</span> <span class="s2">&quot;Luis&quot;</span><span class="p">]</span>
+        <span class="n">last_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Smith&quot;</span><span class="p">,</span> <span class="s2">&quot;Johnson&quot;</span><span class="p">,</span> <span class="s2">&quot;Williams&quot;</span><span class="p">,</span> <span class="s2">&quot;Brown&quot;</span><span class="p">,</span> <span class="s2">&quot;Jones&quot;</span><span class="p">,</span> <span class="s2">&quot;Garcia&quot;</span><span class="p">,</span> <span class="s2">&quot;Rodriguez&quot;</span><span class="p">]</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">first_names</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">last_names</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">role</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ROLE_IMPORTANT_ATTRIBUTES</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+    <span class="c1"># Generate random attributes with role-specific weighting</span>
+    <span class="n">base_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="mi">80</span><span class="p">)</span>  <span class="c1"># Base range for attributes</span>
+    <span class="n">boost_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>  <span class="c1"># Boosted range for role-specific attributes</span>
+
+    <span class="k">def</span> <span class="nf">get_attribute</span><span class="p">(</span><span class="n">is_important</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_important</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="o">*</span><span class="n">boost_range</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="o">*</span><span class="n">base_range</span><span class="p">)</span>
+
+    <span class="c1"># Define important attributes for each role</span>
+    <span class="n">important_attrs</span> <span class="o">=</span> <span class="n">ROLE_IMPORTANT_ATTRIBUTES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">role</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;passing&quot;</span><span class="p">,</span> <span class="s2">&quot;vision&quot;</span><span class="p">,</span> <span class="s2">&quot;stamina&quot;</span><span class="p">])</span>
+
+    <span class="n">attributes</span> <span class="o">=</span> <span class="n">PlayerAttributes</span><span class="p">(</span>
+        <span class="c1"># Technical</span>
+        <span class="n">passing</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;passing&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">shooting</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;shooting&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">dribbling</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;dribbling&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">tackling</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;tackling&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">heading</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;heading&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="c1"># Physical</span>
+        <span class="n">speed</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;speed&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">stamina</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;stamina&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">strength</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;strength&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="c1"># Mental</span>
+        <span class="n">vision</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;vision&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">positioning</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;positioning&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+        <span class="n">decisions</span><span class="o">=</span><span class="n">get_attribute</span><span class="p">(</span><span class="s2">&quot;decisions&quot;</span> <span class="ow">in</span> <span class="n">important_attrs</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">Player</span><span class="p">(</span><span class="n">player_id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">35</span><span class="p">),</span> <span class="n">role</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="n">attributes</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_team">
+<a class="viewcode-back" href="../../../api/utils.html#touchline.utils.generator.generate_team">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_team</span><span class="p">(</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">formation_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;4-4-2&quot;</span><span class="p">,</span>
+    <span class="n">starting_player_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">side</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;home&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Team</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a team with random players using specified formation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    id : int</span>
+<span class="sd">        Unique identifier assigned to the generated team.</span>
+<span class="sd">    name : Optional[str]</span>
+<span class="sd">        Squad name to apply; synthesised when ``None``.</span>
+<span class="sd">    formation_name : str</span>
+<span class="sd">        Tactical formation blueprint to instantiate (for example ``&quot;4-4-2&quot;``).</span>
+<span class="sd">    starting_player_id : int</span>
+<span class="sd">        Identifier to use for the first generated player; increments for each additional player.</span>
+<span class="sd">    side : {&quot;home&quot;, &quot;away&quot;}</span>
+<span class="sd">        Which half of the pitch the generated starting XI should occupy. Home</span>
+<span class="sd">        sides line up in the negative X half, away sides in the positive half.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Team</span>
+<span class="sd">        Team object populated with starting XI and substitutes aligned to the requested formation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Simple random team name generation</span>
+        <span class="n">prefixes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;FC&quot;</span><span class="p">,</span> <span class="s2">&quot;United&quot;</span><span class="p">,</span> <span class="s2">&quot;City&quot;</span><span class="p">,</span> <span class="s2">&quot;Athletic&quot;</span><span class="p">,</span> <span class="s2">&quot;Sporting&quot;</span><span class="p">]</span>
+        <span class="n">cities</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;London&quot;</span><span class="p">,</span> <span class="s2">&quot;Madrid&quot;</span><span class="p">,</span> <span class="s2">&quot;Paris&quot;</span><span class="p">,</span> <span class="s2">&quot;Milan&quot;</span><span class="p">,</span> <span class="s2">&quot;Munich&quot;</span><span class="p">]</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">cities</span><span class="p">)</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">prefixes</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Define formation</span>
+    <span class="n">formation_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;4-4-2&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+        <span class="s2">&quot;4-3-3&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+        <span class="s2">&quot;3-5-2&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;RD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;LM&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;LCF&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">formation_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">formation_map</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported formation: </span><span class="si">{</span><span class="n">formation_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">formation</span> <span class="o">=</span> <span class="n">Formation</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">formation_name</span><span class="p">,</span> <span class="n">role_counts</span><span class="o">=</span><span class="n">formation_map</span><span class="p">[</span><span class="n">formation_name</span><span class="p">])</span>
+
+    <span class="c1"># Generate players</span>
+    <span class="n">players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Player</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">player_id</span> <span class="o">=</span> <span class="n">starting_player_id</span>
+
+    <span class="c1"># Add goalkeeper</span>
+    <span class="n">players</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">generate_random_player</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="s2">&quot;GK&quot;</span><span class="p">))</span>
+    <span class="n">player_id</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Add outfield players according to formation</span>
+    <span class="k">for</span> <span class="n">role_name</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">formation</span><span class="o">.</span><span class="n">role_counts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+            <span class="n">players</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">generate_random_player</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="n">role_name</span><span class="p">))</span>
+            <span class="n">player_id</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># Assign default kick-off locations for the starting XI</span>
+    <span class="n">_assign_start_positions</span><span class="p">(</span><span class="n">players</span><span class="p">,</span> <span class="n">side</span><span class="p">)</span>
+
+    <span class="c1"># Add some substitutes</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">7</span><span class="p">):</span>  <span class="c1"># 7 substitutes</span>
+        <span class="n">players</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">generate_random_player</span><span class="p">(</span><span class="n">player_id</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ROLE_IMPORTANT_ATTRIBUTES</span><span class="o">.</span><span class="n">keys</span><span class="p">()))))</span>
+        <span class="n">player_id</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">Team</span><span class="p">(</span><span class="n">team_id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">players</span><span class="o">=</span><span class="n">players</span><span class="p">,</span> <span class="n">formation</span><span class="o">=</span><span class="n">formation</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_assign_start_positions</span><span class="p">(</span><span class="n">players</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Player</span><span class="p">],</span> <span class="n">side</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Populate ``start_position`` for the first eleven players in-place.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    players : List[Player]</span>
+<span class="sd">        Roster whose leading eleven entries should receive starting coordinates.</span>
+<span class="sd">    side : str</span>
+<span class="sd">        ``&quot;home&quot;`` or ``&quot;away&quot;``; home teams start on the negative X half, away teams on the positive half.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">side</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;home&quot;</span><span class="p">,</span> <span class="s2">&quot;away&quot;</span><span class="p">}:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;side must be either &#39;home&#39; or &#39;away&#39;&quot;</span><span class="p">)</span>
+
+    <span class="n">direction</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">&quot;home&quot;</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">role_counts</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="n">players</span><span class="p">[:</span><span class="mi">11</span><span class="p">]:</span>
+        <span class="n">role_key</span> <span class="o">=</span> <span class="n">player</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="n">slot_index</span> <span class="o">=</span> <span class="n">role_counts</span><span class="p">[</span><span class="n">role_key</span><span class="p">]</span>
+        <span class="n">role_counts</span><span class="p">[</span><span class="n">role_key</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">base_x</span><span class="p">,</span> <span class="n">base_y</span> <span class="o">=</span> <span class="n">_formation_slot_offset</span><span class="p">(</span><span class="n">role_key</span><span class="p">,</span> <span class="n">slot_index</span><span class="p">)</span>
+        <span class="n">player</span><span class="o">.</span><span class="n">start_position</span> <span class="o">=</span> <span class="p">(</span><span class="n">direction</span> <span class="o">*</span> <span class="n">base_x</span><span class="p">,</span> <span class="n">base_y</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_formation_slot_offset</span><span class="p">(</span><span class="n">role</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the default formation slot coordinates for ``role``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    role : str</span>
+<span class="sd">        Role identifier such as ``&quot;CM&quot;`` or ``&quot;RCF&quot;``.</span>
+<span class="sd">    index : int</span>
+<span class="sd">        Zero-based slot index among teammates sharing the same role.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Tuple[float, float]</span>
+<span class="sd">        ``(x, y)`` coordinates relative to the pitch centre.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ENGINE_CONFIG</span><span class="o">.</span><span class="n">formation</span>
+    <span class="n">role</span> <span class="o">=</span> <span class="n">role</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;GK&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">goalkeeper_x</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;RD&quot;</span><span class="p">,</span> <span class="s2">&quot;LD&quot;</span><span class="p">}:</span>
+        <span class="n">base_offset</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">fullback_base_offset</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RD&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">fullback_base_offset</span>
+        <span class="n">stagger</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">fullback_stagger</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RD&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">fullback_stagger</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">base_offset</span> <span class="o">+</span> <span class="n">index</span> <span class="o">*</span> <span class="n">stagger</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">fullback_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;CD&quot;</span><span class="p">:</span>
+        <span class="n">offsets</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">centreback_offsets</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">centreback_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;RM&quot;</span><span class="p">,</span> <span class="s2">&quot;LM&quot;</span><span class="p">}:</span>
+        <span class="n">base_offset</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">wide_midfielder_base_offset</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RM&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">wide_midfielder_base_offset</span>
+        <span class="n">stagger</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">wide_midfielder_stagger</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RM&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">wide_midfielder_stagger</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">base_offset</span> <span class="o">+</span> <span class="n">index</span> <span class="o">*</span> <span class="n">stagger</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">wide_midfielder_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;CM&quot;</span><span class="p">:</span>
+        <span class="n">offsets</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">central_midfielder_offsets</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">central_midfielder_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;RCF&quot;</span><span class="p">,</span> <span class="s2">&quot;LCF&quot;</span><span class="p">}:</span>
+        <span class="n">base_offset</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">wide_forward_base_offset</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RCF&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">wide_forward_base_offset</span>
+        <span class="n">stagger</span> <span class="o">=</span> <span class="o">-</span><span class="n">cfg</span><span class="o">.</span><span class="n">wide_forward_stagger</span> <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;RCF&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">wide_forward_stagger</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">base_offset</span> <span class="o">+</span> <span class="n">index</span> <span class="o">*</span> <span class="n">stagger</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">centre_forward_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">role</span> <span class="o">==</span> <span class="s2">&quot;CF&quot;</span><span class="p">:</span>
+        <span class="n">offsets</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">centre_forward_offsets</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">offsets</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">centre_forward_x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="c1"># Fallback to a central midfielder slot when the role is unknown.</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">central_midfielder_x</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, WelshDragon.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
